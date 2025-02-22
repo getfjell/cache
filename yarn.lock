@@ -1407,13 +1407,13 @@ __metadata:
   dependencies:
     "@babel/preset-env": "npm:^7.26.9"
     "@babel/preset-typescript": "npm:^7.26.0"
-    "@fjell/client-api": "npm:^4.3.0"
-    "@fjell/core": "npm:^4.3.1"
-    "@fjell/http-api": "npm:^4.3.0"
-    "@fjell/logging": "npm:^4.3.4"
+    "@fjell/client-api": "npm:^4.3"
+    "@fjell/core": "npm:^4.3"
+    "@fjell/http-api": "npm:^4.3"
+    "@fjell/logging": "npm:^4.3"
     "@jest/globals": "npm:^29.7.0"
     "@tsconfig/recommended": "npm:^1.0.8"
-    "@types/babel__preset-env": "npm:^7"
+    "@types/babel__preset-env": "npm:^7.10.0"
     "@types/d3": "npm:^7.4.3"
     "@types/jest": "npm:^29.5.14"
     "@types/multer": "npm:^1.4.12"
@@ -1436,7 +1436,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@fjell/client-api@npm:^4.3.0":
+"@fjell/client-api@npm:^4.3":
   version: 4.3.0
   resolution: "@fjell/client-api@npm:4.3.0"
   dependencies:
@@ -1447,7 +1447,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@fjell/core@npm:^4.3.1":
+"@fjell/core@npm:^4.3, @fjell/core@npm:^4.3.1":
   version: 4.3.1
   resolution: "@fjell/core@npm:4.3.1"
   dependencies:
@@ -1458,12 +1458,32 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@fjell/http-api@npm:^4.3":
+  version: 4.3.2
+  resolution: "@fjell/http-api@npm:4.3.2"
+  dependencies:
+    "@fjell/logging": "npm:^4.3.4"
+  checksum: 10c0/05cc96d4df3455eb538753307f168728a23fcea70f7185f471c65ce2a8312c3aeb64602240e94d2cf90ad249ddc37c7e11e9b0e264be897c709da474afddb5a7
+  languageName: node
+  linkType: hard
+
 "@fjell/http-api@npm:^4.3.0":
   version: 4.3.0
   resolution: "@fjell/http-api@npm:4.3.0"
   dependencies:
     "@fjell/logging": "npm:^4.3.4"
   checksum: 10c0/b101b3f7bf1c1507dca86dfb6cf97d774234f3142b9a5849469d4efeb1e4ddb29e96679de9411aefc920f66eb3f90380df2f280a8472ee82af153618c9ccf40e
+  languageName: node
+  linkType: hard
+
+"@fjell/logging@npm:^4.3":
+  version: 4.3.8
+  resolution: "@fjell/logging@npm:4.3.8"
+  dependencies:
+    "@types/node": "npm:^22.13.4"
+    flatted: "npm:^3.3.3"
+    ts-node: "npm:^10.9.2"
+  checksum: 10c0/a9f785913b9b824d19315f8f9cbf0653cda836ba01afa589429fb2da6fefcbee71d140cfbdd80fdabcfc557fedd7ee25f60048544c6ddeb5817ebe5073523beb
   languageName: node
   linkType: hard
 
@@ -1979,7 +1999,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/babel__preset-env@npm:^7":
+"@types/babel__preset-env@npm:^7.10.0":
   version: 7.10.0
   resolution: "@types/babel__preset-env@npm:7.10.0"
   checksum: 10c0/5ad0c3a8bec4f7612ee8aeecb4ee94494d3bc193f6da608cd118175e726bb2cf649515aded650defb968bfae4ec6e6c52c0c06fc83be261c0b8eaa3f8f2cf336
