@@ -1,7 +1,7 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.4.2",
+  "version": "4.4.3",
   "license": "Apache-2.0",
   "main": "./dist/src/index.js",
   "exports": {
@@ -20,10 +20,10 @@
     "test": "yarn run lint && NODE_OPTIONS='--experimental-require-module' yarn run jest --coverage"
   },
   "dependencies": {
-    "@fjell/client-api": "^4.3.2",
-    "@fjell/core": "^4.3.3",
-    "@fjell/http-api": "^4.3.4",
-    "@fjell/logging": "^4.3.8",
+    "@fjell/client-api": "^4.3",
+    "@fjell/core": "^4.3",
+    "@fjell/http-api": "^4.3",
+    "@fjell/logging": "^4.3",
     "d3": "^7.9.0",
     "dayjs": "^1.11.13",
     "react": "18.3.1"
