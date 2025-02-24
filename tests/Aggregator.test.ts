@@ -1,11 +1,10 @@
-/* eslint-disable max-lines */
-import { AItemAggregator, CacheConfig, toCacheConfig } from '@/AItemAggregator';
-import { AItemCache } from '@/AItemCache';
+ 
+import { CacheConfig, createAggregator, toCacheConfig } from '@/Aggregator';
+import { Aggregator } from '@/Aggregator';
 import { Cache } from '@/Cache';
 import { CacheMap } from '@/CacheMap';
 import { Item, PriKey } from '@fjell/core';
 
-jest.mock('@/AItemCache');
 jest.mock('@/CacheMap');
 
 jest.mock('@fjell/logging', () => {
@@ -28,10 +27,10 @@ jest.mock('@fjell/logging', () => {
   }
 });
 
-describe('AItemAggregator', () => {
+describe('Aggregator', () => {
   let otherCacheMock: jest.Mocked<Cache<Item<"other">, "other">>;
-  let itemCacheMock: jest.Mocked<AItemCache<Item<"test">, "test">>;
-  let aggregator: AItemAggregator<Item<"test">, "test">;
+  let itemCacheMock: jest.Mocked<Cache<Item<"test">, "test">>;
+  let aggregator: Aggregator<Item<"test">, "test">;
   let cacheMapMock: jest.Mocked<CacheMap<Item<"test">, "test">>;
 
   const key1 = {
@@ -95,12 +94,12 @@ describe('AItemAggregator', () => {
       remove: jest.fn(),
       update: jest.fn(),
       find: jest.fn(),
-    } as unknown as jest.Mocked<AItemCache<Item<"test">, "test">>;
+    } as unknown as jest.Mocked<Cache<Item<"test">, "test">>;
     otherCacheMock = {
       retrieve: jest.fn(),
     } as unknown as jest.Mocked<Cache<Item<"other">, "other">>;
 
-    aggregator = new AItemAggregator(itemCacheMock, {
+    aggregator = createAggregator(itemCacheMock, {
       aggregates: {
         other: { cache: otherCacheMock, optional: false },
         other2: { cache: otherCacheMock, optional: true },
@@ -114,7 +113,7 @@ describe('AItemAggregator', () => {
     // @ts-ignore
     otherCacheMock.retrieve.mockReturnValue([null, otherItems[0]]);
 
-    const populatedItem = await aggregator['populate'](items[0]);
+    const populatedItem = await aggregator.populate(items[0]);
 
     expect(populatedItem.aggs).toHaveProperty('other');
     expect(populatedItem.aggs?.['other'].item).toEqual(otherItems[0]);
@@ -131,12 +130,12 @@ describe('AItemAggregator', () => {
       refs: {}
     } as Item<"test">;
 
-    await expect(aggregator['populate'](itemWithMissingRef))
+    await expect(aggregator.populate(itemWithMissingRef))
       .rejects.toThrow('Item does not have mandatory ref with key, not optional other');
   });
 
   it('should handle optional references gracefully', async () => {
-    aggregator = new AItemAggregator(itemCacheMock, {
+    aggregator = createAggregator(itemCacheMock, {
       aggregates: {
         other: { cache: otherCacheMock, optional: true },
         other2: { cache: otherCacheMock, optional: true },
@@ -154,13 +153,13 @@ describe('AItemAggregator', () => {
       refs: {}
     } as Item<"test">;
 
-    const populatedItem = await aggregator['populate'](itemWithMissingOptionalRef);
+    const populatedItem = await aggregator.populate(itemWithMissingOptionalRef);
 
     expect(populatedItem.aggs).toBeUndefined();
   });
 
   it('should throw error for missing non-optional references', async () => {
-    aggregator = new AItemAggregator(itemCacheMock, {
+    aggregator = createAggregator(itemCacheMock, {
       aggregates: {
         other: { cache: otherCacheMock, optional: false },
       },
@@ -178,12 +177,12 @@ describe('AItemAggregator', () => {
     } as Item<"test">;
 
     await expect(
-      aggregator['populate'](itemWithMissingOptionalRef)
+      aggregator.populate(itemWithMissingOptionalRef)
     ).rejects.toThrow('Item does not have mandatory ref with key, not optional other');
   });
 
   it('should throw error for missing references entirely', async () => {
-    aggregator = new AItemAggregator(itemCacheMock, {
+    aggregator = createAggregator(itemCacheMock, {
       aggregates: {
         other: { cache: otherCacheMock, optional: false },
       },
@@ -200,7 +199,7 @@ describe('AItemAggregator', () => {
     } as Item<"test">;
 
     await expect(
-      aggregator['populate'](itemWithMissingOptionalRef)
+      aggregator.populate(itemWithMissingOptionalRef)
     ).rejects.toThrow('Item does not have refs an is not optional');
   });
 
@@ -209,7 +208,7 @@ describe('AItemAggregator', () => {
       retrieve: jest.fn(),
     } as unknown as jest.Mocked<Cache<Item<"other">, "other">>;
 
-    aggregator = new AItemAggregator(itemCacheMock, {
+    aggregator = createAggregator(itemCacheMock, {
       aggregates: {},
       events: {
         created: { cache: eventCacheMock, optional: false }
@@ -227,7 +226,7 @@ describe('AItemAggregator', () => {
     // @ts-ignore
     eventCacheMock.retrieve.mockReturnValue([null, otherItems[0]]);
 
-    const populatedItem = await aggregator['populate'](itemWithEvent);
+    const populatedItem = await aggregator.populate(itemWithEvent);
 
     expect(populatedItem.events?.created.agg).toEqual(otherItems[0]);
   });
@@ -237,7 +236,7 @@ describe('AItemAggregator', () => {
       retrieve: jest.fn(),
     } as unknown as jest.Mocked<Cache<Item<"other">, "other">>;
 
-    aggregator = new AItemAggregator(itemCacheMock, {
+    aggregator = createAggregator(itemCacheMock, {
       aggregates: {},
       events: {
         created: { cache: eventCacheMock, optional: false }
@@ -253,7 +252,7 @@ describe('AItemAggregator', () => {
     eventCacheMock.retrieve.mockReturnValue([null, otherItems[0]]);
 
     await expect(
-      aggregator['populate'](itemWithEvent)
+      aggregator.populate(itemWithEvent)
     ).rejects.toThrow('Item does not have events');
   });
 
@@ -262,7 +261,7 @@ describe('AItemAggregator', () => {
       retrieve: jest.fn(),
     } as unknown as jest.Mocked<Cache<Item<"other">, "other">>;
 
-    aggregator = new AItemAggregator(itemCacheMock, {
+    aggregator = createAggregator(itemCacheMock, {
       aggregates: {},
       events: {
         created: { cache: eventCacheMock, optional: false }
@@ -281,7 +280,7 @@ describe('AItemAggregator', () => {
     eventCacheMock.retrieve.mockReturnValue([null, otherItems[0]]);
 
     expect(
-      aggregator['populate'](itemWithEvent)
+      aggregator.populate(itemWithEvent)
     ).rejects.toThrow('populateEvent with an Event that does not have by');
   });
 
@@ -290,7 +289,7 @@ describe('AItemAggregator', () => {
       retrieve: jest.fn(),
     } as unknown as jest.Mocked<Cache<Item<"other">, "other"> >;
 
-    aggregator = new AItemAggregator(itemCacheMock, {
+    aggregator = createAggregator(itemCacheMock, {
       aggregates: {},
       events: {
         created: { cache: eventCacheMock, optional: false }
@@ -303,7 +302,7 @@ describe('AItemAggregator', () => {
       refs: {}
     } as Item<"test">;
 
-    await expect(aggregator['populate'](itemWithMissingEvent))
+    await expect(aggregator.populate(itemWithMissingEvent))
       .rejects.toThrow('Item does not have mandatory event with key created');
   });
 
@@ -312,7 +311,7 @@ describe('AItemAggregator', () => {
       retrieve: jest.fn(),
     } as unknown as jest.Mocked<Cache<Item<"other">, "other"> >;
 
-    aggregator = new AItemAggregator(itemCacheMock, {
+    aggregator = createAggregator(itemCacheMock, {
       aggregates: {},
       events: {
         created: { cache: eventCacheMock, optional: true }
@@ -325,7 +324,7 @@ describe('AItemAggregator', () => {
       refs: {}
     } as Item<"test">;
 
-    const populatedItem = await aggregator['populate'](itemWithMissingOptionalEvent);
+    const populatedItem = await aggregator.populate(itemWithMissingOptionalEvent);
 
     expect(populatedItem.events?.created).toBeUndefined();
   });
@@ -493,12 +492,6 @@ describe('AItemAggregator', () => {
 
       expect(aggregatedItems[0]?.aggs?.other.item).toEqual(otherItems[0]);
     });
-  });
-
-  test('constructor with defaults', () => {
-    const cache = new AItemAggregator(itemCacheMock, {});
-    expect(cache['aggregates']).toEqual({});
-    expect(cache['events']).toEqual({});
   });
 
 });

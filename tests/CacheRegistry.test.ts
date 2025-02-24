@@ -1,8 +1,7 @@
 import { CItemApi, PItemApi } from '@fjell/client-api';
 import { Item } from '@fjell/core';
 import { CacheRegistry } from '@/CacheRegistry';
-import { CItemCache } from '@/CItemCache';
-import { PItemCache } from '@/PItemCache';
+import { createCache } from '@/Cache';
 
 jest.mock('@fjell/logging', () => {
   return {
@@ -38,7 +37,7 @@ describe('CacheRegistry', () => {
     get: jest.fn()
   } as unknown as jest.Mocked<PItemApi<Item<"test">, "test">>;
 
-  const pItemCache = new PItemCache<Item<'test'>, 'test'>("test", pItemApi, "test")
+  const pItemCache = createCache<Item<'test'>, 'test'>(pItemApi, "test")
 
   const cItemApi = {
     all: jest.fn(),
@@ -51,8 +50,8 @@ describe('CacheRegistry', () => {
     get: jest.fn()
   } as unknown as jest.Mocked<CItemApi<Item<"container", "test">, "container", "test">>;
 
-  const cItemCache = new CItemCache<Item<'container', 'test'>, 'container', 'test'>(
-    "container", cItemApi, "container", pItemCache
+  const cItemCache = createCache<Item<'container', 'test'>, 'container', 'test'>(
+    cItemApi, "container", pItemCache
   );
 
   beforeEach(() => {

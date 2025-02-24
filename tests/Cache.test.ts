@@ -1,9 +1,7 @@
 import { ClientApi } from "@fjell/client-api";
 import { ComKey, Item, ItemProperties } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
-import { AItemCache } from "@/AItemCache";
-import { CacheMap } from "@/CacheMap";
-
+import { Cache, createCache } from "@/Cache";
 jest.mock('@fjell/logging', () => {
   return {
     get: jest.fn().mockReturnThis(),
@@ -28,7 +26,7 @@ jest.mock("@/CacheMap");
 
 describe("AItemCache", () => {
   let api: jest.Mocked<ClientApi<Item<"test", "container">, "test", "container">>;
-  let cache: AItemCache<Item<"test", "container">, "test", "container">;
+  let cache: Cache<Item<"test", "container">, "test", "container">;
 
   const key1 = {
     kt: "test",
@@ -72,7 +70,7 @@ describe("AItemCache", () => {
       get: jest.fn(),
       find: jest.fn().mockResolvedValue(items)
     } as unknown as jest.Mocked<ClientApi<Item<"test", "container">, "test", "container">>;
-    cache = new AItemCache("testCache", api, "test");
+    cache = createCache<Item<"test", "container">, "test", "container">(api, "test");
   });
 
   afterEach(() => {
@@ -329,16 +327,6 @@ describe("AItemCache", () => {
     await expect(cache.retrieve(key1)).rejects.toThrow(error);
     expect(cache.cacheMap.includesKey).toHaveBeenCalledWith(key1);
     expect(api.get).toHaveBeenCalledWith(key1, {});
-  });
-
-  test("should load cache correctly", async () => {
-    const newCacheMap = new Map();
-    newCacheMap.set(key1, items[0]);
-    newCacheMap.set(key2, items[1]);
-
-    await cache.loadCache(newCacheMap as unknown as CacheMap<Item<"test", "container">, "test", "container">);
-
-    expect(cache.cacheMap).toEqual(newCacheMap);
   });
 
   test("find should return null if item not found", async () => {

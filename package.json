@@ -1,16 +1,8 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.4.3",
+  "version": "4.5.0",
   "license": "Apache-2.0",
-  "main": "./dist/src/index.js",
-  "exports": {
-    ".": {
-      "require": "./dist/src/index.js",
-      "types": "./dist/src/index.d.ts",
-      "default": "./dist/src/index.js"
-    }
-  },
   "type": "module",
   "scripts": {
     "lint": "eslint .",
