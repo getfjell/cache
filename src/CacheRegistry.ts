@@ -1,7 +1,5 @@
 import { Item } from "@fjell/core";
-import { PItemCache } from "./PItemCache";
-import { CItemCache } from "./CItemCache";
-
+import { Cache } from "./Cache";
 import LibLogger from './logger';
 
 const logger = LibLogger.get('CacheRegistry');
@@ -33,9 +31,8 @@ export class CacheRegistry {
     L3 extends string = never,
     L4 extends string = never,
     L5 extends string = never
-  >(cache: PItemCache<Item<S>, S> |
-    CItemCache<Item<S, L1, L2, L3, L4, L5>, S, L1, L2, L3, L4, L5>): void => {
-    this.cacheMap[JSON.stringify(cache.getKeyTypes())] = cache;
+  >(cache: Cache<Item<S, L1, L2, L3, L4, L5>, S, L1, L2, L3, L4, L5>): void => {
+    this.cacheMap[JSON.stringify(cache.pkTypes)] = cache;
   };
 
   public isConfigured = (): boolean => {

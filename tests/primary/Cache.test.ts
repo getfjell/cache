@@ -1,5 +1,5 @@
 import { CacheMap } from '@/CacheMap';
-import { PItemCache } from '@/PItemCache';
+import { Cache, createCache } from '@/Cache';
 import { PItemApi } from '@fjell/client-api';
 import { Item, ItemProperties, PriKey } from '@fjell/core';
 
@@ -30,7 +30,7 @@ type TestItem = Item<'test'>;
 
 describe('PItemCache', () => {
   let apiMock: jest.Mocked<PItemApi<TestItem, 'test'>>;
-  let cache: PItemCache<TestItem, 'test'>;
+  let cache: Cache<TestItem, 'test'>;
 
   const key1 = {
     kt: "test", pk: "123e4567-e89b-12d3-a456-426614174000",
@@ -74,7 +74,7 @@ describe('PItemCache', () => {
       find: jest.fn().mockReturnValue(items),
     } as unknown as jest.Mocked<PItemApi<TestItem, 'test'>>;
 
-    cache = new PItemCache('testCache', apiMock, 'test');
+    cache = createCache(apiMock, 'test');
   });
 
   it('should call all method', async () => {

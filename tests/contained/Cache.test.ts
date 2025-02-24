@@ -1,7 +1,6 @@
+import { Cache, createCache } from "@/Cache";
 import { CItemApi } from "@fjell/client-api";
 import { ComKey, Item, ItemProperties, ItemQuery, LocKey, LocKeyArray, UUID } from "@fjell/core";
-import { CItemCache } from "@/CItemCache";
-import { PItemCache } from "@/PItemCache";
 
 jest.mock('@fjell/logging', () => {
   return {
@@ -29,11 +28,11 @@ type ContainerItem = Item<"container">;
 type TestItem = Item<"test", "container">;
 type TestKey = ComKey<"test", "container">;
 
-describe("CItemCache", () => {
+describe("Combined Item Cache Tests", () => {
 
-  let mockParentCache: jest.Mocked<PItemCache<ContainerItem, 'container'>>;
+  let mockParentCache: jest.Mocked<Cache<ContainerItem, 'container'>>;
   let mockApi: CItemApi<TestItem, "test", "container">;
-  let itemCache: CItemCache<TestItem, "test", "container">;
+  let itemCache: Cache<TestItem, "test", "container">;
 
   const loc1: [LocKey<"container">] = [{ kt: "container", lk: "123e4567-e89b-12d3-a456-426614174100" }];
   const loc2: [LocKey<"container">] = [{ kt: "container", lk: "123e4567-e89b-12d3-a456-426614174101" }];
@@ -88,7 +87,7 @@ describe("CItemCache", () => {
       allAction: jest.fn(),
       get: jest.fn(),
       getKeyTypes: jest.fn().mockReturnValue(["container"]),
-    } as unknown as jest.Mocked<PItemCache<ContainerItem, 'container'>>
+    } as unknown as jest.Mocked<Cache<ContainerItem, 'container'>>
 
     mockApi = {
       all: jest.fn(),
@@ -102,7 +101,7 @@ describe("CItemCache", () => {
       find: jest.fn()
     } as unknown as jest.Mocked<CItemApi<TestItem, "test", "container">>;
 
-    itemCache = new CItemCache<TestItem, "test", "container">("testCache", mockApi, "test", mockParentCache);
+    itemCache = createCache<TestItem, "test", "container">(mockApi, "test", mockParentCache);
 
   });
 
