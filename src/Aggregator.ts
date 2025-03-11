@@ -255,6 +255,8 @@ export const createAggregator = <
     v: V
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('set', { key, v });
+
+    // TODO: There should be some input validation here to ensure a valid item.
     const [cacheMap, item] = await cache.set(key, v);
     const populatedItem = await populate(item);
     return [cacheMap, populatedItem];
