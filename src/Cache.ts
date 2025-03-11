@@ -78,6 +78,11 @@ export interface Cache<
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]>;
 
+  set: (
+    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+    v: V
+  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
+
   reset: () => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>]>;
 
   pkTypes: AllItemTypeArrays<S, L1, L2, L3, L4, L5>;
@@ -318,6 +323,15 @@ export const createCache = <
     return [cacheMap];
   }
 
+  const set = async (
+    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+    v: V
+  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
+    logger.default('set', { key, v });
+    cacheMap.set(key, v);
+    return [cacheMap, validatePK(v, pkType) as V];
+  }
+
   return {
     all,
     one,
@@ -330,6 +344,7 @@ export const createCache = <
     update,
     find,
     reset,
+    set,
     pkTypes,
     cacheMap
   }

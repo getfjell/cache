@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
  
 import { CacheConfig, createAggregator, toCacheConfig } from '@/Aggregator';
 import { Aggregator } from '@/Aggregator';
@@ -94,6 +95,7 @@ describe('Aggregator', () => {
       remove: jest.fn(),
       update: jest.fn(),
       find: jest.fn(),
+      set: jest.fn(),
     } as unknown as jest.Mocked<Cache<Item<"test">, "test">>;
     otherCacheMock = {
       retrieve: jest.fn(),
@@ -491,6 +493,16 @@ describe('Aggregator', () => {
       const [,aggregatedItems] = await aggregator.find('someFinder', {});
 
       expect(aggregatedItems[0]?.aggs?.other.item).toEqual(otherItems[0]);
+    });
+
+    it('set', async () => {
+      itemCacheMock.set.mockResolvedValue([cacheMapMock, items[0]]);
+      // @ts-ignore
+      otherCacheMock.retrieve.mockReturnValue([null, otherItems[0]]);
+
+      const [,aggregatedItem] = await aggregator.set(items[0].key, items[0]);
+
+      expect(aggregatedItem?.aggs?.other.item).toEqual(otherItems[0]);
     });
   });
 

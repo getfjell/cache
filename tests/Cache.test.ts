@@ -68,7 +68,7 @@ describe("AItemCache", () => {
       update: jest.fn(),
       allAction: jest.fn(),
       get: jest.fn(),
-      find: jest.fn().mockResolvedValue(items)
+      find: jest.fn().mockResolvedValue(items),
     } as unknown as jest.Mocked<ClientApi<Item<"test", "container">, "test", "container">>;
     cache = createCache<Item<"test", "container">, "test", "container">(api, "test");
   });
@@ -333,5 +333,12 @@ describe("AItemCache", () => {
     const [, result] = await cache.find('someFinder', {});
 
     expect(result).toEqual(items);
+  });
+
+  test("set should update cache", async () => {
+    const item: Item<"test", "container"> = items[0];
+    await cache.set(key1, item);
+
+    expect(cache.cacheMap.set).toHaveBeenCalledWith(key1, item);
   });
 });
