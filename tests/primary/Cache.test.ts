@@ -146,4 +146,11 @@ describe('PItemCache', () => {
     expect(apiMock.find).toHaveBeenCalledWith('someFinder', {}, {}, []);
     expect(result).toEqual([expect.any(CacheMap), expect.any(Object)]);
   });
+
+  it('should call set method', async () => {
+    const result = await cache.set(key1, items[0]);
+
+    expect(apiMock.update).not.toHaveBeenCalledWith(key1, items[0], {});
+    expect(result).toEqual([expect.any(CacheMap), expect.any(Object)]);
+  });
 });

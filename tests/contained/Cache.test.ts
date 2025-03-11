@@ -87,6 +87,7 @@ describe("Combined Item Cache Tests", () => {
       allAction: jest.fn(),
       get: jest.fn(),
       getKeyTypes: jest.fn().mockReturnValue(["container"]),
+      set: jest.fn(),
     } as unknown as jest.Mocked<Cache<ContainerItem, 'container'>>
 
     mockApi = {
@@ -98,7 +99,8 @@ describe("Combined Item Cache Tests", () => {
       update: jest.fn(),
       allAction: jest.fn(),
       get: jest.fn(),
-      find: jest.fn()
+      find: jest.fn(),
+      set: jest.fn(),
     } as unknown as jest.Mocked<CItemApi<TestItem, "test", "container">>;
 
     itemCache = createCache<TestItem, "test", "container">(mockApi, "test", mockParentCache);
@@ -196,6 +198,13 @@ describe("Combined Item Cache Tests", () => {
     await itemCache.find(finder, {}, locations);
 
     expect(mockApi.find).toHaveBeenCalledWith(finder, {}, {}, locations);
+  });
+
+  it("should call the set method with correct parameters", async () => {
+    // @ts-ignore
+    mockApi.get.mockResolvedValue(items[0]);
+    await itemCache.set(key1, items[0]);
+    expect(mockApi.update).not.toHaveBeenCalledWith(key1, items[0]);
   });
 
   // TODO: There's something weird here that we need a unified approach to locations is optional?

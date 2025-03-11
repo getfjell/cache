@@ -250,6 +250,16 @@ export const createAggregator = <
     return [cacheMap, populatedItems];
   }
 
+  const set = async (
+    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+    v: V
+  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
+    logger.default('set', { key, v });
+    const [cacheMap, item] = await cache.set(key, v);
+    const populatedItem = await populate(item);
+    return [cacheMap, populatedItem];
+  }
+
   const reset = async (): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>]> => {
     const cacheMap = await cache.reset();
     return cacheMap;
@@ -267,6 +277,7 @@ export const createAggregator = <
     update,
     find,
     reset,
+    set,
     pkTypes: cache.pkTypes,
     cacheMap: cache.cacheMap,
     populate,
