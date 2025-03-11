@@ -153,4 +153,31 @@ describe('PItemCache', () => {
     expect(apiMock.update).not.toHaveBeenCalledWith(key1, items[0], {});
     expect(result).toEqual([expect.any(CacheMap), expect.any(Object)]);
   });
+
+  it('should throw error when setting item with malformed key', async () => {
+    const malformedKey = {
+      kt: 'whatever',
+      pk: "not-a-valid-uuid" // Invalid UUID format
+    } as unknown as PriKey<"test">;
+
+    const malformedItem = {
+      ...items[0],
+      key: malformedKey
+    };
+
+    await expect(cache.set(malformedKey, malformedItem as unknown as TestItem))
+      .rejects
+      .toThrow("Item does not have the correct primary key type");
+  });
+
+  it('should throw error when setting item with mismatched keys', async () => {
+    const differentKey = {
+      kt: 'whatever',
+      pk: '123e4567-e89b-12d3-a456-426614174000'
+    } as unknown as PriKey<"test">;
+
+    await expect(cache.set(differentKey, items[0]))
+      .rejects
+      .toThrow('Key does not match item key');
+  });
 });

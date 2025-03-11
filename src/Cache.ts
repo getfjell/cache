@@ -1,6 +1,7 @@
 import {
   AllItemTypeArrays,
   ComKey,
+  isItemKeyEqual,
   isValidItemKey,
   Item,
   ItemQuery,
@@ -169,6 +170,8 @@ export const createCache = <
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('action', { key, action, body });
 
+    // TODO: This is validating the key, but it doesn't have knowledge of the pkType
+    // This should be looking at the parentCaches and calculating an array of pkTypes
     if (!isValidItemKey(key)) {
       logger.error('Key for Action is not a valid ItemKey: %j', key);
       throw new Error('Key for Action is not a valid ItemKey');
@@ -216,6 +219,8 @@ export const createCache = <
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V | null]> => {
     logger.default('get', { key });
+    // TODO: This is validating the key, but it doesn't have knowledge of the pkType
+    // This should be looking at the parentCaches and calculating an array of pkTypes
     if (!isValidItemKey(key)) {
       logger.error('Key for Get is not a valid ItemKey: %j', key);
       throw new Error('Key for Get is not a valid ItemKey');
@@ -270,6 +275,8 @@ export const createCache = <
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
   ): Promise<CacheMap<V, S, L1, L2, L3, L4, L5>> => {
     logger.default('remove', { key });
+    // TODO: This is validating the key, but it doesn't have knowledge of the pkType
+    // This should be looking at the parentCaches and calculating an array of pkTypes
     if (!isValidItemKey(key)) {
       logger.error('Key for Remove is not a valid ItemKey: %j', key);
       throw new Error('Key for Remove is not a valid ItemKey');
@@ -290,6 +297,8 @@ export const createCache = <
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('update', { key, v });
 
+    // TODO: This is validating the key, but it doesn't have knowledge of the pkType
+    // This should be looking at the parentCaches and calculating an array of pkTypes
     if (!isValidItemKey(key)) {
       logger.error('Key for Update is not a valid ItemKey: %j', key);
       throw new Error('Key for Update is not a valid ItemKey');
@@ -328,6 +337,22 @@ export const createCache = <
     v: V
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('set', { key, v });
+    
+    // TODO: This is validating the key, but it doesn't have knowledge of the pkType
+    // This should be looking at the parentCaches and calculating an array of pkTypes
+    if (!isValidItemKey(key)) {
+      logger.error('Key for Update is not a valid ItemKey: %j', key);
+      throw new Error('Key for Update is not a valid ItemKey');
+    }
+
+    // TODO: This could be merged with the isValidItemKey check, later.
+    validatePK(v, pkType);
+
+    if (!isItemKeyEqual(key, v.key)) {
+      logger.error('Key does not match item key: %j != %j', key, v.key);
+      throw new Error('Key does not match item key');
+    }
+
     cacheMap.set(key, v);
     return [cacheMap, validatePK(v, pkType) as V];
   }

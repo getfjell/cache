@@ -1,6 +1,6 @@
 import { Cache, createCache } from "@/Cache";
 import { CItemApi } from "@fjell/client-api";
-import { ComKey, Item, ItemProperties, ItemQuery, LocKey, LocKeyArray, UUID } from "@fjell/core";
+import { ComKey, Item, ItemProperties, ItemQuery, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/core";
 
 jest.mock('@fjell/logging', () => {
   return {
@@ -200,13 +200,6 @@ describe("Combined Item Cache Tests", () => {
     expect(mockApi.find).toHaveBeenCalledWith(finder, {}, {}, locations);
   });
 
-  it("should call the set method with correct parameters", async () => {
-    // @ts-ignore
-    mockApi.get.mockResolvedValue(items[0]);
-    await itemCache.set(key1, items[0]);
-    expect(mockApi.update).not.toHaveBeenCalledWith(key1, items[0]);
-  });
-
   // TODO: There's something weird here that we need a unified approach to locations is optional?
   it("should call the find method with correct parameters and no locations", async () => {
     const finder = "testFinder";
@@ -216,6 +209,40 @@ describe("Combined Item Cache Tests", () => {
     await itemCache.find(finder, {});
 
     expect(mockApi.find).toHaveBeenCalledWith(finder, {}, {}, []);
+  });
+
+  it("should call the set method with correct parameters", async () => {
+    // @ts-ignore
+    mockApi.get.mockResolvedValue(items[0]);
+    await itemCache.set(key1, items[0]);
+    expect(mockApi.update).not.toHaveBeenCalledWith(key1, items[0]);
+  });
+
+  it("should throw error when setting item with malformed key", async () => {
+    const key1 = {
+      kt: 'whatever',
+      pk: "not-a-valid-uuid" // Invalid UUID format
+    } as unknown as ComKey<"test", "container">;
+
+    const malformedItem = {
+      ...items[0],
+      key: key1
+    };
+
+    await expect(itemCache.set(key1, malformedItem as unknown as TestItem))
+      .rejects
+      .toThrow("Item does not have the correct primary key type");
+  });
+
+  it("should throw error when setting item with mismatched keys", async () => {
+    const differentKey = {
+      kt: 'test',
+      pk: '123e4567-e89b-12d3-a456-426614174000'
+    } as PriKey<"test">;
+
+    await expect(itemCache.set(differentKey, items[0]))
+      .rejects
+      .toThrow('Key does not match item key');
   });
 
 });
