@@ -81,7 +81,7 @@ export interface Cache<
 
   set: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    v: V
+    v: Item<S, L1, L2, L3, L4, L5>
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
 
   reset: () => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>]>;
@@ -334,7 +334,7 @@ export const createCache = <
 
   const set = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    v: V
+    v: Item<S, L1, L2, L3, L4, L5>
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('set', { key, v });
     
@@ -353,7 +353,7 @@ export const createCache = <
       throw new Error('Key does not match item key');
     }
 
-    cacheMap.set(key, v);
+    cacheMap.set(key, v as V);
     return [cacheMap, validatePK(v, pkType) as V];
   }
 

@@ -252,7 +252,7 @@ export const createAggregator = <
 
   const set = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    v: V
+    v: Item<S, L1, L2, L3, L4, L5>
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('set', { key, v });
 
