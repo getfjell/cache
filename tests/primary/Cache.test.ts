@@ -2,34 +2,15 @@ import { CacheMap } from '@/CacheMap';
 import { Cache, createCache } from '@/Cache';
 import { PItemApi } from '@fjell/client-api';
 import { Item, ItemProperties, PriKey } from '@fjell/core';
+import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
-// TODO: Eventually, maybe we have a testing libray shared between all libs.
-jest.mock('@fjell/logging', () => {
-  return {
-    get: jest.fn().mockReturnThis(),
-    getLogger: jest.fn().mockReturnThis(),
-    default: jest.fn(),
-    error: jest.fn(),
-    warning: jest.fn(),
-    info: jest.fn(),
-    debug: jest.fn(),
-    trace: jest.fn(),
-    emergency: jest.fn(),
-    alert: jest.fn(),
-    critical: jest.fn(),
-    notice: jest.fn(),
-    time: jest.fn().mockReturnThis(),
-    end: jest.fn(),
-    log: jest.fn(),
-  }
-});
-jest.mock('@fjell/client-api');
-jest.mock('@/CacheMap');
+vi.mock('@fjell/client-api');
+vi.mock('../src/CacheMap');
 
 type TestItem = Item<'test'>;
 
 describe('PItemCache', () => {
-  let apiMock: jest.Mocked<PItemApi<TestItem, 'test'>>;
+  let apiMock: Mocked<PItemApi<TestItem, 'test'>>;
   let cache: Cache<TestItem, 'test'>;
 
   const key1 = {
@@ -60,19 +41,19 @@ describe('PItemCache', () => {
   ];
 
   beforeEach(() => {
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     apiMock = {
-      all: jest.fn().mockReturnValue([items]),
-      one: jest.fn().mockReturnValue(items[0]),
-      action: jest.fn().mockReturnValue(items[0]),
-      create: jest.fn().mockReturnValue([key1, items[0]]),
-      remove: jest.fn().mockReturnValue(items[0]),
-      update: jest.fn().mockReturnValue(items[0]),
-      allAction: jest.fn().mockReturnValue([]),
-      get: jest.fn().mockReturnValue(items[0]),
-      find: jest.fn().mockReturnValue(items),
-    } as unknown as jest.Mocked<PItemApi<TestItem, 'test'>>;
+      all: vi.fn().mockReturnValue([items]),
+      one: vi.fn().mockReturnValue(items[0]),
+      action: vi.fn().mockReturnValue(items[0]),
+      create: vi.fn().mockReturnValue([key1, items[0]]),
+      remove: vi.fn().mockReturnValue(items[0]),
+      update: vi.fn().mockReturnValue(items[0]),
+      allAction: vi.fn().mockReturnValue([]),
+      get: vi.fn().mockReturnValue(items[0]),
+      find: vi.fn().mockReturnValue(items),
+    } as unknown as Mocked<PItemApi<TestItem, 'test'>>;
 
     cache = createCache(apiMock, 'test');
   });

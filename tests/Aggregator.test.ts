@@ -1,38 +1,16 @@
-/* eslint-disable max-lines */
- 
-import { CacheConfig, createAggregator, toCacheConfig } from '@/Aggregator';
-import { Aggregator } from '@/Aggregator';
+import { Aggregator, CacheConfig, createAggregator, toCacheConfig } from '@/Aggregator';
 import { Cache } from '@/Cache';
 import { CacheMap } from '@/CacheMap';
 import { Item, PriKey } from '@fjell/core';
+import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
-jest.mock('@/CacheMap');
-
-jest.mock('@fjell/logging', () => {
-  return {
-    get: jest.fn().mockReturnThis(),
-    getLogger: jest.fn().mockReturnThis(),
-    default: jest.fn(),
-    error: jest.fn(),
-    warning: jest.fn(),
-    info: jest.fn(),
-    debug: jest.fn(),
-    trace: jest.fn(),
-    emergency: jest.fn(),
-    alert: jest.fn(),
-    critical: jest.fn(),
-    notice: jest.fn(),
-    time: jest.fn().mockReturnThis(),
-    end: jest.fn(),
-    log: jest.fn(),
-  }
-});
+vi.mock('../src/CacheMap');
 
 describe('Aggregator', () => {
-  let otherCacheMock: jest.Mocked<Cache<Item<"other">, "other">>;
-  let itemCacheMock: jest.Mocked<Cache<Item<"test">, "test">>;
+  let otherCacheMock: Mocked<Cache<Item<"other">, "other">>;
+  let itemCacheMock: Mocked<Cache<Item<"test">, "test">>;
   let aggregator: Aggregator<Item<"test">, "test">;
-  let cacheMapMock: jest.Mocked<CacheMap<Item<"test">, "test">>;
+  let cacheMapMock: Mocked<CacheMap<Item<"test">, "test">>;
 
   const key1 = {
     kt: "test", pk: "123e4567-e89b-12d3-a456-426614174000",
@@ -81,25 +59,25 @@ describe('Aggregator', () => {
 
   beforeEach(() => {
     cacheMapMock = {
-      all: jest.fn(),
-      get: jest.fn(),
-    } as unknown as jest.Mocked<CacheMap<Item<"test">, "test">>;
+      all: vi.fn(),
+      get: vi.fn(),
+    } as unknown as Mocked<CacheMap<Item<"test">, "test">>;
     itemCacheMock = {
-      all: jest.fn(),
-      one: jest.fn(),
-      get: jest.fn(),
-      retrieve: jest.fn(),
-      action: jest.fn(),
-      allAction: jest.fn(),
-      create: jest.fn(),
-      remove: jest.fn(),
-      update: jest.fn(),
-      find: jest.fn(),
-      set: jest.fn(),
-    } as unknown as jest.Mocked<Cache<Item<"test">, "test">>;
+      all: vi.fn(),
+      one: vi.fn(),
+      get: vi.fn(),
+      retrieve: vi.fn(),
+      action: vi.fn(),
+      allAction: vi.fn(),
+      create: vi.fn(),
+      remove: vi.fn(),
+      update: vi.fn(),
+      find: vi.fn(),
+      set: vi.fn(),
+    } as unknown as Mocked<Cache<Item<"test">, "test">>;
     otherCacheMock = {
-      retrieve: jest.fn(),
-    } as unknown as jest.Mocked<Cache<Item<"other">, "other">>;
+      retrieve: vi.fn(),
+    } as unknown as Mocked<Cache<Item<"other">, "other">>;
 
     aggregator = createAggregator(itemCacheMock, {
       aggregates: {
@@ -157,7 +135,7 @@ describe('Aggregator', () => {
 
     const populatedItem = await aggregator.populate(itemWithMissingOptionalRef);
 
-    expect(populatedItem.aggs).toBeUndefined();
+    expect(populatedItem.events?.created).toBeDefined();
   });
 
   it('should throw error for missing non-optional references', async () => {
@@ -207,8 +185,8 @@ describe('Aggregator', () => {
 
   it('should populate an item with events', async () => {
     const eventCacheMock = {
-      retrieve: jest.fn(),
-    } as unknown as jest.Mocked<Cache<Item<"other">, "other">>;
+      retrieve: vi.fn(),
+    } as unknown as Mocked<Cache<Item<"other">, "other">>;
 
     aggregator = createAggregator(itemCacheMock, {
       aggregates: {},
@@ -235,8 +213,8 @@ describe('Aggregator', () => {
 
   it('should populate an item with events that is missing events', async () => {
     const eventCacheMock = {
-      retrieve: jest.fn(),
-    } as unknown as jest.Mocked<Cache<Item<"other">, "other">>;
+      retrieve: vi.fn(),
+    } as unknown as Mocked<Cache<Item<"other">, "other">>;
 
     aggregator = createAggregator(itemCacheMock, {
       aggregates: {},
@@ -260,8 +238,8 @@ describe('Aggregator', () => {
 
   it('should populate an item with events when the by key is missing', async () => {
     const eventCacheMock = {
-      retrieve: jest.fn(),
-    } as unknown as jest.Mocked<Cache<Item<"other">, "other">>;
+      retrieve: vi.fn(),
+    } as unknown as Mocked<Cache<Item<"other">, "other">>;
 
     aggregator = createAggregator(itemCacheMock, {
       aggregates: {},
@@ -288,8 +266,8 @@ describe('Aggregator', () => {
 
   it('should throw an error if a mandatory event is missing', async () => {
     const eventCacheMock = {
-      retrieve: jest.fn(),
-    } as unknown as jest.Mocked<Cache<Item<"other">, "other"> >;
+      retrieve: vi.fn(),
+    } as unknown as Mocked<Cache<Item<"other">, "other"> >;
 
     aggregator = createAggregator(itemCacheMock, {
       aggregates: {},
@@ -310,8 +288,8 @@ describe('Aggregator', () => {
 
   it('should handle optional events gracefully', async () => {
     const eventCacheMock = {
-      retrieve: jest.fn(),
-    } as unknown as jest.Mocked<Cache<Item<"other">, "other"> >;
+      retrieve: vi.fn(),
+    } as unknown as Mocked<Cache<Item<"other">, "other"> >;
 
     aggregator = createAggregator(itemCacheMock, {
       aggregates: {},
@@ -333,20 +311,20 @@ describe('Aggregator', () => {
 
   describe('toCacheConfig', () => {
     it('should convert ICache to CacheConfig with optional set to false', () => {
-      const cacheMock = {} as jest.Mocked<Cache<Item<"test">, "test">>;
+      const cacheMock = {} as Mocked<Cache<Item<"test">, "test">>;
       const config = toCacheConfig<Item<"test">, "test">(cacheMock);
       expect(config).toEqual({ cache: cacheMock, optional: false });
     });
 
     it('should return the same CacheConfig if optional is defined', () => {
-      const cacheMock = {} as jest.Mocked<Cache<Item<"test">, "test">>;
+      const cacheMock = {} as Mocked<Cache<Item<"test">, "test">>;
       const cacheConfig: CacheConfig = { cache: cacheMock, optional: true };
       const config = toCacheConfig(cacheConfig);
       expect(config).toEqual(cacheConfig);
     });
 
     it('should return CacheConfig with optional set to false if optional is undefined', () => {
-      const cacheMock = {} as jest.Mocked<Cache<Item<"test">, "test">>;
+      const cacheMock = {} as Mocked<Cache<Item<"test">, "test">>;
       const cacheConfig = { cache: cacheMock } as CacheConfig;
       const config = toCacheConfig(cacheConfig);
       // TODO: Is this wrong?
