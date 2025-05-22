@@ -85,6 +85,10 @@ export const createAggregator = <
       if (cacheConfig.optional === false) {
         logger.error('Item does not have refs an is not optional ' + JSON.stringify(item));
         throw new Error('Item does not have refs an is not optional ' + JSON.stringify(item));
+      } else {
+        if (item.events && Object.prototype.hasOwnProperty.call(item.events, key)) {
+          delete item.events[key];
+        }
       }
     } else if (item.refs[key] === undefined) {
       if (cacheConfig.optional === false) {
@@ -92,6 +96,10 @@ export const createAggregator = <
             key + ' ' + JSON.stringify(item));
         throw new Error('Item does not have mandatory ref with key, not optional ' +
             key + ' ' + JSON.stringify(item));
+      } else {
+        if (item.events && Object.prototype.hasOwnProperty.call(item.events, key)) {
+          delete item.events[key];
+        }
       }
     } else {
 

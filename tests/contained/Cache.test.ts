@@ -1,27 +1,28 @@
-import { Cache, createCache } from "@/Cache";
+import { Cache, createCache } from '@/Cache';
 import { CItemApi } from "@fjell/client-api";
 import { ComKey, Item, ItemProperties, ItemQuery, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/core";
+import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
-jest.mock('@fjell/logging', () => {
+vi.mock('../src/logger', () => {
   return {
-    get: jest.fn().mockReturnThis(),
-    getLogger: jest.fn().mockReturnThis(),
-    default: jest.fn(),
-    error: jest.fn(),
-    warning: jest.fn(),
-    info: jest.fn(),
-    debug: jest.fn(),
-    trace: jest.fn(),
-    emergency: jest.fn(),
-    alert: jest.fn(),
-    critical: jest.fn(),
-    notice: jest.fn(),
-    time: jest.fn().mockReturnThis(),
-    end: jest.fn(),
-    log: jest.fn(),
+    get: vi.fn().mockReturnThis(),
+    getLogger: vi.fn().mockReturnThis(),
+    default: vi.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+    trace: vi.fn(),
+    emergency: vi.fn(),
+    alert: vi.fn(),
+    critical: vi.fn(),
+    notice: vi.fn(),
+    time: vi.fn().mockReturnThis(),
+    end: vi.fn(),
+    log: vi.fn(),
   }
 });
-jest.mock("@fjell/client-api");
+vi.mock("@fjell/client-api");
 
 type ContainerItem = Item<"container">;
 
@@ -30,8 +31,8 @@ type TestKey = ComKey<"test", "container">;
 
 describe("Combined Item Cache Tests", () => {
 
-  let mockParentCache: jest.Mocked<Cache<ContainerItem, 'container'>>;
-  let mockApi: CItemApi<TestItem, "test", "container">;
+  let mockParentCache: Mocked<Cache<ContainerItem, 'container'>>;
+  let mockApi: Mocked<CItemApi<TestItem, "test", "container">>;
   let itemCache: Cache<TestItem, "test", "container">;
 
   const loc1: [LocKey<"container">] = [{ kt: "container", lk: "123e4567-e89b-12d3-a456-426614174100" }];
@@ -74,34 +75,33 @@ describe("Combined Item Cache Tests", () => {
   };
 
   beforeEach(() => {
-
-    jest.resetAllMocks();
+    vi.resetAllMocks();
 
     mockParentCache = {
-      all: jest.fn(),
-      one: jest.fn(),
-      action: jest.fn(),
-      create: jest.fn(),
-      remove: jest.fn(),
-      update: jest.fn(),
-      allAction: jest.fn(),
-      get: jest.fn(),
-      getKeyTypes: jest.fn().mockReturnValue(["container"]),
-      set: jest.fn(),
-    } as unknown as jest.Mocked<Cache<ContainerItem, 'container'>>
+      all: vi.fn(),
+      one: vi.fn(),
+      action: vi.fn(),
+      create: vi.fn(),
+      remove: vi.fn(),
+      update: vi.fn(),
+      allAction: vi.fn(),
+      get: vi.fn(),
+      getKeyTypes: vi.fn().mockReturnValue(["container"]),
+      set: vi.fn(),
+    } as unknown as Mocked<Cache<ContainerItem, 'container'>>
 
     mockApi = {
-      all: jest.fn(),
-      one: jest.fn(),
-      action: jest.fn(),
-      create: jest.fn(),
-      remove: jest.fn(),
-      update: jest.fn(),
-      allAction: jest.fn(),
-      get: jest.fn(),
-      find: jest.fn(),
-      set: jest.fn(),
-    } as unknown as jest.Mocked<CItemApi<TestItem, "test", "container">>;
+      all: vi.fn(),
+      one: vi.fn(),
+      action: vi.fn(),
+      create: vi.fn(),
+      remove: vi.fn(),
+      update: vi.fn(),
+      allAction: vi.fn(),
+      get: vi.fn(),
+      find: vi.fn(),
+      set: vi.fn(),
+    } as unknown as Mocked<CItemApi<TestItem, "test", "container">>;
 
     itemCache = createCache<TestItem, "test", "container">(mockApi, "test", mockParentCache);
 

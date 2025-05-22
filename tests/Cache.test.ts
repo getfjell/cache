@@ -1,31 +1,14 @@
+import { Cache, createCache } from "@/Cache";
 import { ClientApi } from "@fjell/client-api";
 import { ComKey, Item, ItemProperties } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
-import { Cache, createCache } from "@/Cache";
-jest.mock('@fjell/logging', () => {
-  return {
-    get: jest.fn().mockReturnThis(),
-    getLogger: jest.fn().mockReturnThis(),
-    default: jest.fn(),
-    error: jest.fn(),
-    warning: jest.fn(),
-    info: jest.fn(),
-    debug: jest.fn(),
-    trace: jest.fn(),
-    emergency: jest.fn(),
-    alert: jest.fn(),
-    critical: jest.fn(),
-    notice: jest.fn(),
-    time: jest.fn().mockReturnThis(),
-    end: jest.fn(),
-    log: jest.fn(),
-  }
-});
-jest.mock("@fjell/client-api");
-jest.mock("@/CacheMap");
+import { afterEach, beforeEach, describe, expect, type Mocked, test, vi } from 'vitest';
+
+vi.mock("@fjell/client-api");
+vi.mock("../src/CacheMap");
 
 describe("AItemCache", () => {
-  let api: jest.Mocked<ClientApi<Item<"test", "container">, "test", "container">>;
+  let api: Mocked<ClientApi<Item<"test", "container">, "test", "container">>;
   let cache: Cache<Item<"test", "container">, "test", "container">;
 
   const key1 = {
@@ -60,21 +43,21 @@ describe("AItemCache", () => {
 
   beforeEach(() => {
     api = {
-      all: jest.fn(),
-      one: jest.fn(),
-      action: jest.fn().mockReturnValue(items[1]),
-      create: jest.fn(),
-      remove: jest.fn(),
-      update: jest.fn(),
-      allAction: jest.fn(),
-      get: jest.fn(),
-      find: jest.fn().mockResolvedValue(items),
-    } as unknown as jest.Mocked<ClientApi<Item<"test", "container">, "test", "container">>;
+      all: vi.fn(),
+      one: vi.fn(),
+      action: vi.fn().mockReturnValue(items[1]),
+      create: vi.fn(),
+      remove: vi.fn(),
+      update: vi.fn(),
+      allAction: vi.fn(),
+      get: vi.fn(),
+      find: vi.fn().mockResolvedValue(items),
+    } as unknown as Mocked<ClientApi<Item<"test", "container">, "test", "container">>;
     cache = createCache<Item<"test", "container">, "test", "container">(api, "test");
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   test("should fetch all items and update cache", async () => {
@@ -283,8 +266,8 @@ describe("AItemCache", () => {
 
   test("should retrieve item from cache if it exists", async () => {
     const item: Item<"test", "container"> = items[0];
-    cache.cacheMap.includesKey = jest.fn().mockReturnValue(true);
-    cache.cacheMap.get = jest.fn().mockReturnValue(item);
+    cache.cacheMap.includesKey = vi.fn().mockReturnValue(true);
+    cache.cacheMap.get = vi.fn().mockReturnValue(item);
 
     const [cacheMap, result] = await cache.retrieve(key1);
 
@@ -296,7 +279,7 @@ describe("AItemCache", () => {
 
   test("should retrieve item from API if not in cache", async () => {
     const item: Item<"test", "container"> = items[0];
-    cache.cacheMap.includesKey = jest.fn().mockReturnValue(false);
+    cache.cacheMap.includesKey = vi.fn().mockReturnValue(false);
     api.get.mockResolvedValue(item);
 
     const [cacheMap, result] = await cache.retrieve(key1);
@@ -308,7 +291,7 @@ describe("AItemCache", () => {
   });
 
   test("should return null if item not found in cache or API", async () => {
-    cache.cacheMap.includesKey = jest.fn().mockReturnValue(false);
+    cache.cacheMap.includesKey = vi.fn().mockReturnValue(false);
     api.get.mockResolvedValue(null);
 
     const [cacheMap, result] = await cache.retrieve(key1);
@@ -321,7 +304,7 @@ describe("AItemCache", () => {
 
   test("should handle error in retrieve method", async () => {
     const error = new Error("Retrieve failed");
-    cache.cacheMap.includesKey = jest.fn().mockReturnValue(false);
+    cache.cacheMap.includesKey = vi.fn().mockReturnValue(false);
     api.get.mockRejectedValue(error);
 
     await expect(cache.retrieve(key1)).rejects.toThrow(error);
