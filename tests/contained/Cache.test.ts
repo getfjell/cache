@@ -74,7 +74,7 @@ describe("Combined Item Cache Tests", () => {
     loc: [{ kt: 'container', lk: '2-2-2-2-2' as UUID }]
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetAllMocks();
 
     mockParentCache = {
@@ -103,7 +103,7 @@ describe("Combined Item Cache Tests", () => {
       set: vi.fn(),
     } as unknown as Mocked<CItemApi<TestItem, "test", "container">>;
 
-    itemCache = createCache<TestItem, "test", "container">(mockApi, "test", mockParentCache);
+    itemCache = await createCache<TestItem, "test", "container">(mockApi, "test", mockParentCache);
 
   });
 

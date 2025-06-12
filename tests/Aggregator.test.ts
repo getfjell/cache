@@ -57,7 +57,7 @@ describe('Aggregator', () => {
     }
   ];
 
-  beforeEach(() => {
+  beforeEach(async () => {
     cacheMapMock = {
       all: vi.fn(),
       get: vi.fn(),
@@ -79,7 +79,7 @@ describe('Aggregator', () => {
       retrieve: vi.fn(),
     } as unknown as Mocked<Cache<Item<"other">, "other">>;
 
-    aggregator = createAggregator(itemCacheMock, {
+    aggregator = await createAggregator(itemCacheMock, {
       aggregates: {
         other: { cache: otherCacheMock, optional: false },
         other2: { cache: otherCacheMock, optional: true },
@@ -115,7 +115,7 @@ describe('Aggregator', () => {
   });
 
   it('should handle optional references gracefully', async () => {
-    aggregator = createAggregator(itemCacheMock, {
+    aggregator = await createAggregator(itemCacheMock, {
       aggregates: {
         other: { cache: otherCacheMock, optional: true },
         other2: { cache: otherCacheMock, optional: true },
@@ -139,7 +139,7 @@ describe('Aggregator', () => {
   });
 
   it('should throw error for missing non-optional references', async () => {
-    aggregator = createAggregator(itemCacheMock, {
+    aggregator = await createAggregator(itemCacheMock, {
       aggregates: {
         other: { cache: otherCacheMock, optional: false },
       },
@@ -162,7 +162,7 @@ describe('Aggregator', () => {
   });
 
   it('should throw error for missing references entirely', async () => {
-    aggregator = createAggregator(itemCacheMock, {
+    aggregator = await createAggregator(itemCacheMock, {
       aggregates: {
         other: { cache: otherCacheMock, optional: false },
       },
@@ -188,7 +188,7 @@ describe('Aggregator', () => {
       retrieve: vi.fn(),
     } as unknown as Mocked<Cache<Item<"other">, "other">>;
 
-    aggregator = createAggregator(itemCacheMock, {
+    aggregator = await createAggregator(itemCacheMock, {
       aggregates: {},
       events: {
         created: { cache: eventCacheMock, optional: false }
@@ -216,7 +216,7 @@ describe('Aggregator', () => {
       retrieve: vi.fn(),
     } as unknown as Mocked<Cache<Item<"other">, "other">>;
 
-    aggregator = createAggregator(itemCacheMock, {
+    aggregator = await createAggregator(itemCacheMock, {
       aggregates: {},
       events: {
         created: { cache: eventCacheMock, optional: false }
@@ -241,7 +241,7 @@ describe('Aggregator', () => {
       retrieve: vi.fn(),
     } as unknown as Mocked<Cache<Item<"other">, "other">>;
 
-    aggregator = createAggregator(itemCacheMock, {
+    aggregator = await createAggregator(itemCacheMock, {
       aggregates: {},
       events: {
         created: { cache: eventCacheMock, optional: false }
@@ -269,7 +269,7 @@ describe('Aggregator', () => {
       retrieve: vi.fn(),
     } as unknown as Mocked<Cache<Item<"other">, "other"> >;
 
-    aggregator = createAggregator(itemCacheMock, {
+    aggregator = await createAggregator(itemCacheMock, {
       aggregates: {},
       events: {
         created: { cache: eventCacheMock, optional: false }
@@ -291,7 +291,7 @@ describe('Aggregator', () => {
       retrieve: vi.fn(),
     } as unknown as Mocked<Cache<Item<"other">, "other"> >;
 
-    aggregator = createAggregator(itemCacheMock, {
+    aggregator = await createAggregator(itemCacheMock, {
       aggregates: {},
       events: {
         created: { cache: eventCacheMock, optional: true }
