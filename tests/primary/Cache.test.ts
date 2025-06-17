@@ -40,7 +40,7 @@ describe('PItemCache', () => {
     }
   ];
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetAllMocks();
 
     apiMock = {
@@ -55,7 +55,7 @@ describe('PItemCache', () => {
       find: vi.fn().mockReturnValue(items),
     } as unknown as Mocked<PItemApi<TestItem, 'test'>>;
 
-    cache = createCache(apiMock, 'test');
+    cache = await createCache(apiMock, 'test');
   });
 
   it('should call all method', async () => {

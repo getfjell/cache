@@ -1,0 +1,10 @@
+verbose: false
+model: gpt-4.1
+contextDirectories:
+  - .kodrdriv/context
+commit:
+  cached: true
+  sendit: true
+release:
+  from: main
+  to: HEAD

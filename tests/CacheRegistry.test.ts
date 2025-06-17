@@ -4,7 +4,7 @@ import { CacheRegistry } from '@/CacheRegistry';
 import { createCache } from '@/Cache';
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
-describe('CacheRegistry', () => {
+describe('CacheRegistry', async () => {
   let registry: CacheRegistry;
 
   const pItemApi = {
@@ -18,7 +18,7 @@ describe('CacheRegistry', () => {
     get: vi.fn()
   } as unknown as Mocked<PItemApi<Item<"test">, "test">>;
 
-  const pItemCache = createCache<Item<'test'>, 'test'>(pItemApi, "test")
+  const pItemCache = await createCache<Item<'test'>, 'test'>(pItemApi, "test")
 
   const cItemApi = {
     all: vi.fn(),
@@ -31,42 +31,23 @@ describe('CacheRegistry', () => {
     get: vi.fn()
   } as unknown as Mocked<CItemApi<Item<"container", "test">, "container", "test">>;
 
-  const cItemCache = createCache<Item<'container', 'test'>, 'container', 'test'>(
+  const cItemCache = await createCache<Item<'container', 'test'>, 'container', 'test'>(
     cItemApi, "container", pItemCache
   );
 
-  beforeEach(() => {
-    registry = CacheRegistry.getInstance();
+  beforeEach(async () => {
+    registry = new CacheRegistry();
   });
 
-  it('should create a singleton instance', () => {
-    const instance1 = CacheRegistry.getInstance();
-    const instance2 = CacheRegistry.getInstance();
-    expect(instance1).toBe(instance2);
-  });
-
-  it('should register and retrieve a PItemCache', () => {
+  it('should register and retrieve a PItemCache', async () => {
     registry.registerCache(pItemCache);
-    registry.markConfigured();
-    const retrievedCache = registry.getCache(['test']);
+    const retrievedCache = await registry.getCache(['test']);
     expect(retrievedCache).toBe(pItemCache);
   });
 
-  it('should register and retrieve a CItemCache', () => {
+  it('should register and retrieve a CItemCache', async () => {
     registry.registerCache(cItemCache);
-    registry.markConfigured();
-    const retrievedCache = registry.getCache(['container', 'test']);
+    const retrievedCache = await registry.getCache(['container', 'test']);
     expect(retrievedCache).toBe(cItemCache);
-  });
-
-  it('should return true when isConfigured is called after markConfigured', () => {
-    registry.markConfigured();
-    expect(registry.isConfigured()).toBe(true);
-  });
-
-  it('should register fail to configure and throw an error', () => {
-    const newRegistry = new CacheRegistry();
-    newRegistry.registerCache(pItemCache);
-    expect(() => newRegistry.getCache(['test'])).toThrow(new Error("CacheRegistry must be configured before use"));
   });
 });
