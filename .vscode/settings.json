@@ -20,4 +20,5 @@
         "**/[0]**": true
     },
     "terminal.integrated.wordSeparators": " (){}',\"`─",
+    "vitest.disableWorkspaceWarning": true,
 }
