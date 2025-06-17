@@ -41,7 +41,7 @@ describe("AItemCache", () => {
     }
   ];
 
-  beforeEach(() => {
+  beforeEach(async () => {
     api = {
       all: vi.fn(),
       one: vi.fn(),
@@ -53,7 +53,7 @@ describe("AItemCache", () => {
       get: vi.fn(),
       find: vi.fn().mockResolvedValue(items),
     } as unknown as Mocked<ClientApi<Item<"test", "container">, "test", "container">>;
-    cache = createCache<Item<"test", "container">, "test", "container">(api, "test");
+    cache = await createCache<Item<"test", "container">, "test", "container">(api, "test");
   });
 
   afterEach(() => {

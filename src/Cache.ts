@@ -91,7 +91,7 @@ export interface Cache<
   cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>;
 }
 
-export const createCache = <
+export const createCache = async <
   V extends Item<S, L1, L2, L3, L4, L5>,
   S extends string,
   L1 extends string = never,
@@ -100,10 +100,10 @@ export const createCache = <
   L4 extends string = never,
   L5 extends string = never
 >(
-    api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-    pkType: S,
-    parentCache?: Cache<Item<L1, L2, L3, L4, L5>, L1, L2, L3, L4, L5>
-  ): Cache<V, S, L1, L2, L3, L4, L5> => {
+  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
+  pkType: S,
+  parentCache?: Cache<Item<L1, L2, L3, L4, L5>, L1, L2, L3, L4, L5>
+): Promise<Cache<V, S, L1, L2, L3, L4, L5>> => {
 
   let pkTypes: AllItemTypeArrays<S, L1, L2, L3, L4, L5> = [ pkType ];
   if( parentCache ) {

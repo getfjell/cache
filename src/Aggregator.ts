@@ -49,7 +49,7 @@ export const toCacheConfig = <
   return cacheConfig;
 }
 
-export const createAggregator = <
+export const createAggregator = async <
   V extends Item<S, L1, L2, L3, L4, L5>,
   S extends string,
   L1 extends string = never,
@@ -58,13 +58,13 @@ export const createAggregator = <
   L4 extends string = never,
   L5 extends string = never
 >(
-    cache: Cache<V, S, L1, L2, L3, L4, L5>,
-    { aggregates = {}, events = {} }:
+  cache: Cache<V, S, L1, L2, L3, L4, L5>,
+  { aggregates = {}, events = {} }:
       {
         aggregates?: AggregateConfig,
         events?: AggregateConfig
       }
-  ): Aggregator<V, S, L1, L2, L3, L4, L5> => {
+): Promise<Aggregator<V, S, L1, L2, L3, L4, L5>> => {
 
   const populate = async (item: V): Promise<V> => {
     logger.default('populate', { item });
