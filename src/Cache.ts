@@ -73,11 +73,22 @@ export interface Cache<
     v: TypesProperties<V, S, L1, L2, L3, L4, L5>,
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
 
+  facet: (
+    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+    facet: string,
+  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]>;
+
   find: (
     finder: string,
     finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]>;
+
+  findOne: (
+    finder: string,
+    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+    locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
+  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
 
   set: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
@@ -105,8 +116,8 @@ export const createCache = async <
   parentCache?: Cache<Item<L1, L2, L3, L4, L5>, L1, L2, L3, L4, L5>
 ): Promise<Cache<V, S, L1, L2, L3, L4, L5>> => {
 
-  let pkTypes: AllItemTypeArrays<S, L1, L2, L3, L4, L5> = [ pkType ];
-  if( parentCache ) {
+  let pkTypes: AllItemTypeArrays<S, L1, L2, L3, L4, L5> = [pkType];
+  if (parentCache) {
     pkTypes = pkTypes.concat(parentCache.pkTypes as any) as unknown as AllItemTypeArrays<S, L1, L2, L3, L4, L5>;
   }
 
@@ -264,7 +275,7 @@ export const createCache = async <
     const retValue: [CacheMap<V, S, L1, L2, L3, L4, L5> | null, V | null] = [
       containsItemKey ? null : cacheMap,
       retrieved ?
-        validatePK(retrieved, pkType) as V:
+        validatePK(retrieved, pkType) as V :
         null
     ];
     // logger.debug('Returning from retrieve', { retValue });
@@ -314,6 +325,16 @@ export const createCache = async <
     }
   }
 
+  // Facets are a pass-thru for caches
+  const facet = async (
+    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+    facet: string,
+  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]> => {
+    logger.default('facet', { key, facet });
+    const ret = await api.facet(key, facet, {});
+    return [cacheMap, ret];
+  }
+
   const find = async (
     finder: string,
     finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
@@ -327,6 +348,17 @@ export const createCache = async <
     return [cacheMap, validatePK(ret, pkType) as V[]];
   }
 
+  const findOne = async (
+    finder: string,
+    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+    locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
+  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
+    logger.default('findOne', { finder, finderParams, locations });
+    const ret = await api.findOne(finder, finderParams, {}, locations);
+    cacheMap.set(ret.key, ret);
+    return [cacheMap, validatePK(ret, pkType) as V];
+  }
+
   const reset = async (): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>]> => {
     cacheMap = new CacheMap<V, S, L1, L2, L3, L4, L5>(pkTypes);
     return [cacheMap];
@@ -337,7 +369,7 @@ export const createCache = async <
     v: Item<S, L1, L2, L3, L4, L5>
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('set', { key, v });
-    
+
     // TODO: This is validating the key, but it doesn't have knowledge of the pkType
     // This should be looking at the parentCaches and calculating an array of pkTypes
     if (!isValidItemKey(key)) {
@@ -367,7 +399,9 @@ export const createCache = async <
     retrieve,
     remove,
     update,
+    facet,
     find,
+    findOne,
     reset,
     set,
     pkTypes,

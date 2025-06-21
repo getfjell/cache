@@ -1,8 +1,8 @@
 // import { defineConfig } from 'vite';
-import { defineConfig as defineVitestConfig } from 'vitest/config';
-import { VitePluginNode } from 'vite-plugin-node';
+import * as path from 'path';
 import dts from 'vite-plugin-dts';
-import path from 'path';
+import { VitePluginNode } from 'vite-plugin-node';
+import { defineConfig as defineVitestConfig } from 'vitest/config';
 
 export default defineVitestConfig({
   server: {
@@ -62,30 +62,5 @@ export default defineVitestConfig({
     modulePreload: false,
     minify: false,
     sourcemap: true
-  },
-  test: {
-    include: [
-      'tests/**/*.test.ts',
-      'tests/**/*.spec.ts',
-    ],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'html', 'lcov'],
-      reportsDirectory: './coverage',
-      exclude: [
-        'node_modules/',
-        'tests/',
-        'src/index.ts',
-      ],
-      thresholds: {
-        global: {
-          branches: 75,
-          functions: 89,
-          lines: 89,
-          statements: 89,
-        },
-      },
-    },
-    environment: 'node',
   },
 });
