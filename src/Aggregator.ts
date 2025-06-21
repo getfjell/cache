@@ -268,6 +268,17 @@ export const createAggregator = async <
     return [cacheMap, populatedItems];
   }
 
+  const findOne = async (
+    finder: string,
+    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+    locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
+  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
+    logger.default('find', { finder, finderParams, locations });
+    const [cacheMap, item] = await cache.findOne(finder, finderParams, locations);
+    const populatedItem = await populate(item);
+    return [cacheMap, populatedItem];
+  }
+
   const set = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     v: Item<S, L1, L2, L3, L4, L5>
@@ -297,6 +308,7 @@ export const createAggregator = async <
     update,
     facet,
     find,
+    findOne,
     reset,
     set,
     pkTypes: cache.pkTypes,
