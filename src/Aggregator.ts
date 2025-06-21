@@ -247,6 +247,16 @@ export const createAggregator = async <
     return [cacheMap, populatedItem];
   }
 
+  // Facets are a pass-thru for aggregators
+  const facet = async (
+    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+    facet: string,
+  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]> => {
+    logger.default('facet', { key, facet });
+    const [cacheMap, response] = await cache.facet(key, facet);
+    return [cacheMap, response];
+  }
+
   const find = async (
     finder: string,
     finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
@@ -285,6 +295,7 @@ export const createAggregator = async <
     retrieve,
     remove,
     update,
+    facet,
     find,
     reset,
     set,
