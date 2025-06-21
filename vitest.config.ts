@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import path from 'path'
+import * as path from 'path'
 
 export default defineConfig({
   test: {
@@ -13,7 +13,17 @@ export default defineConfig({
         'node_modules/',
         'tests/',
         'src/index.ts',
+        'eslint.config.mjs',
+        'vite.config.ts',
+        'vitest.config.ts',
+        'dist',
       ],
+      thresholds: {
+        lines: 89,
+        functions: 85,
+        branches: 94,
+        statements: 89,
+      },
     },
     setupFiles: ['./tests/setup.ts'],
     deps: {

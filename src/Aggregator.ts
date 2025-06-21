@@ -247,6 +247,16 @@ export const createAggregator = async <
     return [cacheMap, populatedItem];
   }
 
+  // Facets are a pass-thru for aggregators
+  const facet = async (
+    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+    facet: string,
+  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]> => {
+    logger.default('facet', { key, facet });
+    const [cacheMap, response] = await cache.facet(key, facet);
+    return [cacheMap, response];
+  }
+
   const find = async (
     finder: string,
     finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
@@ -256,6 +266,17 @@ export const createAggregator = async <
     const [cacheMap, items] = await cache.find(finder, finderParams, locations);
     const populatedItems = await Promise.all(items.map(async (item) => populate(item)));
     return [cacheMap, populatedItems];
+  }
+
+  const findOne = async (
+    finder: string,
+    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+    locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
+  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
+    logger.default('find', { finder, finderParams, locations });
+    const [cacheMap, item] = await cache.findOne(finder, finderParams, locations);
+    const populatedItem = await populate(item);
+    return [cacheMap, populatedItem];
   }
 
   const set = async (
@@ -285,7 +306,9 @@ export const createAggregator = async <
     retrieve,
     remove,
     update,
+    facet,
     find,
+    findOne,
     reset,
     set,
     pkTypes: cache.pkTypes,
