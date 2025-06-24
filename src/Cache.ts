@@ -51,8 +51,14 @@ export interface Cache<
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]>
 
+  allFacet: (
+    facet: string,
+    params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+    locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
+  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]>;
+
   create: (
-    v: TypesProperties<V, S, L1, L2, L3, L4, L5>,
+    item: TypesProperties<V, S, L1, L2, L3, L4, L5>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
 
@@ -70,29 +76,30 @@ export interface Cache<
 
   update: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    v: TypesProperties<V, S, L1, L2, L3, L4, L5>,
+    item: TypesProperties<V, S, L1, L2, L3, L4, L5>,
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
 
   facet: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     facet: string,
+    params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]>;
 
   find: (
     finder: string,
-    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+    params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]>;
 
   findOne: (
     finder: string,
-    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+    params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
 
   set: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    v: Item<S, L1, L2, L3, L4, L5>
+    item: Item<S, L1, L2, L3, L4, L5>
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
 
   reset: () => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>]>;
@@ -132,7 +139,7 @@ export const createCache = async <
     logger.default('all', { query, locations });
     let ret: V[] = [];
     try {
-      ret = await api.all(query, {}, locations);
+      ret = await api.all(query, locations);
       ret.forEach((v) => {
         cacheMap.set(v.key, v);
       });
@@ -155,7 +162,7 @@ export const createCache = async <
 
     let retItem: V | null = null;
     try {
-      retItem = await api.one(query, {}, locations);
+      retItem = await api.one(query, locations);
       if (retItem) {
         cacheMap.set(retItem.key, retItem);
       }
@@ -188,7 +195,7 @@ export const createCache = async <
       throw new Error('Key for Action is not a valid ItemKey');
     }
 
-    const updated = await api.action(key, action, body, {});
+    const updated = await api.action(key, action, body);
     cacheMap.set(updated.key, updated);
     return [cacheMap, validatePK(updated, pkType) as V];
   }
@@ -201,7 +208,7 @@ export const createCache = async <
     logger.default('allAction', { action, body, locations });
     let ret: V[] = [];
     try {
-      ret = await api.allAction(action, body, {}, locations);
+      ret = await api.allAction(action, body, locations);
       ret.forEach((v) => {
         cacheMap.set(v.key, v);
       });
@@ -216,12 +223,22 @@ export const createCache = async <
     return [cacheMap, validatePK(ret, pkType) as V[]];
   }
 
+  const allFacet = async (
+    facet: string,
+    params: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
+    locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
+  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]> => {
+    logger.default('allFacet', { facet, params, locations });
+    const ret = await api.allFacet(facet, params, locations);
+    return [cacheMap, ret];
+  }
+
   const create = async (
     v: TypesProperties<V, S, L1, L2, L3, L4, L5>,
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('create', { v, locations });
-    const created = await api.create(v, {}, locations);
+    const created = await api.create(v, locations);
     cacheMap.set(created.key, created);
     return [cacheMap, validatePK(created, pkType) as V];
   }
@@ -238,7 +255,7 @@ export const createCache = async <
     }
     let ret: V | null;
     try {
-      ret = await api.get(key, {});
+      ret = await api.get(key);
       if (ret) {
         cacheMap.set(ret.key, ret);
       }
@@ -293,7 +310,7 @@ export const createCache = async <
       throw new Error('Key for Remove is not a valid ItemKey');
     }
     try {
-      await api.remove(key, {});
+      await api.remove(key);
       cacheMap.delete(key);
     } catch (e) {
       logger.error("Error deleting item", { error: e });
@@ -316,7 +333,7 @@ export const createCache = async <
     }
 
     try {
-      const updated = await api.update(key, v, {});
+      const updated = await api.update(key, v);
       cacheMap.set(updated.key, updated);
       return [cacheMap, validatePK(updated, pkType) as V];
     } catch (e) {
@@ -329,19 +346,20 @@ export const createCache = async <
   const facet = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     facet: string,
+    params: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]> => {
     logger.default('facet', { key, facet });
-    const ret = await api.facet(key, facet, {});
+    const ret = await api.facet(key, facet, params);
     return [cacheMap, ret];
   }
 
   const find = async (
     finder: string,
-    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+    params: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]> => {
-    logger.default('find', { finder, finderParams, locations });
-    const ret: V[] = await api.find(finder, finderParams, {}, locations);
+    logger.default('find', { finder, params, locations });
+    const ret: V[] = await api.find(finder, params, locations);
     ret.forEach((v) => {
       cacheMap.set(v.key, v);
     });
@@ -350,11 +368,11 @@ export const createCache = async <
 
   const findOne = async (
     finder: string,
-    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('findOne', { finder, finderParams, locations });
-    const ret = await api.findOne(finder, finderParams, {}, locations);
+    const ret = await api.findOne(finder, finderParams, locations);
     cacheMap.set(ret.key, ret);
     return [cacheMap, validatePK(ret, pkType) as V];
   }
@@ -394,6 +412,7 @@ export const createCache = async <
     one,
     action,
     allAction,
+    allFacet,
     create,
     get,
     retrieve,
