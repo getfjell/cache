@@ -482,6 +482,7 @@ describe('Aggregator', () => {
 
       expect(aggregatedItem?.aggs?.other.item).toEqual(otherItems[0]);
     });
+
   });
 
 });

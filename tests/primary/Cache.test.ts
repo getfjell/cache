@@ -51,6 +51,7 @@ describe('PItemCache', () => {
       remove: vi.fn().mockReturnValue(items[0]),
       update: vi.fn().mockReturnValue(items[0]),
       allAction: vi.fn().mockReturnValue([]),
+      allFacet: vi.fn().mockReturnValue({ facetData: "test" }),
       get: vi.fn().mockReturnValue(items[0]),
       find: vi.fn().mockReturnValue(items),
     } as unknown as Mocked<PItemApi<TestItem, 'test'>>;
@@ -61,14 +62,14 @@ describe('PItemCache', () => {
   it('should call all method', async () => {
     const result = await cache.all();
 
-    expect(apiMock.all).toHaveBeenCalledWith({}, {}, []);
+    expect(apiMock.all).toHaveBeenCalledWith({}, []);
     expect(result).toEqual([expect.any(CacheMap), [items]]);
   });
 
   it('should call one method', async () => {
     const result = await cache.one();
 
-    expect(apiMock.one).toHaveBeenCalledWith({}, {}, []);
+    expect(apiMock.one).toHaveBeenCalledWith({}, []);
     expect(result).toEqual([expect.any(CacheMap), items[0]]);
   });
 
@@ -77,7 +78,7 @@ describe('PItemCache', () => {
 
     const result = await cache.action(key1, action);
 
-    expect(apiMock.action).toHaveBeenCalledWith(key1, action, {}, {});
+    expect(apiMock.action).toHaveBeenCalledWith(key1, action, {});
     expect(result).toEqual([expect.any(CacheMap), expect.any(Object)]);
   });
 
@@ -86,29 +87,48 @@ describe('PItemCache', () => {
 
     const result = await cache.allAction(action);
 
-    expect(apiMock.allAction).toHaveBeenCalledWith(action, {}, {}, []);
+    expect(apiMock.allAction).toHaveBeenCalledWith(action, {}, []);
     expect(result).toEqual([expect.any(CacheMap), []]);
+  });
+
+  it('should call allFacet method', async () => {
+    const facet = 'testFacet';
+    const params = { param1: 'value1' };
+
+    const result = await cache.allFacet(facet, params);
+
+    expect(apiMock.allFacet).toHaveBeenCalledWith(facet, params, []);
+    expect(result).toEqual([expect.any(CacheMap), { facetData: "test" }]);
+  });
+
+  it('should call allFacet method with default parameters', async () => {
+    const facet = 'testFacet';
+
+    const result = await cache.allFacet(facet);
+
+    expect(apiMock.allFacet).toHaveBeenCalledWith(facet, {}, []);
+    expect(result).toEqual([expect.any(CacheMap), { facetData: "test" }]);
   });
 
   it('should call get method', async () => {
 
     const result = await cache.get(key1);
 
-    expect(apiMock.get).toHaveBeenCalledWith(key1, {});
+    expect(apiMock.get).toHaveBeenCalledWith(key1);
     expect(result).toEqual([expect.any(CacheMap), items[0]]);
   });
 
   it('should call retrieve method', async () => {
     const result = await cache.retrieve(key1);
 
-    expect(apiMock.get).toHaveBeenCalledWith(key1, {});
+    expect(apiMock.get).toHaveBeenCalledWith(key1);
     expect(result).toEqual([expect.any(CacheMap), items[0]]);
   });
 
   it('should call remove method', async () => {
     const result = await cache.remove(key1);
 
-    expect(apiMock.remove).toHaveBeenCalledWith(key1, {});
+    expect(apiMock.remove).toHaveBeenCalledWith(key1);
     expect(result).toEqual(expect.any(CacheMap));
   });
 
@@ -117,21 +137,21 @@ describe('PItemCache', () => {
 
     const result = await cache.update(key1, itemProps);
 
-    expect(apiMock.update).toHaveBeenCalledWith(key1, itemProps, {});
+    expect(apiMock.update).toHaveBeenCalledWith(key1, itemProps);
     expect(result).toEqual([expect.any(CacheMap), expect.any(Object)]);
   });
 
   it('find should call find method', async () => {
     const result = await cache.find('someFinder', {});
 
-    expect(apiMock.find).toHaveBeenCalledWith('someFinder', {}, {}, []);
+    expect(apiMock.find).toHaveBeenCalledWith('someFinder', {}, []);
     expect(result).toEqual([expect.any(CacheMap), expect.any(Object)]);
   });
 
   it('should call set method', async () => {
     const result = await cache.set(key1, items[0]);
 
-    expect(apiMock.update).not.toHaveBeenCalledWith(key1, items[0], {});
+    expect(apiMock.update).not.toHaveBeenCalledWith(key1, items[0]);
     expect(result).toEqual([expect.any(CacheMap), expect.any(Object)]);
   });
 
