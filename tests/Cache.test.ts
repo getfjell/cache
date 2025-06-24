@@ -50,6 +50,7 @@ describe("AItemCache", () => {
       remove: vi.fn(),
       update: vi.fn(),
       allAction: vi.fn(),
+      allFacet: vi.fn(),
       get: vi.fn(),
       find: vi.fn().mockResolvedValue(items),
     } as unknown as Mocked<ClientApi<Item<"test", "container">, "test", "container">>;
@@ -66,7 +67,7 @@ describe("AItemCache", () => {
 
     const [cacheMap, result] = await cache.all();
 
-    expect(api.all).toHaveBeenCalledWith({}, {}, []);
+    expect(api.all).toHaveBeenCalledWith({}, []);
     expect(cacheMap.set).toHaveBeenCalledTimes(items.length);
     expect(result).toEqual(items);
   });
@@ -76,7 +77,7 @@ describe("AItemCache", () => {
 
     const [, result] = await cache.all();
 
-    expect(api.all).toHaveBeenCalledWith({}, {}, []);
+    expect(api.all).toHaveBeenCalledWith({}, []);
     expect(result).toEqual([]);
   });
 
@@ -86,7 +87,7 @@ describe("AItemCache", () => {
 
     const [cacheMap, result] = await cache.one();
 
-    expect(api.one).toHaveBeenCalledWith({}, {}, []);
+    expect(api.one).toHaveBeenCalledWith({}, []);
     expect(cacheMap.set).toHaveBeenCalledWith(items[0].key, items[0]);
     expect(result).toEqual(item);
   });
@@ -96,7 +97,7 @@ describe("AItemCache", () => {
 
     const [, result] = await cache.one();
 
-    expect(api.one).toHaveBeenCalledWith({}, {}, []);
+    expect(api.one).toHaveBeenCalledWith({}, []);
     expect(result).toBeNull();
   });
 
@@ -115,7 +116,7 @@ describe("AItemCache", () => {
   test("should perform action and update cache", async () => {
     const [cacheMap, result] = await cache.action(key2, "action");
 
-    expect(api.action).toHaveBeenCalledWith(key2, "action", {}, {});
+    expect(api.action).toHaveBeenCalledWith(key2, "action", {});
     expect(cacheMap.set).toHaveBeenCalledWith(key2, items[1]);
     expect(result).toEqual(items[1]);
   });
@@ -167,7 +168,7 @@ describe("AItemCache", () => {
 
     const [cacheMap, result] = await cache.create(itemProps);
 
-    expect(api.create).toHaveBeenCalledWith(itemProps, {}, []);
+    expect(api.create).toHaveBeenCalledWith(itemProps, []);
     expect(cacheMap.set).toHaveBeenCalledWith(item.key, item);
     expect(result).toEqual(item);
   });
@@ -177,7 +178,7 @@ describe("AItemCache", () => {
 
     await cache.remove(key);
 
-    expect(api.remove).toHaveBeenCalledWith(key, {});
+    expect(api.remove).toHaveBeenCalledWith(key);
     expect(cache.cacheMap.delete).toHaveBeenCalledWith(key);
   });
 
@@ -187,7 +188,7 @@ describe("AItemCache", () => {
     api.remove.mockRejectedValue(error);
 
     await expect(cache.remove(key)).rejects.toThrow(error);
-    expect(api.remove).toHaveBeenCalledWith(key, {});
+    expect(api.remove).toHaveBeenCalledWith(key);
     expect(cache.cacheMap.delete).not.toHaveBeenCalled();
   });
 
@@ -198,7 +199,7 @@ describe("AItemCache", () => {
 
     const [cacheMap, result] = await cache.update(key2, itemProps);
 
-    expect(api.update).toHaveBeenCalledWith(key2, itemProps, {});
+    expect(api.update).toHaveBeenCalledWith(key2, itemProps);
     expect(cacheMap.set).toHaveBeenCalledWith(item.key, item);
     expect(result).toEqual(item);
   });
@@ -209,7 +210,7 @@ describe("AItemCache", () => {
     api.update.mockRejectedValue(error);
 
     await expect(cache.update(key2, itemProps)).rejects.toThrow(error);
-    expect(api.update).toHaveBeenCalledWith(key2, itemProps, {});
+    expect(api.update).toHaveBeenCalledWith(key2, itemProps);
     expect(cache.cacheMap.set).not.toHaveBeenCalled();
   });
 
@@ -220,7 +221,7 @@ describe("AItemCache", () => {
 
     const [cacheMap, result] = await cache.allAction(action);
 
-    expect(api.allAction).toHaveBeenCalledWith(action, {}, {}, []);
+    expect(api.allAction).toHaveBeenCalledWith(action, {}, []);
     expect(cacheMap.set).toHaveBeenCalledWith(item.key, item);
     expect(result).toEqual([item]);
   });
@@ -231,8 +232,34 @@ describe("AItemCache", () => {
     api.allAction.mockRejectedValue(error);
 
     await expect(cache.allAction(action)).rejects.toThrow(error);
-    expect(api.allAction).toHaveBeenCalledWith(action, {}, {}, []);
+    expect(api.allAction).toHaveBeenCalledWith(action, {}, []);
     expect(cache.cacheMap.set).not.toHaveBeenCalled();
+  });
+
+  test("should perform allFacet and return data", async () => {
+    const facet = "testFacet";
+    const facetData = { status: "active", count: 5 };
+    api.allFacet.mockResolvedValue(facetData);
+
+    const [cacheMap, result] = await cache.allFacet(facet);
+
+    expect(api.allFacet).toHaveBeenCalledWith(facet, {}, []);
+    expect(result).toEqual(facetData);
+    expect(cacheMap).toEqual(cache.cacheMap);
+  });
+
+  test("should perform allFacet with parameters", async () => {
+    const facet = "testFacet";
+    const params = { filter: "active" };
+    const locations = [{ kt: "container", lk: "location1" }] as [{ kt: "container", lk: string }];
+    const facetData = { results: [] };
+    api.allFacet.mockResolvedValue(facetData);
+
+    const [cacheMap, result] = await cache.allFacet(facet, params, locations);
+
+    expect(api.allFacet).toHaveBeenCalledWith(facet, params, locations);
+    expect(result).toEqual(facetData);
+    expect(cacheMap).toEqual(cache.cacheMap);
   });
 
   test("should fetch item by key and update cache", async () => {
@@ -241,7 +268,7 @@ describe("AItemCache", () => {
 
     const [cacheMap, result] = await cache.get(key1);
 
-    expect(api.get).toHaveBeenCalledWith(key1, {});
+    expect(api.get).toHaveBeenCalledWith(key1);
     expect(cacheMap.set).toHaveBeenCalledWith(item.key, item);
     expect(result).toEqual(item);
   });
@@ -251,7 +278,7 @@ describe("AItemCache", () => {
     api.get.mockRejectedValue(error);
 
     await expect(cache.get(key1)).rejects.toThrow(error);
-    expect(api.get).toHaveBeenCalledWith(key1, {});
+    expect(api.get).toHaveBeenCalledWith(key1);
     expect(cache.cacheMap.set).not.toHaveBeenCalled();
   });
 
@@ -260,7 +287,7 @@ describe("AItemCache", () => {
 
     const [, result] = await cache.get(key1);
 
-    expect(api.get).toHaveBeenCalledWith(key1, {});
+    expect(api.get).toHaveBeenCalledWith(key1);
     expect(result).toBeNull();
   });
 
@@ -285,7 +312,7 @@ describe("AItemCache", () => {
     const [cacheMap, result] = await cache.retrieve(key1);
 
     expect(cache.cacheMap.includesKey).toHaveBeenCalledWith(key1);
-    expect(api.get).toHaveBeenCalledWith(key1, {});
+    expect(api.get).toHaveBeenCalledWith(key1);
     expect(result).toEqual(item);
     expect(cacheMap).toEqual(cache.cacheMap);
   });
@@ -297,7 +324,7 @@ describe("AItemCache", () => {
     const [cacheMap, result] = await cache.retrieve(key1);
 
     expect(cache.cacheMap.includesKey).toHaveBeenCalledWith(key1);
-    expect(api.get).toHaveBeenCalledWith(key1, {});
+    expect(api.get).toHaveBeenCalledWith(key1);
     expect(result).toBeNull();
     expect(cacheMap).toEqual(cache.cacheMap);
   });
@@ -309,7 +336,7 @@ describe("AItemCache", () => {
 
     await expect(cache.retrieve(key1)).rejects.toThrow(error);
     expect(cache.cacheMap.includesKey).toHaveBeenCalledWith(key1);
-    expect(api.get).toHaveBeenCalledWith(key1, {});
+    expect(api.get).toHaveBeenCalledWith(key1);
   });
 
   test("find should return null if item not found", async () => {
@@ -323,5 +350,114 @@ describe("AItemCache", () => {
     await cache.set(key1, item);
 
     expect(cache.cacheMap.set).toHaveBeenCalledWith(key1, item);
+  });
+
+  test("should call the facet method with correct parameters", async () => {
+    const facetData = { status: "active", count: 10 };
+    api.facet = vi.fn().mockResolvedValue(facetData);
+
+    const [cacheMap, result] = await cache.facet(key1, "testFacet", { param: "value" });
+
+    expect(api.facet).toHaveBeenCalledWith(key1, "testFacet", { param: "value" });
+    expect(result).toEqual(facetData);
+    expect(cacheMap).toEqual(cache.cacheMap);
+  });
+
+  test("should call the facet method with default parameters", async () => {
+    const facetData = { data: "test" };
+    api.facet = vi.fn().mockResolvedValue(facetData);
+
+    const [cacheMap, result] = await cache.facet(key1, "testFacet");
+
+    expect(api.facet).toHaveBeenCalledWith(key1, "testFacet", {});
+    expect(result).toEqual(facetData);
+    expect(cacheMap).toEqual(cache.cacheMap);
+  });
+
+  test("should call the findOne method with correct parameters", async () => {
+    const item: Item<"test", "container"> = items[0];
+    api.findOne = vi.fn().mockResolvedValue(item);
+
+    const [cacheMap, result] = await cache.findOne("testFinder", { param: "value" }, []);
+
+    expect(api.findOne).toHaveBeenCalledWith("testFinder", { param: "value" }, []);
+    expect(cacheMap.set).toHaveBeenCalledWith(item.key, item);
+    expect(result).toEqual(item);
+  });
+
+  test("should call the findOne method with default parameters", async () => {
+    const item: Item<"test", "container"> = items[0];
+    api.findOne = vi.fn().mockResolvedValue(item);
+
+    const [cacheMap, result] = await cache.findOne("testFinder");
+
+    expect(api.findOne).toHaveBeenCalledWith("testFinder", {}, []);
+    expect(cacheMap.set).toHaveBeenCalledWith(item.key, item);
+    expect(result).toEqual(item);
+  });
+
+  test("should reset the cache", async () => {
+    const [cacheMap] = await cache.reset();
+
+    expect(cacheMap).toBeDefined();
+    // After reset, the cache should have a new cacheMap instance
+    expect(cacheMap).toEqual(expect.any(Object));
+  });
+
+  test("should validate key for set method", async () => {
+    const invalidKey = {
+      kt: 'test',
+      pk: 'null',
+      loc: [{ kt: 'container', lk: 'null' }]
+    } as unknown as ComKey<"test", "container">;
+
+    await expect(cache.set(invalidKey, items[0]))
+      .rejects
+      .toThrow("Key for Update is not a valid ItemKey");
+  });
+
+  test("should validate primary key type in set method", async () => {
+    const validKey = key1;
+    const itemWithWrongPkType = {
+      ...items[0],
+      key: {
+        ...items[0].key,
+        kt: 'wrong' as any
+      }
+    };
+
+    await expect(cache.set(validKey, itemWithWrongPkType))
+      .rejects
+      .toThrow("Item does not have the correct primary key type");
+  });
+
+  test("should validate key equality in set method", async () => {
+    const differentKey = key2;
+    const item = items[0]; // This has key1
+
+    await expect(cache.set(differentKey, item))
+      .rejects
+      .toThrow("Key does not match item key");
+  });
+
+  test("should handle createCache with parentCache", async () => {
+    const parentApi = {
+      all: vi.fn(),
+      one: vi.fn(),
+      action: vi.fn(),
+      create: vi.fn(),
+      remove: vi.fn(),
+      update: vi.fn(),
+      allAction: vi.fn(),
+      allFacet: vi.fn(),
+      get: vi.fn(),
+      find: vi.fn(),
+    } as unknown as Mocked<ClientApi<Item<"container">, "container">>;
+
+    const parentCache = await createCache<Item<"container">, "container">(parentApi, "container");
+
+    const childCache = await createCache<Item<"test", "container">, "test", "container">(api, "test", parentCache);
+
+    expect(childCache.pkTypes).toEqual(["test", "container"]);
   });
 });

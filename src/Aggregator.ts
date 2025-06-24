@@ -195,6 +195,16 @@ export const createAggregator = async <
     return [cacheMap, populatedItems];
   }
 
+  const allFacet = async (
+    facet: string,
+    params: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
+    locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
+  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]> => {
+    logger.default('allFacet', { facet, params, locations });
+    const [cacheMap, response] = await cache.allFacet(facet, params, locations);
+    return [cacheMap, response];
+  }
+
   const create = async (
     v: TypesProperties<V, S, L1, L2, L3, L4, L5>,
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
@@ -259,7 +269,7 @@ export const createAggregator = async <
 
   const find = async (
     finder: string,
-    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]> => {
     logger.default('find', { finder, finderParams, locations });
@@ -270,7 +280,7 @@ export const createAggregator = async <
 
   const findOne = async (
     finder: string,
-    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+    finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('find', { finder, finderParams, locations });
@@ -301,6 +311,7 @@ export const createAggregator = async <
     one,
     action,
     allAction,
+    allFacet,
     create,
     get,
     retrieve,

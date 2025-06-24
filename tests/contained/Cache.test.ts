@@ -85,6 +85,7 @@ describe("Combined Item Cache Tests", () => {
       remove: vi.fn(),
       update: vi.fn(),
       allAction: vi.fn(),
+      allFacet: vi.fn(),
       get: vi.fn(),
       getKeyTypes: vi.fn().mockReturnValue(["container"]),
       set: vi.fn(),
@@ -98,6 +99,7 @@ describe("Combined Item Cache Tests", () => {
       remove: vi.fn(),
       update: vi.fn(),
       allAction: vi.fn(),
+      allFacet: vi.fn(),
       get: vi.fn(),
       find: vi.fn(),
       set: vi.fn(),
@@ -113,7 +115,7 @@ describe("Combined Item Cache Tests", () => {
     const query: ItemQuery = {};
     const locations: LocKeyArray<"container"> = loc1;
     await itemCache.all(query, locations);
-    expect(mockApi.all).toHaveBeenCalledWith(query, {}, locations);
+    expect(mockApi.all).toHaveBeenCalledWith(query, locations);
   });
 
   it("should call the one method with correct parameters", async () => {
@@ -122,7 +124,7 @@ describe("Combined Item Cache Tests", () => {
     const query: ItemQuery = {};
     const locations: LocKeyArray<"container"> = loc1;
     await itemCache.one(query, locations);
-    expect(mockApi.one).toHaveBeenCalledWith(query, {}, locations);
+    expect(mockApi.one).toHaveBeenCalledWith(query, locations);
   });
 
   it("should call the action method with correct parameters", async () => {
@@ -131,7 +133,7 @@ describe("Combined Item Cache Tests", () => {
     const action = "testAction";
     const body = { data: "testData" };
     await itemCache.action(key1, action, body);
-    expect(mockApi.action).toHaveBeenCalledWith(key1, action, body, {});
+    expect(mockApi.action).toHaveBeenCalledWith(key1, action, body);
   });
 
   it("should call the action method with correct parameters and no body", async () => {
@@ -139,7 +141,7 @@ describe("Combined Item Cache Tests", () => {
     mockApi.action.mockResolvedValue(items[0]);
     const action = "testAction";
     await itemCache.action(key1, action);
-    expect(mockApi.action).toHaveBeenCalledWith(key1, action, {}, {});
+    expect(mockApi.action).toHaveBeenCalledWith(key1, action, {});
   });
 
   it("should call the allAction method with correct parameters", async () => {
@@ -149,7 +151,25 @@ describe("Combined Item Cache Tests", () => {
     const body = { data: "testData" };
     const locations: LocKeyArray<"container"> = loc1;
     await itemCache.allAction(action, body, locations);
-    expect(mockApi.allAction).toHaveBeenCalledWith(action, body, {}, locations);
+    expect(mockApi.allAction).toHaveBeenCalledWith(action, body, locations);
+  });
+
+  it("should call the allFacet method with correct parameters", async () => {
+    // @ts-ignore
+    mockApi.allFacet.mockResolvedValue({ facetData: "test" });
+    const facet = "testFacet";
+    const params = { param1: "value1" };
+    const locations: LocKeyArray<"container"> = loc1;
+    await itemCache.allFacet(facet, params, locations);
+    expect(mockApi.allFacet).toHaveBeenCalledWith(facet, params, locations);
+  });
+
+  it("should call the allFacet method with default parameters", async () => {
+    // @ts-ignore
+    mockApi.allFacet.mockResolvedValue({ facetData: "test" });
+    const facet = "testFacet";
+    await itemCache.allFacet(facet);
+    expect(mockApi.allFacet).toHaveBeenCalledWith(facet, {}, []);
   });
 
   it("should call the create method with correct parameters", async () => {
@@ -158,35 +178,35 @@ describe("Combined Item Cache Tests", () => {
     const itemProps: ItemProperties<"test", "container"> = { key: key1 };
     const locations: LocKeyArray<"container"> = loc2;
     await itemCache.create(itemProps, locations);
-    expect(mockApi.create).toHaveBeenCalledWith(itemProps, {}, locations);
+    expect(mockApi.create).toHaveBeenCalledWith(itemProps, locations);
   });
 
   it("should call the get method with correct parameters", async () => {
     // @ts-ignore
     mockApi.get.mockResolvedValue(items[0]);
     await itemCache.get(key);
-    expect(mockApi.get).toHaveBeenCalledWith(key, {});
+    expect(mockApi.get).toHaveBeenCalledWith(key);
   });
 
   it("should call the retrieve method with correct parameters", async () => {
     // @ts-ignore
     mockApi.get.mockResolvedValue(items[0]);
     await itemCache.retrieve(key);
-    expect(mockApi.get).toHaveBeenCalledWith(key, {});
+    expect(mockApi.get).toHaveBeenCalledWith(key);
   });
 
   it("should call the remove method with correct parameters", async () => {
     // @ts-ignore
     mockApi.get.mockResolvedValue(key1);
     await itemCache.remove(key);
-    expect(mockApi.remove).toHaveBeenCalledWith(key, {});
+    expect(mockApi.remove).toHaveBeenCalledWith(key);
   });
 
   it("should call the update method with correct parameters", async () => {
     // @ts-ignore
     mockApi.update.mockResolvedValue(items[0]);
     await itemCache.update(key1, items[0]);
-    expect(mockApi.update).toHaveBeenCalledWith(key1, items[0], {});
+    expect(mockApi.update).toHaveBeenCalledWith(key1, items[0]);
   });
 
   it("should call the find method with correct parameters", async () => {
@@ -197,7 +217,7 @@ describe("Combined Item Cache Tests", () => {
 
     await itemCache.find(finder, {}, locations);
 
-    expect(mockApi.find).toHaveBeenCalledWith(finder, {}, {}, locations);
+    expect(mockApi.find).toHaveBeenCalledWith(finder, {}, locations);
   });
 
   // TODO: There's something weird here that we need a unified approach to locations is optional?
@@ -208,7 +228,7 @@ describe("Combined Item Cache Tests", () => {
 
     await itemCache.find(finder, {});
 
-    expect(mockApi.find).toHaveBeenCalledWith(finder, {}, {}, []);
+    expect(mockApi.find).toHaveBeenCalledWith(finder, {}, []);
   });
 
   it("should call the set method with correct parameters", async () => {
