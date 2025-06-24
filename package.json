@@ -23,10 +23,10 @@
     "prepublishOnly": "pnpm run clean && pnpm run build"
   },
   "dependencies": {
-    "@fjell/client-api": "^4.4.2",
-    "@fjell/core": "^4.4.2",
-    "@fjell/http-api": "^4.4.0",
-    "@fjell/logging": "^4.4.2",
+    "@fjell/client-api": "^4.4.3",
+    "@fjell/core": "^4.4.3",
+    "@fjell/http-api": "^4.4.1",
+    "@fjell/logging": "^4.4.3",
     "d3": "^7.9.0",
     "dayjs": "^1.11.13",
     "react": "19.1.0"
@@ -58,7 +58,7 @@
     "vite-plugin-node": "^5.0.1",
     "vitest": "^3.1.4"
   },
-  "packageManager": "pnpm@10.12.1",
+  "packageManager": "pnpm@10.12.3",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/getfjell/cache.git"
