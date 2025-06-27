@@ -7,7 +7,6 @@ import {
   ItemQuery,
   LocKeyArray,
   PriKey,
-  TypesProperties,
   validatePK
 } from "@fjell/core";
 import { CacheMap } from "./CacheMap";
@@ -58,7 +57,7 @@ export interface Cache<
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]>;
 
   create: (
-    item: TypesProperties<V, S, L1, L2, L3, L4, L5>,
+    item: Partial<Item<S, L1, L2, L3, L4, L5>>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
 
@@ -76,7 +75,7 @@ export interface Cache<
 
   update: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    item: TypesProperties<V, S, L1, L2, L3, L4, L5>,
+    item: Partial<Item<S, L1, L2, L3, L4, L5>>,
   ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
 
   facet: (
@@ -234,7 +233,7 @@ export const createCache = async <
   }
 
   const create = async (
-    v: TypesProperties<V, S, L1, L2, L3, L4, L5>,
+    v: Partial<Item<S, L1, L2, L3, L4, L5>>,
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('create', { v, locations });
@@ -321,7 +320,7 @@ export const createCache = async <
 
   const update = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    v: TypesProperties<V, S, L1, L2, L3, L4, L5>,
+    v: Partial<Item<S, L1, L2, L3, L4, L5>>,
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('update', { key, v });
 

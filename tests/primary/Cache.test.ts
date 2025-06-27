@@ -1,7 +1,7 @@
 import { CacheMap } from '@/CacheMap';
 import { Cache, createCache } from '@/Cache';
 import { PItemApi } from '@fjell/client-api';
-import { Item, ItemProperties, PriKey } from '@fjell/core';
+import { Item, PriKey } from '@fjell/core';
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
 vi.mock('@fjell/client-api');
@@ -133,7 +133,7 @@ describe('PItemCache', () => {
   });
 
   it('should call update method', async () => {
-    const itemProps: ItemProperties<'test'> = { id: 'test' };
+    const itemProps: Partial<Item<'test'>> = { key: key1 };
 
     const result = await cache.update(key1, itemProps);
 

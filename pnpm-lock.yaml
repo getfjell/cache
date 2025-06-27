@@ -4,16 +4,20 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@fjell/core': link:../fjell-core
+  '@fjell/client-api': link:../fjell-client-api
+
 importers:
 
   .:
     dependencies:
       '@fjell/client-api':
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: link:../fjell-client-api
+        version: link:../fjell-client-api
       '@fjell/core':
-        specifier: ^4.4.3
-        version: 4.4.3
+        specifier: link:../fjell-core
+        version: link:../fjell-core
       '@fjell/http-api':
         specifier: ^4.4.1
         version: 4.4.1
@@ -816,12 +820,6 @@ packages:
   '@eslint/plugin-kit@0.3.2':
     resolution: {integrity: sha512-4SaFZCNfJqvk/kenHpI8xvN42DMaoycy4PzKc5otHxRswww1kAt82OlBuwRVLofCACCTZEcla2Ydxv8scMXaTg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@fjell/client-api@4.4.3':
-    resolution: {integrity: sha512-/jCZ8go26J36ealPPoBXU1OVoRJm9dBm6MqWkUDCmW6EJq8raTKfZeKr0BlNZMCJWLDsDWBs1weN1heGv5pzRw==}
-
-  '@fjell/core@4.4.3':
-    resolution: {integrity: sha512-2ttSfi7OFJorOnnubGthcVrgEwq9yz/HQrP3R88PCbRHYRHrOvM4qg9D/fO1jsOIxd6/ixQAHandO1YgmDz5qA==}
 
   '@fjell/http-api@4.4.1':
     resolution: {integrity: sha512-1uS5IXuaIMMcCfkJb8z0QfFvZX3DqzRDnQL4TS2Kdet7P5JkEFRZpd6iSpTQGqYLUPYs61IGzD30+pki9N2b4Q==}
@@ -1768,10 +1766,6 @@ packages:
   deep-is@0.1.4:
     resolution: {integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==}
 
-  deepmerge@4.3.1:
-    resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
-    engines: {node: '>=0.10.0'}
-
   delaunator@5.0.1:
     resolution: {integrity: sha512-8nvh+XBe96aCESrGOqMp/84b13H9cdKbG5P2ejQCh4d4sK9RL4371qou9drQjMhvnPmhWl5hnmqbEE0fXr9Xnw==}
 
@@ -2164,10 +2158,6 @@ packages:
   lru-cache@6.0.0:
     resolution: {integrity: sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==}
     engines: {node: '>=10'}
-
-  luxon@3.6.1:
-    resolution: {integrity: sha512-tJLxrKJhO2ukZ5z0gyjY1zPh3Rh88Ej9P7jNrZiHMUXHae1yvI2imgOZtL1TO8TW6biMMKfTtAOoEJANgtWBMQ==}
-    engines: {node: '>=12'}
 
   magic-string@0.30.17:
     resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
@@ -3593,20 +3583,6 @@ snapshots:
       '@eslint/core': 0.15.0
       levn: 0.4.1
 
-  '@fjell/client-api@4.4.3':
-    dependencies:
-      '@fjell/core': 4.4.3
-      '@fjell/http-api': 4.4.1
-      '@fjell/logging': 4.4.3
-      deepmerge: 4.3.1
-
-  '@fjell/core@4.4.3':
-    dependencies:
-      '@fjell/logging': 4.4.3
-      deepmerge: 4.3.1
-      flatted: 3.3.3
-      luxon: 3.6.1
-
   '@fjell/http-api@4.4.1':
     dependencies:
       '@fjell/logging': 4.4.3
@@ -4648,8 +4624,6 @@ snapshots:
 
   deep-is@0.1.4: {}
 
-  deepmerge@4.3.1: {}
-
   delaunator@5.0.1:
     dependencies:
       robust-predicates: 3.0.2
@@ -5046,8 +5020,6 @@ snapshots:
   lru-cache@6.0.0:
     dependencies:
       yallist: 4.0.0
-
-  luxon@3.6.1: {}
 
   magic-string@0.30.17:
     dependencies:
