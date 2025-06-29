@@ -3,8 +3,12 @@ model: gpt-4.1
 contextDirectories:
   - .kodrdriv/context
 commit:
+  add: true
   cached: true
   sendit: true
 release:
   from: main
   to: HEAD
+publish:
+  mergeMethod: squash
+  dependencyUpdatePatterns: ["@fjell/*"]
