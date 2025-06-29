@@ -4,8 +4,7 @@ import {
   Item,
   ItemQuery,
   LocKeyArray,
-  PriKey,
-  TypesProperties
+  PriKey
 } from "@fjell/core";
 import { Cache } from "./Cache";
 import { CacheMap } from "./CacheMap";
@@ -60,10 +59,10 @@ export const createAggregator = async <
 >(
   cache: Cache<V, S, L1, L2, L3, L4, L5>,
   { aggregates = {}, events = {} }:
-      {
-        aggregates?: AggregateConfig,
-        events?: AggregateConfig
-      }
+    {
+      aggregates?: AggregateConfig,
+      events?: AggregateConfig
+    }
 ): Promise<Aggregator<V, S, L1, L2, L3, L4, L5>> => {
 
   const populate = async (item: V): Promise<V> => {
@@ -93,9 +92,9 @@ export const createAggregator = async <
     } else if (item.refs[key] === undefined) {
       if (cacheConfig.optional === false) {
         logger.error('Item does not have mandatory ref with key, not optional ' +
-            key + ' ' + JSON.stringify(item));
+          key + ' ' + JSON.stringify(item));
         throw new Error('Item does not have mandatory ref with key, not optional ' +
-            key + ' ' + JSON.stringify(item));
+          key + ' ' + JSON.stringify(item));
       } else {
         if (item.events && Object.prototype.hasOwnProperty.call(item.events, key)) {
           delete item.events[key];
@@ -206,7 +205,7 @@ export const createAggregator = async <
   }
 
   const create = async (
-    v: TypesProperties<V, S, L1, L2, L3, L4, L5>,
+    v: Partial<Item<S, L1, L2, L3, L4, L5>>,
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('create', { v, locations });
@@ -249,7 +248,7 @@ export const createAggregator = async <
 
   const update = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    v: TypesProperties<V, S, L1, L2, L3, L4, L5>,
+    v: Partial<Item<S, L1, L2, L3, L4, L5>>,
   ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
     logger.default('update', { key, v });
     const [cacheMap, item] = await cache.update(key, v);

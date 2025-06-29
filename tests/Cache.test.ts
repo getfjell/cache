@@ -1,6 +1,6 @@
 import { Cache, createCache } from "@/Cache";
 import { ClientApi } from "@fjell/client-api";
-import { ComKey, Item, ItemProperties } from "@fjell/core";
+import { ComKey, Item } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
 import { afterEach, beforeEach, describe, expect, type Mocked, test, vi } from 'vitest';
 
@@ -125,7 +125,7 @@ describe("AItemCache", () => {
     await expect(cache.action({
       kt: 'test',
       pk: 'null',
-      loc: [ { kt: 'container', lk: 'null' }]
+      loc: [{ kt: 'container', lk: 'null' }]
     }, "action")).rejects.toThrow(new Error("Key for Action is not a valid ItemKey"));
   });
 
@@ -133,7 +133,7 @@ describe("AItemCache", () => {
     await expect(cache.get({
       kt: 'test',
       pk: 'null',
-      loc: [ { kt: 'container', lk: 'null' }]
+      loc: [{ kt: 'container', lk: 'null' }]
     })).rejects.toThrow(new Error("Key for Get is not a valid ItemKey"));
   });
 
@@ -141,7 +141,7 @@ describe("AItemCache", () => {
     await expect(cache.retrieve({
       kt: 'test',
       pk: 'null',
-      loc: [ { kt: 'container', lk: 'null' }]
+      loc: [{ kt: 'container', lk: 'null' }]
     })).rejects.toThrow(new Error("Key for Retrieve is not a valid ItemKey"));
   });
 
@@ -149,7 +149,7 @@ describe("AItemCache", () => {
     await expect(cache.remove({
       kt: 'test',
       pk: 'null',
-      loc: [ { kt: 'container', lk: 'null' }]
+      loc: [{ kt: 'container', lk: 'null' }]
     })).rejects.toThrow(new Error("Key for Remove is not a valid ItemKey"));
   });
 
@@ -157,12 +157,12 @@ describe("AItemCache", () => {
     await expect(cache.update({
       kt: 'test',
       pk: 'null',
-      loc: [ { kt: 'container', lk: 'null' }]
+      loc: [{ kt: 'container', lk: 'null' }]
     }, { key: key2 })).rejects.toThrow(new Error("Key for Update is not a valid ItemKey"));
   });
 
   test("should create item and update cache", async () => {
-    const itemProps: ItemProperties<"test", "container"> = { key: key2 };
+    const itemProps: Partial<Item<"test", "container">> = { key: key2 };
     const item: Item<"test", "container"> = items[1];
     api.create.mockResolvedValue(items[1]);
 
@@ -193,7 +193,7 @@ describe("AItemCache", () => {
   });
 
   test("should update item and update cache", async () => {
-    const itemProps: ItemProperties<"test", "container"> = { key: key2 };
+    const itemProps: Partial<Item<"test", "container">> = { key: key2 };
     const item: Item<"test", "container"> = items[1];
     api.update.mockResolvedValue(item);
 
@@ -205,7 +205,7 @@ describe("AItemCache", () => {
   });
 
   test("should handle error in update method", async () => {
-    const itemProps: ItemProperties<"test", "container"> = { key: key2 };
+    const itemProps: Partial<Item<"test", "container">> = { key: key2 };
     const error = new Error("Update failed");
     api.update.mockRejectedValue(error);
 

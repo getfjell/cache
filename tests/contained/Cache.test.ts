@@ -1,6 +1,6 @@
 import { Cache, createCache } from '@/Cache';
 import { CItemApi } from "@fjell/client-api";
-import { ComKey, Item, ItemProperties, ItemQuery, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/core";
+import { ComKey, Item, ItemQuery, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/core";
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
 vi.mock('../src/logger', () => {
@@ -175,7 +175,7 @@ describe("Combined Item Cache Tests", () => {
   it("should call the create method with correct parameters", async () => {
     // @ts-ignore
     mockApi.create.mockResolvedValue(items[0]);
-    const itemProps: ItemProperties<"test", "container"> = { key: key1 };
+    const itemProps: Partial<Item<"test", "container">> = { key: key1 };
     const locations: LocKeyArray<"container"> = loc2;
     await itemCache.create(itemProps, locations);
     expect(mockApi.create).toHaveBeenCalledWith(itemProps, locations);

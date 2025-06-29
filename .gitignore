@@ -38,4 +38,5 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
-pnpm-workspace.yaml
+pnpm-workspace.*
+RELEASE_NOTES.md
