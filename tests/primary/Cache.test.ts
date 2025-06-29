@@ -1,7 +1,7 @@
 import { CacheMap } from '@/CacheMap';
 import { Cache, createCache } from '@/Cache';
 import { PItemApi } from '@fjell/client-api';
-import { Item, ItemProperties, PriKey } from '@fjell/core';
+import { Item, PriKey } from '@fjell/core';
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
 vi.mock('@fjell/client-api');
@@ -44,7 +44,7 @@ describe('PItemCache', () => {
     vi.resetAllMocks();
 
     apiMock = {
-      all: vi.fn().mockReturnValue([items]),
+      all: vi.fn().mockReturnValue(items),
       one: vi.fn().mockReturnValue(items[0]),
       action: vi.fn().mockReturnValue(items[0]),
       create: vi.fn().mockReturnValue([key1, items[0]]),
@@ -63,7 +63,7 @@ describe('PItemCache', () => {
     const result = await cache.all();
 
     expect(apiMock.all).toHaveBeenCalledWith({}, []);
-    expect(result).toEqual([expect.any(CacheMap), [items]]);
+    expect(result).toEqual([expect.any(CacheMap), items]);
   });
 
   it('should call one method', async () => {
@@ -133,7 +133,7 @@ describe('PItemCache', () => {
   });
 
   it('should call update method', async () => {
-    const itemProps: ItemProperties<'test'> = { id: 'test' };
+    const itemProps: Partial<Item<'test'>> = { key: key1 };
 
     const result = await cache.update(key1, itemProps);
 
