@@ -44,7 +44,7 @@ describe('PItemCache', () => {
     vi.resetAllMocks();
 
     apiMock = {
-      all: vi.fn().mockReturnValue([items]),
+      all: vi.fn().mockReturnValue(items),
       one: vi.fn().mockReturnValue(items[0]),
       action: vi.fn().mockReturnValue(items[0]),
       create: vi.fn().mockReturnValue([key1, items[0]]),
@@ -63,7 +63,7 @@ describe('PItemCache', () => {
     const result = await cache.all();
 
     expect(apiMock.all).toHaveBeenCalledWith({}, []);
-    expect(result).toEqual([expect.any(CacheMap), [items]]);
+    expect(result).toEqual([expect.any(CacheMap), items]);
   });
 
   it('should call one method', async () => {
