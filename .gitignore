@@ -40,3 +40,7 @@ yarn-error.*
 *.tsbuildinfo
 pnpm-workspace.*
 RELEASE_NOTES.md
+
+output/
+input/
+processed/
