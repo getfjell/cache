@@ -47,10 +47,6 @@ export default defineVitestConfig({
         '@fjell/core',
         '@fjell/http-api',
         '@fjell/logging',
-        // External dependencies
-        'd3',
-        'dayjs',
-        'react',
         // Node.js built-ins
         'path',
         'fs',
