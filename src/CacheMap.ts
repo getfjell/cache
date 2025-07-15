@@ -13,6 +13,77 @@ import LibLogger from "./logger";
 
 const logger = LibLogger.get("CacheMap");
 
+// Normalize a key value to string for consistent comparison and hashing
+const normalizeKeyValue = (value: string | number): string => {
+  return String(value);
+};
+
+// Normalized hash function for Dictionary that converts pk/lk values to strings
+const createNormalizedHashFunction = <T>() => {
+  return (key: T): string => {
+    if (typeof key === 'object' && key !== null) {
+      // Create a normalized version of the key with string values
+      const normalizedKey = JSON.parse(JSON.stringify(key));
+
+      // Normalize pk values
+      if ('pk' in normalizedKey && normalizedKey.pk !== null) {
+        normalizedKey.pk = normalizeKeyValue(normalizedKey.pk);
+      }
+
+      // Normalize lk values
+      if ('lk' in normalizedKey && normalizedKey.lk !== null) {
+        normalizedKey.lk = normalizeKeyValue(normalizedKey.lk);
+      }
+
+      // Normalize loc array lk values
+      if ('loc' in normalizedKey && Array.isArray(normalizedKey.loc)) {
+        normalizedKey.loc = normalizedKey.loc.map((locItem: any) => {
+          if (locItem && 'lk' in locItem && locItem.lk !== null) {
+            return { ...locItem, lk: normalizeKeyValue(locItem.lk) };
+          }
+          return locItem;
+        });
+      }
+
+      return JSON.stringify(normalizedKey);
+    }
+    return JSON.stringify(key);
+  };
+};
+
+// Helper function to normalize and compare location key arrays
+const isLocKeyArrayEqual = (a: any[], b: any[]): boolean => {
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  for (let i = 0; i < a.length; i++) {
+    const normalizedA = normalizeLocKeyItem(a[i]);
+    const normalizedB = normalizeLocKeyItem(b[i]);
+
+    if (JSON.stringify(normalizedA) !== JSON.stringify(normalizedB)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+// Helper function to normalize a location key item
+const normalizeLocKeyItem = (item: any): any => {
+  if (typeof item === 'object' && item !== null) {
+    const normalized = { ...item };
+
+    if ('lk' in normalized && normalized.lk !== null) {
+      normalized.lk = normalizeKeyValue(normalized.lk);
+    }
+
+    return normalized;
+  }
+
+  return item;
+};
+
 // const isObj = (x: any) => typeof x === "object" && x !== null;
 
 // const intersection = (a: object, b: object): object => {
@@ -73,7 +144,7 @@ export class CacheMap<
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
     map?: { [key: string]: V },
   ) {
-    super(map);
+    super(map, createNormalizedHashFunction<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>>());
     this.types = types;
   }
 
@@ -100,7 +171,7 @@ export class CacheMap<
             locKeys,
             ComKey,
           });
-          return JSON.stringify(locKeys) === JSON.stringify(ComKey.loc);
+          return isLocKeyArrayEqual(locKeys, ComKey.loc);
         })
         .map((key) => this.get(key) as V);
     }
