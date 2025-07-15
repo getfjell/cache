@@ -28,7 +28,7 @@
     "prepublishOnly": "pnpm run clean && pnpm run build"
   },
   "dependencies": {
-    "@fjell/client-api": "^4.4.6",
+    "@fjell/client-api": "^4.4.5",
     "@fjell/core": "^4.4.7",
     "@fjell/http-api": "^4.4.5",
     "@fjell/logging": "^4.4.7"
