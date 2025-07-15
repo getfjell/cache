@@ -4,28 +4,22 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@fjell/client-api': link:../fjell-client-api
-  '@fjell/core': link:../fjell-core
-  '@fjell/http-api': link:../fjell-http-api
-  '@fjell/logging': link:../fjell-logging
-
 importers:
 
   .:
     dependencies:
       '@fjell/client-api':
-        specifier: link:../fjell-client-api
-        version: link:../fjell-client-api
+        specifier: ^4.4.6
+        version: 4.4.6
       '@fjell/core':
-        specifier: link:../fjell-core
-        version: link:../fjell-core
+        specifier: ^4.4.7
+        version: 4.4.7
       '@fjell/http-api':
-        specifier: link:../fjell-http-api
-        version: link:../fjell-http-api
+        specifier: ^4.4.5
+        version: 4.4.5
       '@fjell/logging':
-        specifier: link:../fjell-logging
-        version: link:../fjell-logging
+        specifier: ^4.4.7
+        version: 4.4.7
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.3.1
@@ -94,14 +88,14 @@ importers:
   ../fjell-client-api:
     dependencies:
       '@fjell/core':
-        specifier: link:../fjell-core
-        version: link:../fjell-core
+        specifier: ^4.4.7
+        version: 4.4.7
       '@fjell/http-api':
-        specifier: link:../fjell-http-api
-        version: link:../fjell-http-api
+        specifier: ^4.4.5
+        version: 4.4.5
       '@fjell/logging':
-        specifier: link:../fjell-logging
-        version: link:../fjell-logging
+        specifier: ^4.4.7
+        version: 4.4.7
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
@@ -161,8 +155,8 @@ importers:
   ../fjell-core:
     dependencies:
       '@fjell/logging':
-        specifier: link:../fjell-logging
-        version: link:../fjell-logging
+        specifier: ^4.4.7
+        version: 4.4.7
       deepmerge:
         specifier: ^4.3.1
         version: 4.3.1
@@ -222,8 +216,8 @@ importers:
   ../fjell-http-api:
     dependencies:
       '@fjell/logging':
-        specifier: link:../fjell-logging
-        version: link:../fjell-logging
+        specifier: ^4.4.7
+        version: 4.4.7
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.3.1
@@ -646,6 +640,18 @@ packages:
   '@eslint/plugin-kit@0.3.3':
     resolution: {integrity: sha512-1+WqvgNMhmlAambTvT3KPtCl/Ibr68VldY2XY40SL1CE0ZXiakFR/cbTspaF5HsnpDMvcYYoJHfl4980NBjGag==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@fjell/client-api@4.4.6':
+    resolution: {integrity: sha512-nGEdTdjw8iW78lwug5ZBPB/Cxd5ZmcQLCjXmOcWEedD6Nw7SGJ5Z5WYGwVImYPAa+uJFBIKClbs6hpr5kYQEgg==}
+
+  '@fjell/core@4.4.7':
+    resolution: {integrity: sha512-urHgEX6uLrbZKiYjhOJx6WZ7dylBvsAxoIfyhA+WE8JasiqFWUzg2YNX5DNOYsqruTe6FSM1dQ/dbHqz/wAFbQ==}
+
+  '@fjell/http-api@4.4.5':
+    resolution: {integrity: sha512-ZQ8ysGl3wCCZYxgkbftG9gd+anX4ll0LpWspoKloI5je2uYxMF/gs3y/UxsCqK5ppbP6vOV67+LjVQvsVrEd0A==}
+
+  '@fjell/logging@4.4.7':
+    resolution: {integrity: sha512-ned1kfEpFZSDraH/KRaRodoozyBB7PwlrQuiAmBiUUadfBKx6mx56fZIFRlzb/XUHZIypw237I+4P/bsx7cEzg==}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -2695,6 +2701,25 @@ snapshots:
     dependencies:
       '@eslint/core': 0.15.1
       levn: 0.4.1
+
+  '@fjell/client-api@4.4.6':
+    dependencies:
+      '@fjell/core': 4.4.7
+      '@fjell/http-api': 4.4.5
+      '@fjell/logging': 4.4.7
+      deepmerge: 4.3.1
+
+  '@fjell/core@4.4.7':
+    dependencies:
+      '@fjell/logging': 4.4.7
+      deepmerge: 4.3.1
+      luxon: 3.7.1
+
+  '@fjell/http-api@4.4.5':
+    dependencies:
+      '@fjell/logging': 4.4.7
+
+  '@fjell/logging@4.4.7': {}
 
   '@humanfs/core@0.19.1': {}
 
