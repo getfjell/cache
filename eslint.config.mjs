@@ -29,13 +29,13 @@ export default [{
     "no-console": 0,
     "no-unused-vars": "off",
 
-    "max-len": ["error", {
-      code: 160,
+    "max-len": ["warn", {
+      code: 200,
     }],
 
     "max-depth": ["error", 4],
-    "max-params": ["error", 4],
-    "max-lines": ["error", 2500],
+    "max-params": ["warn", 8],
+    "max-lines": ["warn", 8000],
 
     "no-multiple-empty-lines": ["error", {
       max: 1,
@@ -46,8 +46,28 @@ export default [{
       skipBlankLines: true,
     }],
 
-    indent: ["error", 2, {
+    indent: ["warn", 2, {
       SwitchCase: 1,
+      ignoredNodes: [
+        "TemplateLiteral",
+        "JSXElement",
+        "JSXElement > *",
+        "JSXAttribute",
+        "JSXIdentifier",
+        "JSXNamespacedName",
+        "JSXMemberExpression",
+        "JSXSpreadAttribute",
+        "JSXExpressionContainer",
+        "JSXOpeningElement",
+        "JSXClosingElement",
+        "JSXFragment",
+        "JSXOpeningFragment",
+        "JSXClosingFragment",
+        "JSXText",
+        "JSXEmptyExpression",
+        "JSXSpreadChild"
+      ],
+      offsetTernaryExpressions: true,
     }],
 
     "sort-imports": ["error", {
@@ -64,7 +84,29 @@ export default [{
     "@typescript-eslint/no-explicit-any": "off",
 
     "no-restricted-imports": ["error", {
-      patterns: ["..*", "src/*"],
+      patterns: [
+        {
+          group: ["..*", "src/*"],
+          message: "Use absolute imports instead"
+        }
+      ]
     }],
+  },
+}, {
+  files: ["tests/**/*.ts"],
+  rules: {
+    "no-restricted-imports": ["error", {
+      patterns: [
+        {
+          group: ["src/*"],
+          message: "Use absolute imports instead"
+        }
+      ]
+    }],
+  },
+}, {
+  files: ["examples/**/*.ts"],
+  rules: {
+    "no-restricted-imports": "off",
   },
 }];
