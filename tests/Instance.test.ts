@@ -1,5 +1,5 @@
 /* eslint-disable no-undefined */
-import { describe, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createInstance, isInstance } from '@/Instance';
 import { Cache } from '@/Cache';
 import { Item } from '@fjell/core';
