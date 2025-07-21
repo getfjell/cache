@@ -1,8 +1,10 @@
 import { Item } from "@fjell/core";
-import { Cache } from "./Cache";
+import { ClientApi } from "@fjell/client-api";
 import { InstanceFactory as BaseInstanceFactory, Registry, RegistryHub } from "@fjell/registry";
-import { createInstance, Instance } from "./Instance";
+import { Instance } from "./Instance";
 import { Coordinate } from "@fjell/registry";
+import { CacheMap } from "@/CacheMap";
+import { createOperations } from "@/Operations";
 import LibLogger from "@/logger";
 
 const logger = LibLogger.get("InstanceFactory");
@@ -16,7 +18,7 @@ export type InstanceFactory<
   L4 extends string = never,
   L5 extends string = never
 > = (
-  cache: Cache<V, S, L1, L2, L3, L4, L5>
+  api: ClientApi<V, S, L1, L2, L3, L4, L5>
 ) => BaseInstanceFactory<S, L1, L2, L3, L4, L5>;
 
 /**
@@ -31,11 +33,23 @@ export const createInstanceFactory = <
   L4 extends string = never,
   L5 extends string = never
 >(
-    cache: Cache<V, S, L1, L2, L3, L4, L5>
+    api: ClientApi<V, S, L1, L2, L3, L4, L5>
   ): BaseInstanceFactory<S, L1, L2, L3, L4, L5> => {
   return (coordinate: Coordinate<S, L1, L2, L3, L4, L5>, context: { registry: Registry, registryHub?: RegistryHub }) => {
-    logger.debug("Creating cache instance", { coordinate, registry: context.registry, cache });
+    logger.debug("Creating cache instance", { coordinate, registry: context.registry, api });
 
-    return createInstance(context.registry, coordinate, cache) as Instance<V, S, L1, L2, L3, L4, L5>;
+    // Since InstanceFactory must be synchronous but our createInstance is async,
+    // we need to create a special cache instance synchronously and defer the async initialization
+    const cacheMap = new CacheMap<V, S, L1, L2, L3, L4, L5>(coordinate.kta);
+    const pkType = coordinate.kta[0] as S;
+    const operations = createOperations(api, coordinate, cacheMap, pkType);
+
+    return {
+      coordinate,
+      registry: context.registry,
+      api,
+      cacheMap,
+      operations
+    } as Instance<V, S, L1, L2, L3, L4, L5>;
   };
 };

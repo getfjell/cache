@@ -50,39 +50,27 @@ describe('Aggregator - Extended Tests', () => {
       all: vi.fn(),
       get: vi.fn(),
     } as unknown as Mocked<CacheMap<Item<"test">, "test">>;
-
+    
     itemCacheMock = {
-      operations: {
-        all: vi.fn(),
-        one: vi.fn(),
-        get: vi.fn(),
-        retrieve: vi.fn(),
-        action: vi.fn(),
-        allAction: vi.fn(),
-        allFacet: vi.fn(),
-        facet: vi.fn(),
-        create: vi.fn(),
-        remove: vi.fn(),
-        update: vi.fn(),
-        find: vi.fn(),
-        findOne: vi.fn(),
-        set: vi.fn(),
-        reset: vi.fn(),
-      },
-      coordinate: { kta: ['test'] },
-      registry: {},
-      api: {},
-      cacheMap: cacheMapMock,
+      all: vi.fn(),
+      one: vi.fn(),
+      get: vi.fn(),
+      retrieve: vi.fn(),
+      action: vi.fn(),
+      allAction: vi.fn(),
+      allFacet: vi.fn(),
+      facet: vi.fn(),
+      create: vi.fn(),
+      remove: vi.fn(),
+      update: vi.fn(),
+      find: vi.fn(),
+      findOne: vi.fn(),
+      set: vi.fn(),
+      reset: vi.fn(),
     } as unknown as Mocked<Cache<Item<"test">, "test">>;
-
+    
     otherCacheMock = {
-      operations: {
-        retrieve: vi.fn(),
-      },
-      coordinate: { kta: ['other'] },
-      registry: {},
-      api: {},
-      cacheMap: {},
+      retrieve: vi.fn(),
     } as unknown as Mocked<Cache<Item<"other">, "other">>;
 
     aggregator = await createAggregator(itemCacheMock, {
@@ -95,57 +83,58 @@ describe('Aggregator - Extended Tests', () => {
 
   it('should handle allFacet method', async () => {
     const facetData = { status: "active", count: 10 };
-    (itemCacheMock.operations.allFacet as any).mockResolvedValue([cacheMapMock, facetData]);
+    itemCacheMock.allFacet.mockResolvedValue([cacheMapMock, facetData]);
 
     const [,result] = await aggregator.allFacet('testFacet', { param: 'value' }, []);
 
-    expect(itemCacheMock.operations.allFacet).toHaveBeenCalledWith('testFacet', { param: 'value' }, []);
+    expect(itemCacheMock.allFacet).toHaveBeenCalledWith('testFacet', { param: 'value' }, []);
     expect(result).toEqual(facetData);
   });
 
   it('should handle allFacet with default parameters', async () => {
     const facetData = { data: "test" };
-    (itemCacheMock.operations.allFacet as any).mockResolvedValue([cacheMapMock, facetData]);
+    itemCacheMock.allFacet.mockResolvedValue([cacheMapMock, facetData]);
 
     const [,result] = await aggregator.allFacet('testFacet');
 
-    expect(itemCacheMock.operations.allFacet).toHaveBeenCalledWith('testFacet', {}, []);
+    expect(itemCacheMock.allFacet).toHaveBeenCalledWith('testFacet', {}, []);
     expect(result).toEqual(facetData);
   });
 
   it('should handle facet method', async () => {
     const facetData = { status: "active" };
-    (itemCacheMock.operations.facet as any).mockResolvedValue([cacheMapMock, facetData]);
+    itemCacheMock.facet.mockResolvedValue([cacheMapMock, facetData]);
 
     const [,result] = await aggregator.facet(items[0].key, 'testFacet');
 
-    expect(itemCacheMock.operations.facet).toHaveBeenCalledWith(items[0].key, 'testFacet');
+    expect(itemCacheMock.facet).toHaveBeenCalledWith(items[0].key, 'testFacet');
     expect(result).toEqual(facetData);
   });
 
   it('should handle findOne method', async () => {
-    (itemCacheMock.operations.findOne as any).mockResolvedValue([cacheMapMock, items[0]]);
-    (otherCacheMock.operations.retrieve as any).mockResolvedValue([null, otherItems[0]]);
+    itemCacheMock.findOne.mockResolvedValue([cacheMapMock, items[0]]);
+    // @ts-ignore
+    otherCacheMock.retrieve.mockReturnValue([null, otherItems[0]]);
 
     const [,aggregatedItem] = await aggregator.findOne('testFinder', { param: 'value' }, []);
 
-    expect(itemCacheMock.operations.findOne).toHaveBeenCalledWith('testFinder', { param: 'value' }, []);
+    expect(itemCacheMock.findOne).toHaveBeenCalledWith('testFinder', { param: 'value' }, []);
     expect(aggregatedItem?.aggs?.other.item).toEqual(otherItems[0]);
   });
 
   it('should handle reset method', async () => {
-    (itemCacheMock.operations.reset as any).mockResolvedValue([cacheMapMock]);
+    itemCacheMock.reset.mockResolvedValue([cacheMapMock]);
 
     const result = await aggregator.reset();
 
-    expect(itemCacheMock.operations.reset).toHaveBeenCalled();
+    expect(itemCacheMock.reset).toHaveBeenCalled();
     expect(result).toEqual([cacheMapMock]);
   });
 
   it('should handle null item scenarios', async () => {
-    (itemCacheMock.operations.one as any).mockResolvedValue([cacheMapMock, null]);
-    (itemCacheMock.operations.get as any).mockResolvedValue([cacheMapMock, null]);
-    (itemCacheMock.operations.retrieve as any).mockResolvedValue([cacheMapMock, null]);
+    itemCacheMock.one.mockResolvedValue([cacheMapMock, null]);
+    itemCacheMock.get.mockResolvedValue([cacheMapMock, null]);
+    itemCacheMock.retrieve.mockResolvedValue([cacheMapMock, null]);
 
     const [,oneResult] = await aggregator.one();
     const [,getResult] = await aggregator.get(items[0].key);

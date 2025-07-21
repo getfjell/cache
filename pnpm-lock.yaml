@@ -21,8 +21,8 @@ importers:
         specifier: ^4.4.7
         version: 4.4.7
       '@fjell/registry':
-        specifier: ^4.4.7
-        version: 4.4.7
+        specifier: ^4.4.11
+        version: 4.4.11
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.3.1
@@ -356,8 +356,8 @@ packages:
   '@fjell/logging@4.4.7':
     resolution: {integrity: sha512-ned1kfEpFZSDraH/KRaRodoozyBB7PwlrQuiAmBiUUadfBKx6mx56fZIFRlzb/XUHZIypw237I+4P/bsx7cEzg==}
 
-  '@fjell/registry@4.4.7':
-    resolution: {integrity: sha512-3lbLO4P6WYHgBqiAU/UQRQ1goenlOqMLhqsovX/HyBJEDLlebZVLpktJoSOQVX56aIgHR9C30PeXBCEOkI3YAg==}
+  '@fjell/registry@4.4.11':
+    resolution: {integrity: sha512-GaVnDJGLWW7w2waVJb+NxatiopY2LyHqY3BfZSMP835i9ibj232NV34QBiBh3VSXIuWGrKdSAQkPz4F1DGjujg==}
     engines: {node: '>=21'}
 
   '@humanfs/core@0.19.1':
@@ -2256,7 +2256,7 @@ snapshots:
       '@fjell/core': 4.4.7
       '@fjell/http-api': 4.4.5
       '@fjell/logging': 4.4.7
-      '@fjell/registry': 4.4.7
+      '@fjell/registry': 4.4.11
       deepmerge: 4.3.1
 
   '@fjell/core@4.4.7':
@@ -2271,7 +2271,7 @@ snapshots:
 
   '@fjell/logging@4.4.7': {}
 
-  '@fjell/registry@4.4.7':
+  '@fjell/registry@4.4.11':
     dependencies:
       '@fjell/core': 4.4.7
       '@fjell/logging': 4.4.7
