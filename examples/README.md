@@ -6,11 +6,11 @@ This directory contains examples demonstrating how to use fjell-cache for cachin
 
 ### 1. `basic-cache-example.ts` ⭐ **Start Here!**
 **Perfect for beginners!** Demonstrates the fundamental way to use fjell-cache for data caching:
-- **Basic cache operations** - Create caches, get/set items, manage cache lifecycle
+- **Basic cache operations** - Create caches with coordinates and registries, use operations API
 - **Simple data models** - User and Task entities with mock storage
-- **Registry and Instance creation** - Set up cache model instances
+- **Cache-as-Instance architecture** - Caches extend Instance from fjell-registry
 - **Cache hits vs misses** - Understand cache behavior and performance benefits
-- **Cache management** - Updates, deletions, and data consistency
+- **Cache management** - Updates, deletions, and data consistency through operations
 
 Great for understanding the fundamentals of fjell-cache data management.
 
@@ -39,7 +39,8 @@ Perfect for understanding the underlying cache mechanisms and advanced use cases
 ### Basic Caching Operations (basic-cache-example.ts)
 ```typescript
 // Import fjell-cache functionality
-import { createCache, createRegistry, createInstance } from '@fjell/cache';
+import { createCache } from '@fjell/cache';
+import { createCoordinate, createRegistry } from '@fjell/registry';
 import { ClientApi } from '@fjell/client-api';
 
 // Create a registry for cache management
@@ -47,17 +48,15 @@ const registry = createRegistry();
 
 // Create a cache instance with API integration
 const userApi = createUserApi(); // Your API implementation
-const userCache = await createCache(userApi, 'user');
+const userCache = await createCache(userApi, createCoordinate('user'), registry);
 
-// Create cache model instance
-const userInstance = createInstance(registry, createCoordinate('user'), userCache);
+// Cache is now an instance - no need for separate createInstance call
+// Perform cache operations through the operations API
+const [cacheMap, allUsers] = await userCache.operations.all();
+const [, cachedUser] = await userCache.operations.get(userKey);
+const [, retrievedUser] = await userCache.operations.retrieve(userKey); // Cache hit!
 
-// Perform cache operations
-const [cacheMap, allUsers] = await userInstance.cache.all();
-const [, cachedUser] = await userInstance.cache.get(userKey);
-const [, retrievedUser] = await userInstance.cache.retrieve(userKey); // Cache hit!
-
-await userInstance.cache.set(userKey, updatedUser);
+await userCache.operations.set(userKey, updatedUser);
 ```
 
 ### Advanced Aggregation (aggregator-example.ts)
@@ -78,8 +77,8 @@ if (populatedOrder.aggs?.customer?.item) {
   console.log(`Order for: ${customer.name} (${customer.email})`);
 }
 
-// Create aggregated cache instance
-const orderInstance = createInstance(registry, createCoordinate('order'), orderAggregator);
+// Aggregator is now itself an instance - access operations directly
+const [, orders] = await orderAggregator.all();
 ```
 
 ### Direct Cache Management (cache-map-example.ts)
@@ -262,18 +261,16 @@ const populatedTicket = await ticketAggregator.populate(ticket);
 
 ### Performance Optimization
 ```typescript
-// Cache with performance tuning
-const cache = await createCache(api, 'product', {
-  batchSize: 100,          // Batch operations
-  prefetch: true,          // Prefetch related items
-  compression: true,       // Compress cached data
-  ttl: 3600000,           // 1 hour cache lifetime
-  maxSize: 10000          // Maximum cached items
-});
+// Cache with coordinate and registry
+const cache = await createCache(api, createCoordinate('product'), registry);
 
 // Bulk operations for efficiency
-const [cacheMap, allProducts] = await cache.all();
+const [cacheMap, allProducts] = await cache.operations.all();
 const productMap = new Map(allProducts.map(p => [p.id, p]));
+
+// Access cache properties for optimization
+console.log(`Cache coordinate: ${cache.coordinate.kta.join(', ')}`);
+console.log(`Cached items: ${cache.cacheMap.size()}`);
 ```
 
 ### Storage Integration
@@ -287,21 +284,19 @@ Fjell-cache works with any storage backend through the ClientApi interface:
 
 ### Error Handling and Resilience
 ```typescript
-// Cache with error handling
-const resilientCache = await createCache(api, 'user', {
-  fallback: async (key) => {
-    // Fallback to secondary storage
-    return await secondaryStorage.get(key);
-  },
-  retryPolicy: {
-    attempts: 3,
-    backoff: 'exponential'
-  },
-  circuit: {
-    failureThreshold: 5,
-    resetTimeout: 30000
-  }
-});
+// Cache with proper error handling through the API layer
+const resilientCache = await createCache(api, createCoordinate('user'), registry);
+
+// Error handling in operations
+try {
+  const [, user] = await resilientCache.operations.get(userKey);
+  return user;
+} catch (error) {
+  // Handle cache errors gracefully
+  console.error('Cache operation failed:', error);
+  // Fallback to direct API call
+  return await api.get(userKey);
+}
 ```
 
 This provides the foundation for building scalable, maintainable applications with intelligent caching using fjell-cache.

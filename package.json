@@ -32,7 +32,7 @@
     "@fjell/core": "^4.4.7",
     "@fjell/http-api": "^4.4.5",
     "@fjell/logging": "^4.4.7",
-    "@fjell/registry": "^4.4.7"
+    "@fjell/registry": "^4.4.11"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
