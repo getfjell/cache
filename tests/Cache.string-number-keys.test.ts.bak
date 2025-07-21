@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCache } from '@/Cache';
 import { CacheMap } from '@/CacheMap';
 import { ComKey, Item, PriKey } from '@fjell/core';
-import { createCoordinate, createRegistry } from '@fjell/registry';
 
 // Mock the client API
 const mockClientApi = {
@@ -29,8 +28,7 @@ describe('Cache String/Number Key Normalization', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    const registry = createRegistry('test');
-    cache = await createCache(mockClientApi as any, createCoordinate('test'), registry);
+    cache = await createCache(mockClientApi as any, 'test');
   });
 
   it('should treat string and number keys as equivalent in CacheMap', async () => {
@@ -48,10 +46,10 @@ describe('Cache String/Number Key Normalization', () => {
     };
 
     // Set an item with string key
-    await cache.operations.set(stringKey, testItem);
+    await cache.set(stringKey, testItem);
 
     // Try to retrieve with number key - should find the same item
-    const [, retrievedItem] = await cache.operations.retrieve(numberKey);
+    const [, retrievedItem] = await cache.retrieve(numberKey);
 
     expect(retrievedItem).not.toBeNull();
     expect(retrievedItem?.key).toEqual(stringKey);
@@ -81,10 +79,10 @@ describe('Cache String/Number Key Normalization', () => {
     };
 
     // Set an item with string keys
-    await cache.operations.set(stringComKey, testItem);
+    await cache.set(stringComKey, testItem);
 
     // Try to retrieve with number keys - should find the same item
-    const [, retrievedItem] = await cache.operations.retrieve(numberComKey);
+    const [, retrievedItem] = await cache.retrieve(numberComKey);
 
     expect(retrievedItem).not.toBeNull();
     expect(retrievedItem?.key).toEqual(stringComKey);
