@@ -2,7 +2,6 @@ import { CacheMap } from '@/CacheMap';
 import { Cache, createCache } from '@/Cache';
 import { PItemApi } from '@fjell/client-api';
 import { Item, PriKey } from '@fjell/core';
-import { createCoordinate, createRegistry } from '@fjell/registry';
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
 vi.mock('@fjell/client-api');
@@ -57,19 +56,18 @@ describe('PItemCache', () => {
       find: vi.fn().mockReturnValue(items),
     } as unknown as Mocked<PItemApi<TestItem, 'test'>>;
 
-    const registry = createRegistry('test');
-    cache = await createCache(apiMock, createCoordinate('test'), registry);
+    cache = await createCache(apiMock, 'test');
   });
 
   it('should call all method', async () => {
-    const result = await cache.operations.all();
+    const result = await cache.all();
 
     expect(apiMock.all).toHaveBeenCalledWith({}, []);
     expect(result).toEqual([expect.any(CacheMap), items]);
   });
 
   it('should call one method', async () => {
-    const result = await cache.operations.one();
+    const result = await cache.one();
 
     expect(apiMock.one).toHaveBeenCalledWith({}, []);
     expect(result).toEqual([expect.any(CacheMap), items[0]]);
@@ -78,7 +76,7 @@ describe('PItemCache', () => {
   it('should call action method', async () => {
     const action = 'testAction';
 
-    const result = await cache.operations.action(key1, action);
+    const result = await cache.action(key1, action);
 
     expect(apiMock.action).toHaveBeenCalledWith(key1, action, {});
     expect(result).toEqual([expect.any(CacheMap), expect.any(Object)]);
@@ -87,7 +85,7 @@ describe('PItemCache', () => {
   it('should call allAction method', async () => {
     const action = 'testAction';
 
-    const result = await cache.operations.allAction(action);
+    const result = await cache.allAction(action);
 
     expect(apiMock.allAction).toHaveBeenCalledWith(action, {}, []);
     expect(result).toEqual([expect.any(CacheMap), []]);
@@ -97,7 +95,7 @@ describe('PItemCache', () => {
     const facet = 'testFacet';
     const params = { param1: 'value1' };
 
-    const result = await cache.operations.allFacet(facet, params);
+    const result = await cache.allFacet(facet, params);
 
     expect(apiMock.allFacet).toHaveBeenCalledWith(facet, params, []);
     expect(result).toEqual([expect.any(CacheMap), { facetData: "test" }]);
@@ -106,7 +104,7 @@ describe('PItemCache', () => {
   it('should call allFacet method with default parameters', async () => {
     const facet = 'testFacet';
 
-    const result = await cache.operations.allFacet(facet);
+    const result = await cache.allFacet(facet);
 
     expect(apiMock.allFacet).toHaveBeenCalledWith(facet, {}, []);
     expect(result).toEqual([expect.any(CacheMap), { facetData: "test" }]);
@@ -114,21 +112,21 @@ describe('PItemCache', () => {
 
   it('should call get method', async () => {
 
-    const result = await cache.operations.get(key1);
+    const result = await cache.get(key1);
 
     expect(apiMock.get).toHaveBeenCalledWith(key1);
     expect(result).toEqual([expect.any(CacheMap), items[0]]);
   });
 
   it('should call retrieve method', async () => {
-    const result = await cache.operations.retrieve(key1);
+    const result = await cache.retrieve(key1);
 
     expect(apiMock.get).toHaveBeenCalledWith(key1);
     expect(result).toEqual([expect.any(CacheMap), items[0]]);
   });
 
   it('should call remove method', async () => {
-    const result = await cache.operations.remove(key1);
+    const result = await cache.remove(key1);
 
     expect(apiMock.remove).toHaveBeenCalledWith(key1);
     expect(result).toEqual(expect.any(CacheMap));
@@ -137,21 +135,21 @@ describe('PItemCache', () => {
   it('should call update method', async () => {
     const itemProps: Partial<Item<'test'>> = { key: key1 };
 
-    const result = await cache.operations.update(key1, itemProps);
+    const result = await cache.update(key1, itemProps);
 
     expect(apiMock.update).toHaveBeenCalledWith(key1, itemProps);
     expect(result).toEqual([expect.any(CacheMap), expect.any(Object)]);
   });
 
   it('find should call find method', async () => {
-    const result = await cache.operations.find('someFinder', {});
+    const result = await cache.find('someFinder', {});
 
     expect(apiMock.find).toHaveBeenCalledWith('someFinder', {}, []);
     expect(result).toEqual([expect.any(CacheMap), expect.any(Object)]);
   });
 
   it('should call set method', async () => {
-    const result = await cache.operations.set(key1, items[0]);
+    const result = await cache.set(key1, items[0]);
 
     expect(apiMock.update).not.toHaveBeenCalledWith(key1, items[0]);
     expect(result).toEqual([expect.any(CacheMap), expect.any(Object)]);
@@ -168,7 +166,7 @@ describe('PItemCache', () => {
       key: malformedKey
     };
 
-    await expect(cache.operations.set(malformedKey, malformedItem as unknown as TestItem))
+    await expect(cache.set(malformedKey, malformedItem as unknown as TestItem))
       .rejects
       .toThrow("Item does not have the correct primary key type");
   });
@@ -179,7 +177,7 @@ describe('PItemCache', () => {
       pk: '123e4567-e89b-12d3-a456-426614174000'
     } as unknown as PriKey<"test">;
 
-    await expect(cache.operations.set(differentKey, items[0]))
+    await expect(cache.set(differentKey, items[0]))
       .rejects
       .toThrow('Key does not match item key');
   });

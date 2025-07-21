@@ -181,10 +181,10 @@ export const runAggregatorExample = async (): Promise<void> => {
   const productApi = createMockApi(mockProducts) as ClientApi<Product, 'product'>;
   const ticketApi = createMockApi(mockTickets) as ClientApi<SupportTicket, 'ticket'>;
 
-  const customerCache = await createCache(customerApi, 'customer');
-  const orderCache = await createCache(orderApi, 'order');
-  const productCache = await createCache(productApi, 'product');
-  const ticketCache = await createCache(ticketApi, 'ticket');
+  const customerCache = await createCache(customerApi, createCoordinate('customer'), registry);
+  const orderCache = await createCache(orderApi, createCoordinate('order'), registry);
+  const productCache = await createCache(productApi, createCoordinate('product'), registry);
+  const ticketCache = await createCache(ticketApi, createCoordinate('ticket'), registry);
 
   console.log('✅ Created individual caches for each entity type');
 
@@ -209,19 +209,13 @@ export const runAggregatorExample = async (): Promise<void> => {
     events: {}
   });
 
-  console.log('✅ Created aggregated caches with relationship mappings');
-
-  // Create instances for easier management
-  const orderInstance = createInstance(registry, createCoordinate('order'), orderAggregator);
-  const ticketInstance = createInstance(registry, createCoordinate('ticket'), ticketAggregator);
-
-  console.log('✅ Created aggregated cache instances\n');
+  console.log('✅ Created aggregated caches with relationship mappings (aggregators are now instances)\n');
 
   // Step 4: Basic aggregation - Fetch orders with customer data
   console.log('Step 4: Order aggregation with customer data');
   console.log('--------------------------------------------');
 
-  const [, orders] = await orderInstance.cache.all();
+  const [, orders] = await orderAggregator.all();
   console.log(`📋 Fetched ${orders.length} orders`);
 
   for (const order of orders) {
@@ -243,7 +237,7 @@ export const runAggregatorExample = async (): Promise<void> => {
   console.log('\n\nStep 5: Support ticket aggregation with multiple references');
   console.log('----------------------------------------------------------');
 
-  const [, tickets] = await ticketInstance.cache.all();
+  const [, tickets] = await ticketAggregator.all();
   console.log(`🎫 Fetched ${tickets.length} support tickets`);
 
   for (const ticket of tickets) {
@@ -275,7 +269,7 @@ export const runAggregatorExample = async (): Promise<void> => {
   console.log('\n\nStep 6: Individual item retrieval with aggregation');
   console.log('-------------------------------------------------');
 
-  const [, specificOrder] = await orderInstance.cache.get(order1.key);
+  const [, specificOrder] = await orderAggregator.get(order1.key);
   if (specificOrder) {
     console.log(`🔍 Retrieved specific order: ${specificOrder.id}`);
 

@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 import { createInstanceFactory } from '@/InstanceFactory';
-import { Cache } from '@/Cache';
-import { createInstance } from '@/Instance';
-import { Coordinate, createCoordinate, Registry, RegistryHub } from '@fjell/registry';
+import { createCoordinate, Registry, RegistryHub } from '@fjell/registry';
 import { Item } from '@fjell/core';
+import { ClientApi } from '@fjell/client-api';
 
 // Mock the logger to avoid logging during tests
 vi.mock('../src/logger', () => {
@@ -29,40 +28,71 @@ vi.mock('../src/logger', () => {
   }
 });
 
-// Mock the createInstance function from Instance module
-vi.mock('@/Instance', async () => {
-  const actual = await vi.importActual('@/Instance');
-  return {
-    ...actual,
-    createInstance: vi.fn(),
-  };
-});
+// Mock CacheMap
+vi.mock('@/CacheMap', () => ({
+  CacheMap: vi.fn().mockImplementation(() => ({
+    get: vi.fn(),
+    set: vi.fn(),
+    has: vi.fn(),
+    delete: vi.fn(),
+    clear: vi.fn(),
+    size: vi.fn(),
+    keys: vi.fn(),
+    values: vi.fn(),
+    entries: vi.fn(),
+    all: vi.fn(),
+  }))
+}));
+
+// Mock Operations
+vi.mock('@/Operations', () => ({
+  createOperations: vi.fn().mockReturnValue({
+    all: vi.fn(),
+    one: vi.fn(),
+    get: vi.fn(),
+    set: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+    action: vi.fn(),
+    allAction: vi.fn(),
+    allFacet: vi.fn(),
+    facet: vi.fn(),
+    find: vi.fn(),
+    findOne: vi.fn(),
+    reset: vi.fn(),
+    retrieve: vi.fn(),
+  })
+}));
 
 // Define test types to match the working patterns from other tests
 type TestItem = Item<"test", "container">;
 
 describe('InstanceFactory', () => {
-  let mockCache: Mocked<Cache<TestItem, "test", "container">>;
+  let mockApi: Mocked<ClientApi<TestItem, "test", "container">>;
   let mockRegistry: Mocked<Registry>;
   let mockRegistryHub: Mocked<RegistryHub>;
-  let mockCoordinate: Coordinate<"test", "container">;
-  let mockInstance: any;
+  let mockCoordinate: ReturnType<typeof createCoordinate<"test", "container">>;
 
   beforeEach(() => {
-    // Setup mock cache
-    mockCache = {
+    // Setup mock API
+    mockApi = {
       all: vi.fn(),
       one: vi.fn(),
       get: vi.fn(),
       set: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
       remove: vi.fn(),
-      clear: vi.fn(),
-      size: vi.fn(),
-      has: vi.fn(),
-      keys: vi.fn(),
-      values: vi.fn(),
-      entries: vi.fn(),
-    } as unknown as Mocked<Cache<TestItem, "test", "container">>;
+      action: vi.fn(),
+      allAction: vi.fn(),
+      allFacet: vi.fn(),
+      facet: vi.fn(),
+      find: vi.fn(),
+      findOne: vi.fn(),
+      reset: vi.fn(),
+      retrieve: vi.fn(),
+    } as unknown as Mocked<ClientApi<TestItem, "test", "container">>;
 
     // Setup mock registry
     mockRegistry = {
@@ -78,19 +108,8 @@ describe('InstanceFactory', () => {
       has: vi.fn(),
     } as unknown as Mocked<RegistryHub>;
 
-    // Setup mock coordinate using createCoordinate - match the cache type structure
+    // Setup coordinate
     mockCoordinate = createCoordinate(['test', 'container'], []);
-
-    // Setup mock instance
-    mockInstance = {
-      coordinate: mockCoordinate,
-      registry: mockRegistry,
-      cache: mockCache,
-    };
-
-    // Setup createInstance mock
-    const createInstanceMock = vi.mocked(createInstance);
-    createInstanceMock.mockReturnValue(mockInstance);
   });
 
   afterEach(() => {
@@ -98,106 +117,78 @@ describe('InstanceFactory', () => {
   });
 
   describe('createInstanceFactory', () => {
-    it('should return a function that matches the BaseInstanceFactory signature', () => {
-      const factory = createInstanceFactory(mockCache);
+    it('should create an instance factory function', () => {
+      const factory = createInstanceFactory(mockApi);
 
-      expect(typeof factory).toBe('function');
-      expect(factory.length).toBe(2); // Should accept coordinate and context parameters
+      expect(factory).toBeInstanceOf(Function);
     });
 
-    it('should create and return an instance when the factory function is called', () => {
-      const factory = createInstanceFactory(mockCache);
+    it('should return an instance factory that creates cache instances', () => {
+      const factory = createInstanceFactory(mockApi);
       const context = { registry: mockRegistry, registryHub: mockRegistryHub };
 
-      const result = factory(mockCoordinate, context);
+      const instance = factory(mockCoordinate, context);
 
-      const createInstanceMock = vi.mocked(createInstance);
-      expect(createInstanceMock).toHaveBeenCalledWith(mockRegistry, mockCoordinate, mockCache);
-      expect(result).toBe(mockInstance);
+      expect(instance).toBeDefined();
+      expect(instance.coordinate).toBe(mockCoordinate);
+      expect(instance.registry).toBe(mockRegistry);
+      expect((instance as any).api).toBe(mockApi);
+      expect((instance as any).cacheMap).toBeDefined();
+      expect((instance as any).operations).toBeDefined();
     });
 
-    it('should create and return an instance when called without registryHub', () => {
-      const factory = createInstanceFactory(mockCache);
+    it('should create instances with the correct coordinate', () => {
+      const factory = createInstanceFactory(mockApi);
       const context = { registry: mockRegistry };
 
-      const result = factory(mockCoordinate, context);
+      const instance = factory(mockCoordinate, context);
 
-      const createInstanceMock = vi.mocked(createInstance);
-      expect(createInstanceMock).toHaveBeenCalledWith(mockRegistry, mockCoordinate, mockCache);
-      expect(result).toBe(mockInstance);
+      expect(instance.coordinate).toBe(mockCoordinate);
+      expect(instance.coordinate.kta).toEqual(['test', 'container']);
     });
 
-    it('should log debug information when creating an instance', async () => {
-      const factory = createInstanceFactory(mockCache);
-      const context = { registry: mockRegistry, registryHub: mockRegistryHub };
-
-      factory(mockCoordinate, context);
-
-      // The logger.debug call should have been made with the correct parameters
-      const loggerModule = vi.mocked(await import('../src/logger'));
-      const mockLogger = loggerModule.default.get();
-      expect(mockLogger.debug).toHaveBeenCalledWith(
-        "Creating cache instance",
-        {
-          coordinate: mockCoordinate,
-          registry: mockRegistry,
-          cache: mockCache
-        }
-      );
-    });
-
-    it('should work with different generic types', () => {
-      // Create a cache with a different type structure
-      type DifferentItem = Item<"user">;
-      const differentCache = mockCache as unknown as Cache<DifferentItem, "user">;
-      const differentCoordinate = createCoordinate(['user'], []);
-
-      const factory = createInstanceFactory(differentCache);
+    it('should create instances with the correct registry', () => {
+      const factory = createInstanceFactory(mockApi);
       const context = { registry: mockRegistry };
 
-      factory(differentCoordinate, context);
+      const instance = factory(mockCoordinate, context);
 
-      const createInstanceMock = vi.mocked(createInstance);
-      expect(createInstanceMock).toHaveBeenCalledWith(mockRegistry, differentCoordinate, differentCache);
+      expect(instance.registry).toBe(mockRegistry);
     });
 
-    it('should handle edge case with minimal generic types', () => {
-      // Use simple primary type only
-      type SimpleItem = Item<"simple">;
-      const simpleCache = mockCache as unknown as Cache<SimpleItem, "simple">;
-      const simpleCoordinate = createCoordinate(['simple'], []);
+    it('should create multiple instances with different coordinates', () => {
+      const factory = createInstanceFactory(mockApi);
+      const context = { registry: mockRegistry };
+      const coordinate1 = createCoordinate(['test', 'container'], []);
+      const coordinate2 = createCoordinate(['test', 'container'], []); // Change to same type as mockApi
 
-      const factory = createInstanceFactory(simpleCache);
+      const instance1 = factory(coordinate1, context);
+      const instance2 = factory(coordinate2, context);
+
+      expect(instance1.coordinate).toBe(coordinate1);
+      expect(instance2.coordinate).toBe(coordinate2);
+      expect(instance1).not.toBe(instance2);
+    });
+
+    it('should create instances with operations', () => {
+      const factory = createInstanceFactory(mockApi);
       const context = { registry: mockRegistry };
 
-      const result = factory(simpleCoordinate, context);
+      const instance = factory(mockCoordinate, context);
 
-      const createInstanceMock = vi.mocked(createInstance);
-      expect(createInstanceMock).toHaveBeenCalledWith(mockRegistry, simpleCoordinate, simpleCache);
-      expect(result).toBe(mockInstance);
+      expect((instance as any).operations).toBeDefined();
+      expect((instance as any).operations.all).toBeInstanceOf(Function);
+      expect((instance as any).operations.get).toBeInstanceOf(Function);
+      expect((instance as any).operations.set).toBeInstanceOf(Function);
     });
 
-    it('should maintain type safety for the returned instance', () => {
-      const factory = createInstanceFactory(mockCache);
+    it('should create instances with cache map', () => {
+      const factory = createInstanceFactory(mockApi);
       const context = { registry: mockRegistry };
 
-      const result = factory(mockCoordinate, context);
+      const instance = factory(mockCoordinate, context);
 
-      // Type assertion to verify the result has the correct interface
-      expect(result).toHaveProperty('coordinate');
-      expect(result).toHaveProperty('registry');
-      // Note: The actual Instance interface from @fjell/registry may not have cache property
-      // but our mocked instance does have it for testing purposes
-      expect(result).toBe(mockInstance);
-    });
-  });
-
-  describe('InstanceFactory type', () => {
-    it('should properly type the factory function signature', () => {
-      const factory = createInstanceFactory(mockCache);
-
-      // This test mainly verifies TypeScript compilation
-      expect(typeof factory).toBe('function');
+      expect((instance as any).cacheMap).toBeDefined();
     });
   });
 });
