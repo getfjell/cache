@@ -1,9 +1,7 @@
 /* eslint-disable no-undefined */
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { createInstance, isInstance } from '@/Instance';
-import { Cache } from '@/Cache';
-import { Item } from '@fjell/core';
-import { Coordinate, createInstance as createBaseInstance, createCoordinate, Registry } from '@fjell/registry';
+import { createCoordinate, Registry } from '@fjell/registry';
 
 // Mock the logger
 vi.mock('@/logger', () => {
@@ -30,20 +28,18 @@ vi.mock('@/logger', () => {
   }
 });
 
-// Mock @fjell/registry
-vi.mock('@fjell/registry', async () => {
-  const actual = await vi.importActual('@fjell/registry');
-  return {
-    ...actual,
-    createInstance: vi.fn(),
-  };
-});
+// Mock the createCache function
+vi.mock('@/Cache', () => ({
+  createCache: vi.fn(),
+}));
+
+import { createCache } from '@/Cache';
 
 describe('Instance', () => {
   const mockRegistry: Registry = { type: 'cache' } as Registry;
-  const mockCoordinate: Coordinate<'test', 'container'> = createCoordinate(['test', 'container'], []);
+  const mockCoordinate = createCoordinate(['test', 'container'], []);
 
-  const mockCache: Cache<Item<'test', 'container'>, 'test', 'container'> = {
+  const mockApi = {
     all: vi.fn(),
     one: vi.fn(),
     action: vi.fn(),
@@ -59,90 +55,60 @@ describe('Instance', () => {
     findOne: vi.fn(),
     reset: vi.fn(),
     set: vi.fn(),
-    pkTypes: ['test', 'container'] as ['test', 'container'],
-    cacheMap: {} as any
-  };
+  } as any;
 
-  const mockBaseInstance = {
+  const mockCacheInstance = {
     coordinate: mockCoordinate,
     registry: mockRegistry,
+    api: mockApi,
+    cacheMap: {},
+    operations: {
+      all: vi.fn(),
+      one: vi.fn(),
+      action: vi.fn(),
+      allAction: vi.fn(),
+      allFacet: vi.fn(),
+      create: vi.fn(),
+      get: vi.fn(),
+      retrieve: vi.fn(),
+      remove: vi.fn(),
+      update: vi.fn(),
+      facet: vi.fn(),
+      find: vi.fn(),
+      findOne: vi.fn(),
+      reset: vi.fn(),
+      set: vi.fn(),
+    }
   };
 
   describe('createInstance', () => {
     beforeEach(() => {
-      vi.mocked(createBaseInstance).mockImplementation((registry, coordinate) => ({
-        coordinate,
-        registry,
-      }) as any);
+      vi.mocked(createCache).mockResolvedValue(mockCacheInstance as any);
     });
 
-    test('should create instance with cache, coordinate, and registry', () => {
-      const instance = createInstance(mockRegistry, mockCoordinate, mockCache);
+    test('should create instance with api, coordinate, and registry', async () => {
+      const instance = await createInstance(mockRegistry, mockCoordinate, mockApi);
 
-      expect(instance).toBeDefined();
+      expect(createCache).toHaveBeenCalledWith(mockApi, mockCoordinate, mockRegistry);
+      expect(instance).toBe(mockCacheInstance);
+    });
+
+    test('should return instance with all required properties', async () => {
+      const instance = await createInstance(mockRegistry, mockCoordinate, mockApi);
+
       expect(instance.coordinate).toBe(mockCoordinate);
       expect(instance.registry).toBe(mockRegistry);
-      expect(instance.cache).toBe(mockCache);
+      expect(instance.api).toBe(mockApi);
+      expect(instance.cacheMap).toBeDefined();
+      expect(instance.operations).toBeDefined();
     });
 
-    test('should call createBaseInstance with correct parameters', () => {
-      createInstance(mockRegistry, mockCoordinate, mockCache);
-
-      expect(createBaseInstance).toHaveBeenCalledWith(mockRegistry, mockCoordinate);
-    });
-
-    test('should extend base instance with cache property', () => {
-      const instance = createInstance(mockRegistry, mockCoordinate, mockCache);
-
-      // Should have all base instance properties
-      expect(instance.coordinate).toBe(mockBaseInstance.coordinate);
-      expect(instance.registry).toBe(mockBaseInstance.registry);
-
-      // Should have cache property
-      expect(instance.cache).toBe(mockCache);
-    });
-
-    test('should work with different generic type parameters', () => {
-      const coordinate = createCoordinate(['user', 'org', 'dept'], []);
-      const cache = mockCache as any; // Type cast for test simplicity
-
-      const instance = createInstance(mockRegistry, coordinate, cache);
-
-      expect(instance.coordinate).toBe(coordinate);
-      expect(instance.cache).toBe(cache);
-      expect(instance.registry).toBe(mockRegistry);
-    });
-
-    test('should handle minimal coordinate and cache', () => {
+    test('should work with different coordinate types', async () => {
       const minimalCoordinate = createCoordinate(['minimal'], []);
-      const minimalCache = {
-        ...mockCache,
-        pkTypes: ['minimal'] as ['minimal']
-      } as any;
 
-      const instance = createInstance(mockRegistry, minimalCoordinate, minimalCache);
+      await createInstance(mockRegistry, minimalCoordinate, mockApi);
 
-      expect(instance.coordinate).toBe(minimalCoordinate);
-      expect(instance.cache).toBe(minimalCache);
-      expect(instance.registry).toBe(mockRegistry);
-    });
-
-    test('should preserve all base instance properties', () => {
-      const customMethod = vi.fn();
-      vi.mocked(createBaseInstance).mockReturnValue({
-        coordinate: mockCoordinate,
-        registry: mockRegistry,
-        customProperty: 'test-value',
-        customMethod
-      } as any);
-
-      const instance = createInstance(mockRegistry, mockCoordinate, mockCache);
-
-      expect((instance as any).customProperty).toBe('test-value');
-      expect((instance as any).customMethod).toBe(customMethod);
-      expect(instance.cache).toBe(mockCache);
-      expect(instance.coordinate).toBe(mockCoordinate);
-      expect(instance.registry).toBe(mockRegistry);
+      expect(createCache).toHaveBeenCalledWith(mockApi, minimalCoordinate, mockRegistry);
     });
   });
 
@@ -150,77 +116,65 @@ describe('Instance', () => {
     test('should return true for valid instance', () => {
       const validInstance = {
         coordinate: mockCoordinate,
-        cache: mockCache,
-        registry: mockRegistry
-      };
-
-      expect(isInstance(validInstance)).toBe(true);
-    });
-
-    test('should return true for valid instance with additional properties', () => {
-      const validInstance = {
-        coordinate: mockCoordinate,
-        cache: mockCache,
         registry: mockRegistry,
-        extraProperty: 'extra',
-        extraMethod: vi.fn()
+        api: mockApi,
+        cacheMap: {},
+        operations: {}
       };
 
       expect(isInstance(validInstance)).toBe(true);
     });
 
-    test('should return false for instance missing coordinate', () => {
+    test('should return false for object missing coordinate', () => {
       const invalidInstance = {
-        cache: mockCache,
-        registry: mockRegistry
+        registry: mockRegistry,
+        api: mockApi,
+        cacheMap: {},
+        operations: {}
       };
 
       expect(isInstance(invalidInstance)).toBe(false);
     });
 
-    test('should return false for instance missing cache', () => {
+    test('should return false for object missing registry', () => {
       const invalidInstance = {
         coordinate: mockCoordinate,
-        registry: mockRegistry
+        api: mockApi,
+        cacheMap: {},
+        operations: {}
       };
 
       expect(isInstance(invalidInstance)).toBe(false);
     });
 
-    test('should return false for instance missing registry', () => {
+    test('should return false for object missing api', () => {
       const invalidInstance = {
         coordinate: mockCoordinate,
-        cache: mockCache
+        registry: mockRegistry,
+        cacheMap: {},
+        operations: {}
       };
 
       expect(isInstance(invalidInstance)).toBe(false);
     });
 
-    test('should return false for instance with undefined coordinate', () => {
-      const invalidInstance = {
-        coordinate: undefined,
-        cache: mockCache,
-        registry: mockRegistry
-      };
-
-      expect(isInstance(invalidInstance)).toBe(false);
-    });
-
-    test('should return false for instance with undefined cache', () => {
+    test('should return false for object missing cacheMap', () => {
       const invalidInstance = {
         coordinate: mockCoordinate,
-        cache: undefined,
-        registry: mockRegistry
+        registry: mockRegistry,
+        api: mockApi,
+        operations: {}
       };
 
       expect(isInstance(invalidInstance)).toBe(false);
     });
 
-    test('should return false for instance with undefined registry', () => {
+    test('should return false for object missing operations', () => {
       const invalidInstance = {
         coordinate: mockCoordinate,
-        cache: mockCache,
-        registry: undefined
+        registry: mockRegistry,
+        api: mockApi,
+        cacheMap: {}
       };
 
       expect(isInstance(invalidInstance)).toBe(false);

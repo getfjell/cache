@@ -415,7 +415,7 @@ describe("AItemCache", () => {
 
     await expect(cache.operations.set(invalidKey, items[0]))
       .rejects
-      .toThrow("Key for Set is not a valid ItemKey");
+      .toThrow("Key for Update is not a valid ItemKey");
   });
 
   test("should validate primary key type in set method", async () => {
@@ -442,10 +442,24 @@ describe("AItemCache", () => {
       .toThrow("Key does not match item key");
   });
 
-  test("should handle createCache with child cache coordinate", async () => {
-    const childRegistry = createRegistry('test');
-    const childCache = await createCache<Item<"test", "container">, "test", "container">(api, createCoordinate(['test', 'container']), childRegistry);
+  test("should handle createCache with parentCache", async () => {
+    const parentApi = {
+      all: vi.fn(),
+      one: vi.fn(),
+      action: vi.fn(),
+      create: vi.fn(),
+      remove: vi.fn(),
+      update: vi.fn(),
+      allAction: vi.fn(),
+      allFacet: vi.fn(),
+      get: vi.fn(),
+      find: vi.fn(),
+    } as unknown as Mocked<ClientApi<Item<"container">, "container">>;
 
-    expect(childCache.coordinate.kta).toEqual(['test', 'container']);
+    const parentCache = await createCache<Item<"container">, "container">(parentApi, "container");
+
+    const childCache = await createCache<Item<"test", "container">, "test", "container">(api, "test", parentCache);
+
+    expect(childCache.pkTypes).toEqual(["test", "container"]);
   });
 });

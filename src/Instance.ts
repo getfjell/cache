@@ -1,8 +1,9 @@
-/* eslint-disable no-undefined */
+
 import LibLogger from "@/logger";
 import { Item } from "@fjell/core";
-import { Instance as BaseInstance, Coordinate, createInstance as createBaseInstance, Registry } from "@fjell/registry";
-import { Cache } from "./Cache";
+import { Coordinate, Registry } from "@fjell/registry";
+import { ClientApi } from "@fjell/client-api";
+import { Cache, createCache } from "./Cache";
 
 const logger = LibLogger.get("Instance");
 
@@ -10,14 +11,13 @@ const logger = LibLogger.get("Instance");
  * The Cache Instance interface represents a cache model instance that extends the base Instance
  * from @fjell/registry and adds cache operations for interacting with cached data.
  *
- * The interface extends the base Instance (which provides coordinate and registry) with:
- * - cache: Provides methods for interacting with cached data (get, set, all, etc.)
+ * This is an alias for the Cache interface since Cache now extends Instance directly.
  *
  * @template V - The type of the data model item, extending Item
  * @template S - The string literal type representing the model's key type
  * @template L1-L5 - Optional string literal types for location hierarchy levels
  */
-export interface Instance<
+export type Instance<
   V extends Item<S, L1, L2, L3, L4, L5>,
   S extends string,
   L1 extends string = never,
@@ -25,12 +25,9 @@ export interface Instance<
   L3 extends string = never,
   L4 extends string = never,
   L5 extends string = never
-> extends BaseInstance<S, L1, L2, L3, L4, L5> {
-  /** The cache object that provides methods for interacting with cached data */
-  cache: Cache<V, S, L1, L2, L3, L4, L5>;
-}
+> = Cache<V, S, L1, L2, L3, L4, L5>;
 
-export const createInstance = <
+export const createInstance = async <
   V extends Item<S, L1, L2, L3, L4, L5>,
   S extends string,
   L1 extends string = never,
@@ -39,19 +36,20 @@ export const createInstance = <
   L4 extends string = never,
   L5 extends string = never
 >(
-    registry: Registry,
-    coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
-    cache: Cache<V, S, L1, L2, L3, L4, L5>,
-  ): Instance<V, S, L1, L2, L3, L4, L5> => {
-  logger.debug("createInstance", { coordinate, cache, registry });
-  const baseInstance = createBaseInstance(registry, coordinate);
-  return { ...baseInstance, cache };
+  registry: Registry,
+  coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
+  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
+): Promise<Instance<V, S, L1, L2, L3, L4, L5>> => {
+  logger.debug("createInstance", { coordinate, api, registry });
+  return await createCache(api, coordinate, registry);
 }
 
 export const isInstance = (instance: any): instance is Instance<any, any, any, any, any, any, any> => {
   return instance !== null &&
-    instance !== undefined &&
-    instance.coordinate !== undefined &&
-    instance.cache !== undefined &&
-    instance.registry !== undefined;
+    typeof instance === 'object' &&
+    'coordinate' in instance &&
+    'registry' in instance &&
+    'api' in instance &&
+    'cacheMap' in instance &&
+    'operations' in instance;
 }

@@ -146,12 +146,9 @@ export const runBasicCacheExample = async (): Promise<void> => {
   const taskApi = createTaskApi() as ClientApi<Task, 'task'>;
   console.log('✅ Created mock APIs for users and tasks');
 
-  const userCache = await createCache(userApi, 'user');
-  const taskCache = await createCache(taskApi, 'task');
-  console.log('✅ Created cache instances');
-
-  const userInstance = createInstance(registry, createCoordinate('user'), userCache);
-  const taskInstance = createInstance(registry, createCoordinate('task'), taskCache);
+  const userCache = await createCache(userApi, createCoordinate('user'), registry);
+  const taskCache = await createCache(taskApi, createCoordinate('task'), registry);
+  console.log('✅ Created cache instances (which are now also instances)');
   console.log('✅ Created cache model instances\n');
 
   // Step 2: Create some test data
@@ -170,21 +167,21 @@ export const runBasicCacheExample = async (): Promise<void> => {
   console.log('Step 3: Cache operations - Fetching all items');
   console.log('----------------------------------------------');
 
-  const [, allUsers] = await userInstance.cache.all();
-  console.log(`📋 Cached ${allUsers.length} users:`, allUsers.map(u => u.name));
+  const [, allUsers] = await userCache.operations.all();
+  console.log(`📋 Cached ${allUsers.length} users:`, allUsers.map((u: User) => u.name));
 
-  const [, allTasks] = await taskInstance.cache.all();
-  console.log(`📋 Cached ${allTasks.length} tasks:`, allTasks.map(t => t.title));
+  const [, allTasks] = await taskCache.operations.all();
+  console.log(`📋 Cached ${allTasks.length} tasks:`, allTasks.map((t: Task) => t.title));
   console.log('');
 
   // Step 4: Individual item retrieval from cache
   console.log('Step 4: Individual item retrieval');
   console.log('---------------------------------');
 
-  const [, cachedUser1] = await userInstance.cache.get(user1.key);
+  const [, cachedUser1] = await userCache.operations.get(user1.key);
   console.log(`👤 Retrieved from cache: ${cachedUser1?.name} (${cachedUser1?.email})`);
 
-  const [, cachedTask1] = await taskInstance.cache.get(task1.key);
+  const [, cachedTask1] = await taskCache.operations.get(task1.key);
   console.log(`📝 Retrieved from cache: ${cachedTask1?.title} - Status: ${cachedTask1?.status}`);
   console.log('');
 
@@ -194,14 +191,14 @@ export const runBasicCacheExample = async (): Promise<void> => {
 
   // This should hit the cache (no API call)
   console.log('🎯 Second retrieval (should hit cache):');
-  const [, cachedUser1Again] = await userInstance.cache.retrieve(user1.key);
+  const [, cachedUser1Again] = await userCache.operations.retrieve(user1.key);
   console.log(`👤 Retrieved: ${cachedUser1Again?.name} (cache hit)`);
 
   // Create a new user and demonstrate cache miss
   const user3 = createTestUser('user-3', 'Charlie Brown', 'charlie@example.com', 'guest');
 
   console.log('🎯 New item retrieval (cache miss, will fetch from API):');
-  const [, cachedUser3] = await userInstance.cache.get(user3.key);
+  const [, cachedUser3] = await userCache.operations.get(user3.key);
   console.log(`👤 Retrieved: ${cachedUser3?.name} (fetched from API and cached)`);
   console.log('');
 
@@ -213,7 +210,7 @@ export const runBasicCacheExample = async (): Promise<void> => {
   mockTaskStorage.set(task2.id, updatedTask2);
 
   // Update cache with new version
-  await taskInstance.cache.set(updatedTask2.key, updatedTask2);
+  await taskCache.operations.set(updatedTask2.key, updatedTask2);
   console.log(`🔄 Updated task in cache: ${updatedTask2.title} - New status: ${updatedTask2.status}`);
   console.log('');
 
@@ -221,10 +218,10 @@ export const runBasicCacheExample = async (): Promise<void> => {
   console.log('Step 7: Query operations');
   console.log('-----------------------');
 
-  const [, foundTasks] = await taskInstance.cache.find('all');
+  const [, foundTasks] = await taskCache.operations.find('all');
   console.log(`🔍 Found ${foundTasks.length} tasks through cache query`);
 
-  const [, oneTask] = await taskInstance.cache.one();
+  const [, oneTask] = await taskCache.operations.one();
   console.log(`📝 Retrieved one task: ${oneTask?.title}`);
   console.log('');
 
@@ -235,8 +232,8 @@ export const runBasicCacheExample = async (): Promise<void> => {
   console.log('📊 Cache Statistics:');
   console.log(`   👥 Users in cache: ${allUsers.length}`);
   console.log(`   📝 Tasks in cache: ${allTasks.length}`);
-  console.log(`   🎯 User cache coordinate: ${userInstance.coordinate.kta[0]}`);
-  console.log(`   🎯 Task cache coordinate: ${taskInstance.coordinate.kta[0]}`);
+  console.log(`   🎯 User cache coordinate: ${userCache.coordinate.kta[0]}`);
+  console.log(`   🎯 Task cache coordinate: ${taskCache.coordinate.kta[0]}`);
   console.log('');
 
   // Step 9: Cleanup demonstration
@@ -247,11 +244,11 @@ export const runBasicCacheExample = async (): Promise<void> => {
   console.log('🗑️ Removed user from storage');
 
   // Cache still has the old data until next fetch
-  const [, stillCachedUser3] = await userInstance.cache.retrieve(user3.key);
+  const [, stillCachedUser3] = await userCache.operations.retrieve(user3.key);
   console.log(`🎯 Cache still contains removed user: ${stillCachedUser3?.name || 'null'}`);
 
   // Fresh fetch will update cache
-  const [, freshAllUsers] = await userInstance.cache.all();
+  const [, freshAllUsers] = await userCache.operations.all();
   console.log(`📋 Fresh fetch shows ${freshAllUsers.length} users (cache updated)`);
   console.log('');
 
