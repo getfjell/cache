@@ -25,7 +25,11 @@
     "lint": "eslint . --ext .ts --fix",
     "clean": "rimraf dist",
     "test": "pnpm run lint && vitest run --coverage",
-    "prepublishOnly": "pnpm run clean && pnpm run build"
+    "prepublishOnly": "pnpm run clean && pnpm run build",
+    "docs:dev": "cd docs && pnpm run dev",
+    "docs:build": "cd docs && pnpm run build",
+    "docs:preview": "cd docs && pnpm run preview",
+    "docs:test": "cd docs && pnpm run test"
   },
   "dependencies": {
     "@fjell/client-api": "^4.4.7",
@@ -37,6 +41,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.31.0",
+    "@fjell/eslint-config": "^1.0.0",
     "@swc/core": "^1.13.1",
     "@tsconfig/recommended": "^1.0.10",
     "@types/multer": "^2.0.0",
