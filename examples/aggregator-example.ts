@@ -128,6 +128,7 @@ const createSupportTicket = (
   priority: 'low' | 'medium' | 'high' | 'urgent',
   status: 'open' | 'in-progress' | 'resolved' | 'closed',
   description: string,
+  // eslint-disable-next-line max-params
   orderId?: string): SupportTicket => {
   const ticket: SupportTicket = {
     id, customerId, subject, priority, status, description, orderId,
