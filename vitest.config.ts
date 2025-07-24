@@ -14,7 +14,6 @@ export default defineConfig({
         'tests/',
         'src/index.ts',
         'eslint.config.mjs',
-        'vite.config.ts',
         'vitest.config.ts',
         'build.js',
         'dist',
