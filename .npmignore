@@ -26,4 +26,8 @@ eslint.config.mjs
 src/
 commit.sh
 release.sh
-vitest.config.js
+vitest.config.ts
+build.js
+docs/
+examples/
+README.md

@@ -10,6 +10,7 @@
       ]
     },
     "declaration": true,
+    "emitDeclarationOnly": false,
     "target": "es2022",
     "module": "es2022",
     "moduleResolution": "bundler"
@@ -20,6 +21,7 @@
   ],
   "exclude": [
     "node_modules",
-    "metro.config.js"
+    "dist",
+    "build.js"
   ]
 }

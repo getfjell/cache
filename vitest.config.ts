@@ -16,6 +16,7 @@ export default defineConfig({
         'eslint.config.mjs',
         'vite.config.ts',
         'vitest.config.ts',
+        'build.js',
         'dist',
       ],
       thresholds: {
@@ -26,8 +27,10 @@ export default defineConfig({
       },
     },
     setupFiles: ['./tests/setup.ts'],
-    deps: {
-      inline: [/@fjell/],
+    server: {
+      deps: {
+        inline: [/@fjell/],
+      },
     },
     testTimeout: 10000,
     hookTimeout: 10000,
