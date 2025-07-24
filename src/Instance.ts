@@ -27,7 +27,7 @@ export type Instance<
   L5 extends string = never
 > = Cache<V, S, L1, L2, L3, L4, L5>;
 
-export const createInstance = async <
+export const createInstance = <
   V extends Item<S, L1, L2, L3, L4, L5>,
   S extends string,
   L1 extends string = never,
@@ -36,12 +36,12 @@ export const createInstance = async <
   L4 extends string = never,
   L5 extends string = never
 >(
-  registry: Registry,
-  coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
-  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-): Promise<Instance<V, S, L1, L2, L3, L4, L5>> => {
+    registry: Registry,
+    coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
+    api: ClientApi<V, S, L1, L2, L3, L4, L5>,
+  ): Instance<V, S, L1, L2, L3, L4, L5> => {
   logger.debug("createInstance", { coordinate, api, registry });
-  return await createCache(api, coordinate, registry);
+  return createCache(api, coordinate, registry);
 }
 
 export const isInstance = (instance: any): instance is Instance<any, any, any, any, any, any, any> => {
