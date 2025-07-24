@@ -12,14 +12,14 @@ importers:
         specifier: ^4.4.14
         version: 4.4.14
       '@fjell/core':
-        specifier: ^4.4.18
-        version: 4.4.18
+        specifier: ^4.4.21
+        version: 4.4.21
       '@fjell/http-api':
         specifier: ^4.4.18
         version: 4.4.18
       '@fjell/logging':
-        specifier: ^4.4.19
-        version: 4.4.19
+        specifier: ^4.4.25
+        version: 4.4.25
       '@fjell/registry':
         specifier: ^4.4.17
         version: 4.4.17
@@ -344,8 +344,8 @@ packages:
   '@fjell/client-api@4.4.14':
     resolution: {integrity: sha512-peo4QfwbvNgBbVzHKZDtSaelQ1gKtWzjHHAhR8yz2u2OT1EbwXNiUSdxFvDaVh37qFS+JI6JWlg11jQhAO8H8w==}
 
-  '@fjell/core@4.4.18':
-    resolution: {integrity: sha512-yzh6ZIaRBOUyCMwLmD8yaf9j/Vr36xuTtSMGHHyiYpRdP9Jn9nB95fNrnDIJL6A+ePVfoasSdSCzzkgwOP09WQ==}
+  '@fjell/core@4.4.21':
+    resolution: {integrity: sha512-QDP64NuO8VlCUlqpIo4FZUxU4Rx1iGVvsubxa3Jv6Yel8jJojF9pVkGY2uwHbjcZkb0gkMQBTr41ylRG9zPSkw==}
 
   '@fjell/eslint-config@1.0.5':
     resolution: {integrity: sha512-0RzrW3iD4Sv4wlYXHEYo1+2xYRu9QLZ90uypRjTdrRwmwJwl9wY3Qa9nUYnBu963+Sqlb8ZJewstzC8KRPRycA==}
@@ -356,8 +356,8 @@ packages:
   '@fjell/http-api@4.4.18':
     resolution: {integrity: sha512-sDHhFXAyoyxQcN/s+XPM8PyWh//Midi909GFCAO/SBR9JMq5VpHE1c5Hl7Ne1b7Yz2cY79eWLDEfFrgMj4/4yQ==}
 
-  '@fjell/logging@4.4.19':
-    resolution: {integrity: sha512-/qgckgWEmig8KRQNs15PxF8/NeFtseXE2fg6ySuivkl9l103CLwTa/oqHUlCIkMT/1h6DQSqwm39mdOdciiwDQ==}
+  '@fjell/logging@4.4.25':
+    resolution: {integrity: sha512-eSJbAJ2ZQ081nWxEWUwmakCrEy+Wrk1AcuSn+RNN2eyp+qMe2QKs4Ae85HxV54956K4HsVFk286baS16MBH4dg==}
 
   '@fjell/registry@4.4.17':
     resolution: {integrity: sha512-aBlfYYA8L/H7Xgxd6TF9bXLGUyiTlPNXkPB+jXaHk9uF2NPFwrfAax2KIzCxjrPNL2/4k1lYekiP4nlxAc/5VA==}
@@ -1987,16 +1987,16 @@ snapshots:
 
   '@fjell/client-api@4.4.14':
     dependencies:
-      '@fjell/core': 4.4.18
+      '@fjell/core': 4.4.21
       '@fjell/http-api': 4.4.18
-      '@fjell/logging': 4.4.19
+      '@fjell/logging': 4.4.25
       '@fjell/registry': 4.4.17
       deepmerge: 4.3.1
 
-  '@fjell/core@4.4.18':
+  '@fjell/core@4.4.21':
     dependencies:
       '@fjell/docs-template': link:../fjell-docs-template
-      '@fjell/logging': 4.4.19
+      '@fjell/logging': 4.4.25
       deepmerge: 4.3.1
       luxon: 3.7.1
 
@@ -2013,14 +2013,14 @@ snapshots:
 
   '@fjell/http-api@4.4.18':
     dependencies:
-      '@fjell/logging': 4.4.19
+      '@fjell/logging': 4.4.25
 
-  '@fjell/logging@4.4.19': {}
+  '@fjell/logging@4.4.25': {}
 
   '@fjell/registry@4.4.17':
     dependencies:
-      '@fjell/core': 4.4.18
-      '@fjell/logging': 4.4.19
+      '@fjell/core': 4.4.21
+      '@fjell/logging': 4.4.25
       deepmerge: 4.3.1
 
   '@humanfs/core@0.19.1': {}
