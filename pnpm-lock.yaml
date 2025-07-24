@@ -4,33 +4,25 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@fjell/client-api': link:../fjell-client-api
-  '@fjell/core': link:../fjell-core
-  '@fjell/eslint-config': link:../fjell-eslint-config
-  '@fjell/http-api': link:../fjell-http-api
-  '@fjell/logging': link:../fjell-logging
-  '@fjell/registry': link:../fjell-registry
-
 importers:
 
   .:
     dependencies:
       '@fjell/client-api':
-        specifier: link:../fjell-client-api
-        version: link:../fjell-client-api
+        specifier: ^4.4.14
+        version: 4.4.14
       '@fjell/core':
-        specifier: link:../fjell-core
-        version: link:../fjell-core
+        specifier: ^4.4.18
+        version: 4.4.18
       '@fjell/http-api':
-        specifier: link:../fjell-http-api
-        version: link:../fjell-http-api
+        specifier: ^4.4.18
+        version: 4.4.18
       '@fjell/logging':
-        specifier: link:../fjell-logging
-        version: link:../fjell-logging
+        specifier: ^4.4.19
+        version: 4.4.19
       '@fjell/registry':
-        specifier: link:../fjell-registry
-        version: link:../fjell-registry
+        specifier: ^4.4.17
+        version: 4.4.17
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.3.1
@@ -39,8 +31,8 @@ importers:
         specifier: ^9.31.0
         version: 9.31.0
       '@fjell/eslint-config':
-        specifier: link:../fjell-eslint-config
-        version: link:../fjell-eslint-config
+        specifier: ^1.0.5
+        version: 1.0.5(eslint@9.31.0)(typescript@5.8.3)
       '@swc/core':
         specifier: ^1.13.2
         version: 1.13.2
@@ -115,8 +107,8 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
-  '@babel/types@7.28.1':
-    resolution: {integrity: sha512-x0LvFTekgSX+83TI28Y9wYPUfzrnl2aT5+5QLnO6v7mSJYtEEevuDRN0F0uSHRk1G1IWZC43o00Y0xDDrpBGPQ==}
+  '@babel/types@7.28.2':
+    resolution: {integrity: sha512-ruv7Ae4J5dUYULmeXw1gmb7rYRz57OWCPM57pHojnLq/3Z1CK2lNSLTCVjxVk1F/TZHwOZZrOWi0ur95BbLxNQ==}
     engines: {node: '>=6.9.0'}
 
   '@bcoe/v8-coverage@1.0.2':
@@ -348,6 +340,28 @@ packages:
   '@eslint/plugin-kit@0.3.4':
     resolution: {integrity: sha512-Ul5l+lHEcw3L5+k8POx6r74mxEYKG5kOb6Xpy2gCRW6zweT6TEhAf8vhxGgjhqrd/VO/Dirhsb+1hNpD1ue9hw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@fjell/client-api@4.4.14':
+    resolution: {integrity: sha512-peo4QfwbvNgBbVzHKZDtSaelQ1gKtWzjHHAhR8yz2u2OT1EbwXNiUSdxFvDaVh37qFS+JI6JWlg11jQhAO8H8w==}
+
+  '@fjell/core@4.4.18':
+    resolution: {integrity: sha512-yzh6ZIaRBOUyCMwLmD8yaf9j/Vr36xuTtSMGHHyiYpRdP9Jn9nB95fNrnDIJL6A+ePVfoasSdSCzzkgwOP09WQ==}
+
+  '@fjell/eslint-config@1.0.5':
+    resolution: {integrity: sha512-0RzrW3iD4Sv4wlYXHEYo1+2xYRu9QLZ90uypRjTdrRwmwJwl9wY3Qa9nUYnBu963+Sqlb8ZJewstzC8KRPRycA==}
+    peerDependencies:
+      eslint: ^9.0.0
+      typescript: ^5.0.0
+
+  '@fjell/http-api@4.4.18':
+    resolution: {integrity: sha512-sDHhFXAyoyxQcN/s+XPM8PyWh//Midi909GFCAO/SBR9JMq5VpHE1c5Hl7Ne1b7Yz2cY79eWLDEfFrgMj4/4yQ==}
+
+  '@fjell/logging@4.4.19':
+    resolution: {integrity: sha512-/qgckgWEmig8KRQNs15PxF8/NeFtseXE2fg6ySuivkl9l103CLwTa/oqHUlCIkMT/1h6DQSqwm39mdOdciiwDQ==}
+
+  '@fjell/registry@4.4.17':
+    resolution: {integrity: sha512-aBlfYYA8L/H7Xgxd6TF9bXLGUyiTlPNXkPB+jXaHk9uF2NPFwrfAax2KIzCxjrPNL2/4k1lYekiP4nlxAc/5VA==}
+    engines: {node: '>=21'}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -916,6 +930,10 @@ packages:
   deep-is@0.1.4:
     resolution: {integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==}
 
+  deepmerge@4.3.1:
+    resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
+    engines: {node: '>=0.10.0'}
+
   diff@4.0.2:
     resolution: {integrity: sha512-58lmxKSA4BNyLz+HHMUzlOEpg09FV+ev6ZMe3vJihgdxzgcwZ8VoEEPmALCZG9LmqfVoNMMKpttIYTVG6uDY7A==}
     engines: {node: '>=0.3.1'}
@@ -1238,6 +1256,10 @@ packages:
   lru-cache@11.1.0:
     resolution: {integrity: sha512-QIXZUBJUx+2zHUdQujWejBkcD9+cs94tLn0+YL8UrCh+D5sCXZ4c7LaEH48pNwRY3MLDgqUFyhlCyjJPf1WP0A==}
     engines: {node: 20 || >=22}
+
+  luxon@3.7.1:
+    resolution: {integrity: sha512-RkRWjA926cTvz5rAb1BqyWkKbbjzCGchDUIKMCUvNi17j6f6j8uHGDV82Aqcqtzd+icoYpELmG3ksgGiFNNcNg==}
+    engines: {node: '>=12'}
 
   magic-string@0.30.17:
     resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
@@ -1803,9 +1825,9 @@ snapshots:
 
   '@babel/parser@7.28.0':
     dependencies:
-      '@babel/types': 7.28.1
+      '@babel/types': 7.28.2
 
-  '@babel/types@7.28.1':
+  '@babel/types@7.28.2':
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.27.1
@@ -1962,6 +1984,44 @@ snapshots:
     dependencies:
       '@eslint/core': 0.15.1
       levn: 0.4.1
+
+  '@fjell/client-api@4.4.14':
+    dependencies:
+      '@fjell/core': 4.4.18
+      '@fjell/http-api': 4.4.18
+      '@fjell/logging': 4.4.19
+      '@fjell/registry': 4.4.17
+      deepmerge: 4.3.1
+
+  '@fjell/core@4.4.18':
+    dependencies:
+      '@fjell/docs-template': link:../fjell-docs-template
+      '@fjell/logging': 4.4.19
+      deepmerge: 4.3.1
+      luxon: 3.7.1
+
+  '@fjell/eslint-config@1.0.5(eslint@9.31.0)(typescript@5.8.3)':
+    dependencies:
+      '@eslint/eslintrc': 3.3.1
+      '@eslint/js': 9.31.0
+      '@typescript-eslint/eslint-plugin': 8.38.0(@typescript-eslint/parser@8.38.0(eslint@9.31.0)(typescript@5.8.3))(eslint@9.31.0)(typescript@5.8.3)
+      '@typescript-eslint/parser': 8.38.0(eslint@9.31.0)(typescript@5.8.3)
+      eslint: 9.31.0
+      typescript: 5.8.3
+    transitivePeerDependencies:
+      - supports-color
+
+  '@fjell/http-api@4.4.18':
+    dependencies:
+      '@fjell/logging': 4.4.19
+
+  '@fjell/logging@4.4.19': {}
+
+  '@fjell/registry@4.4.17':
+    dependencies:
+      '@fjell/core': 4.4.18
+      '@fjell/logging': 4.4.19
+      deepmerge: 4.3.1
 
   '@humanfs/core@0.19.1': {}
 
@@ -2531,6 +2591,8 @@ snapshots:
 
   deep-is@0.1.4: {}
 
+  deepmerge@4.3.1: {}
+
   diff@4.0.2: {}
 
   dir-glob@3.0.1:
@@ -2909,6 +2971,8 @@ snapshots:
 
   lru-cache@11.1.0: {}
 
+  luxon@3.7.1: {}
+
   magic-string@0.30.17:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.4
@@ -2916,7 +2980,7 @@ snapshots:
   magicast@0.3.5:
     dependencies:
       '@babel/parser': 7.28.0
-      '@babel/types': 7.28.1
+      '@babel/types': 7.28.2
       source-map-js: 1.2.1
 
   make-dir@4.0.0:
