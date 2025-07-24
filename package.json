@@ -1,7 +1,7 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.6.15",
+  "version": "4.6.16",
   "keywords": [
     "cache",
     "fjell"
@@ -24,16 +24,16 @@
     "clean": "rimraf dist",
     "test": "pnpm run lint && vitest run --coverage",
     "prepublishOnly": "pnpm run clean && pnpm run build",
-    "docs:dev": "cd docs && pnpm run dev",
-    "docs:build": "cd docs && pnpm run build",
-    "docs:preview": "cd docs && pnpm run preview",
-    "docs:test": "cd docs && pnpm run test"
+    "docs:dev": "cd docs && npm run dev",
+    "docs:build": "cd docs && npm run build",
+    "docs:preview": "cd docs && npm run preview",
+    "docs:test": "cd docs && npm run test"
   },
   "dependencies": {
-    "@fjell/client-api": "^4.4.13",
-    "@fjell/core": "^4.4.13",
-    "@fjell/http-api": "^4.4.17",
-    "@fjell/logging": "^4.4.17",
+    "@fjell/client-api": "^4.4.14",
+    "@fjell/core": "^4.4.18",
+    "@fjell/http-api": "^4.4.18",
+    "@fjell/logging": "^4.4.19",
     "@fjell/registry": "^4.4.17"
   },
   "devDependencies": {

@@ -9,17 +9,17 @@ importers:
   .:
     dependencies:
       '@fjell/client-api':
-        specifier: ^4.4.13
-        version: 4.4.13
+        specifier: ^4.4.14
+        version: 4.4.14
       '@fjell/core':
-        specifier: ^4.4.13
-        version: 4.4.13
+        specifier: ^4.4.18
+        version: 4.4.18
       '@fjell/http-api':
-        specifier: ^4.4.17
-        version: 4.4.17
+        specifier: ^4.4.18
+        version: 4.4.18
       '@fjell/logging':
-        specifier: ^4.4.17
-        version: 4.4.17
+        specifier: ^4.4.19
+        version: 4.4.19
       '@fjell/registry':
         specifier: ^4.4.17
         version: 4.4.17
@@ -107,8 +107,8 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
-  '@babel/types@7.28.1':
-    resolution: {integrity: sha512-x0LvFTekgSX+83TI28Y9wYPUfzrnl2aT5+5QLnO6v7mSJYtEEevuDRN0F0uSHRk1G1IWZC43o00Y0xDDrpBGPQ==}
+  '@babel/types@7.28.2':
+    resolution: {integrity: sha512-ruv7Ae4J5dUYULmeXw1gmb7rYRz57OWCPM57pHojnLq/3Z1CK2lNSLTCVjxVk1F/TZHwOZZrOWi0ur95BbLxNQ==}
     engines: {node: '>=6.9.0'}
 
   '@bcoe/v8-coverage@1.0.2':
@@ -341,11 +341,11 @@ packages:
     resolution: {integrity: sha512-Ul5l+lHEcw3L5+k8POx6r74mxEYKG5kOb6Xpy2gCRW6zweT6TEhAf8vhxGgjhqrd/VO/Dirhsb+1hNpD1ue9hw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@fjell/client-api@4.4.13':
-    resolution: {integrity: sha512-OHu1TTJ9tRQrgjcAEDEdg3JpsRNr84kvLjOTJU0trVnzRE072F0wOzktrEdovakReowm1L+ZEo8aUa1ZQcTOUg==}
+  '@fjell/client-api@4.4.14':
+    resolution: {integrity: sha512-peo4QfwbvNgBbVzHKZDtSaelQ1gKtWzjHHAhR8yz2u2OT1EbwXNiUSdxFvDaVh37qFS+JI6JWlg11jQhAO8H8w==}
 
-  '@fjell/core@4.4.13':
-    resolution: {integrity: sha512-+oZprCSL7HDvcOwXDBIkPq9i4bxkvwfZ2IfRh3uopRTo2hJlcQ1hWkGZdIvwXfkl9H4PLiuWgCuI9xeHyR+2FA==}
+  '@fjell/core@4.4.18':
+    resolution: {integrity: sha512-yzh6ZIaRBOUyCMwLmD8yaf9j/Vr36xuTtSMGHHyiYpRdP9Jn9nB95fNrnDIJL6A+ePVfoasSdSCzzkgwOP09WQ==}
 
   '@fjell/eslint-config@1.0.5':
     resolution: {integrity: sha512-0RzrW3iD4Sv4wlYXHEYo1+2xYRu9QLZ90uypRjTdrRwmwJwl9wY3Qa9nUYnBu963+Sqlb8ZJewstzC8KRPRycA==}
@@ -353,11 +353,11 @@ packages:
       eslint: ^9.0.0
       typescript: ^5.0.0
 
-  '@fjell/http-api@4.4.17':
-    resolution: {integrity: sha512-r7bcIezC/YEULrHgnmrNx/joBxI6uzfwH6FTGq/1LQZdfbPfdEoHC3l6oiJ9LVLjcRM/3qnv1JtZTaHotfr8xA==}
+  '@fjell/http-api@4.4.18':
+    resolution: {integrity: sha512-sDHhFXAyoyxQcN/s+XPM8PyWh//Midi909GFCAO/SBR9JMq5VpHE1c5Hl7Ne1b7Yz2cY79eWLDEfFrgMj4/4yQ==}
 
-  '@fjell/logging@4.4.17':
-    resolution: {integrity: sha512-e6YnAB7/sVuVmUgtuAh0XIk70HewsoPxlQwmXHhXQYosxleW6zytIPvPUWpA8xL26HcUFyTy71aKkhIJ0ZM9VA==}
+  '@fjell/logging@4.4.19':
+    resolution: {integrity: sha512-/qgckgWEmig8KRQNs15PxF8/NeFtseXE2fg6ySuivkl9l103CLwTa/oqHUlCIkMT/1h6DQSqwm39mdOdciiwDQ==}
 
   '@fjell/registry@4.4.17':
     resolution: {integrity: sha512-aBlfYYA8L/H7Xgxd6TF9bXLGUyiTlPNXkPB+jXaHk9uF2NPFwrfAax2KIzCxjrPNL2/4k1lYekiP4nlxAc/5VA==}
@@ -1825,9 +1825,9 @@ snapshots:
 
   '@babel/parser@7.28.0':
     dependencies:
-      '@babel/types': 7.28.1
+      '@babel/types': 7.28.2
 
-  '@babel/types@7.28.1':
+  '@babel/types@7.28.2':
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.27.1
@@ -1985,17 +1985,18 @@ snapshots:
       '@eslint/core': 0.15.1
       levn: 0.4.1
 
-  '@fjell/client-api@4.4.13':
+  '@fjell/client-api@4.4.14':
     dependencies:
-      '@fjell/core': 4.4.13
-      '@fjell/http-api': 4.4.17
-      '@fjell/logging': 4.4.17
+      '@fjell/core': 4.4.18
+      '@fjell/http-api': 4.4.18
+      '@fjell/logging': 4.4.19
       '@fjell/registry': 4.4.17
       deepmerge: 4.3.1
 
-  '@fjell/core@4.4.13':
+  '@fjell/core@4.4.18':
     dependencies:
-      '@fjell/logging': 4.4.17
+      '@fjell/docs-template': link:../fjell-docs-template
+      '@fjell/logging': 4.4.19
       deepmerge: 4.3.1
       luxon: 3.7.1
 
@@ -2010,16 +2011,16 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@fjell/http-api@4.4.17':
+  '@fjell/http-api@4.4.18':
     dependencies:
-      '@fjell/logging': 4.4.17
+      '@fjell/logging': 4.4.19
 
-  '@fjell/logging@4.4.17': {}
+  '@fjell/logging@4.4.19': {}
 
   '@fjell/registry@4.4.17':
     dependencies:
-      '@fjell/core': 4.4.13
-      '@fjell/logging': 4.4.17
+      '@fjell/core': 4.4.18
+      '@fjell/logging': 4.4.19
       deepmerge: 4.3.1
 
   '@humanfs/core@0.19.1': {}
@@ -2979,7 +2980,7 @@ snapshots:
   magicast@0.3.5:
     dependencies:
       '@babel/parser': 7.28.0
-      '@babel/types': 7.28.1
+      '@babel/types': 7.28.2
       source-map-js: 1.2.1
 
   make-dir@4.0.0:
