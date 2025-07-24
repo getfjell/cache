@@ -34,9 +34,9 @@
   "dependencies": {
     "@fjell/client-api": "^4.4.13",
     "@fjell/core": "^4.4.13",
-    "@fjell/http-api": "^4.4.16",
+    "@fjell/http-api": "^4.4.17",
     "@fjell/logging": "^4.4.17",
-    "@fjell/registry": "^4.4.16"
+    "@fjell/registry": "^4.4.17"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
