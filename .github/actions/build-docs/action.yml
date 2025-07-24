@@ -10,9 +10,4 @@ runs:
         # Change to docs directory and install dependencies
         cd docs
         npm install
-
-        # Use copy-docs script from @fjell/docs-template to copy all configured files
-        npm run copy-docs
-
-        # Build the Vite documentation site
         npm run build
