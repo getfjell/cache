@@ -39,7 +39,7 @@ export interface Cache<
   operations: Operations<V, S, L1, L2, L3, L4, L5>;
 }
 
-export const createCache = async <
+export const createCache = <
   V extends Item<S, L1, L2, L3, L4, L5>,
   S extends string,
   L1 extends string = never,
@@ -48,10 +48,10 @@ export const createCache = async <
   L4 extends string = never,
   L5 extends string = never
 >(
-  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-  coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
-  registry: Registry
-): Promise<Cache<V, S, L1, L2, L3, L4, L5>> => {
+    api: ClientApi<V, S, L1, L2, L3, L4, L5>,
+    coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
+    registry: Registry
+  ): Cache<V, S, L1, L2, L3, L4, L5> => {
   logger.debug('createCache', { coordinate, registry });
 
   // Create the cache map using the coordinate's key type array
