@@ -1,14 +1,12 @@
+import { createDocsViteConfig } from '@fjell/docs-template/config'
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
 
-// https://vitejs.dev/config/
+const baseConfig = createDocsViteConfig({
+  basePath: '/cache/'
+})
+
 export default defineConfig({
-  plugins: [react()],
-  base: '/cache/',
-  build: {
-    outDir: 'dist',
-    assetsDir: 'assets'
-  },
+  ...baseConfig,
   test: {
     globals: true,
     environment: 'jsdom',
