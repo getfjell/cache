@@ -1,7 +1,7 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.6.17",
+  "version": "4.6.18",
   "keywords": [
     "cache",
     "fjell"
@@ -30,16 +30,16 @@
     "docs:test": "cd docs && npm run test"
   },
   "dependencies": {
-    "@fjell/client-api": "^4.4.14",
-    "@fjell/core": "^4.4.21",
-    "@fjell/http-api": "^4.4.18",
-    "@fjell/logging": "^4.4.25",
-    "@fjell/registry": "^4.4.17"
+    "@fjell/client-api": "^4.4.15",
+    "@fjell/core": "^4.4.25",
+    "@fjell/http-api": "^4.4.23",
+    "@fjell/logging": "^4.4.30",
+    "@fjell/registry": "^4.4.20"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.31.0",
-    "@fjell/eslint-config": "^1.0.5",
+    "@eslint/js": "^9.32.0",
+    "@fjell/eslint-config": "^1.1.3",
     "@swc/core": "^1.13.2",
     "@tsconfig/recommended": "^1.0.10",
     "@types/multer": "^2.0.0",
@@ -50,7 +50,7 @@
     "@vitest/ui": "^3.2.4",
     "concurrently": "^9.2.0",
     "esbuild": "^0.25.8",
-    "eslint": "^9.31.0",
+    "eslint": "^9.32.0",
     "nodemon": "^3.1.10",
     "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
