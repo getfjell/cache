@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "copy-docs": "npx copy-docs",
-    "dev": "pnpm run copy-docs && vite",
-    "build": "pnpm run copy-docs && vite build",
+    "dev": "npm run copy-docs && vite",
+    "build": "npm run copy-docs && vite build",
     "preview": "vite preview",
     "test": "vitest run --coverage",
     "test:watch": "vitest --watch"
