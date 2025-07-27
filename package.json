@@ -1,7 +1,7 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.6.19",
+  "version": "4.6.20",
   "keywords": [
     "cache",
     "fjell"
@@ -21,7 +21,7 @@
     "build": "npm run lint && tsc --noEmit && node build.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts --fix",
-    "clean": "rimraf dist",
+    "clean": "rm -rf dist",
     "test": "npm run lint && vitest run --coverage",
     "prepublishOnly": "npm run clean && npm run build",
     "docs:dev": "cd docs && npm run dev",
@@ -52,7 +52,6 @@
     "esbuild": "^0.25.8",
     "eslint": "^9.32.0",
     "nodemon": "^3.1.10",
-    "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.8.3",
