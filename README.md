@@ -20,7 +20,7 @@ Fjell Cache provides intelligent caching capabilities for complex data models an
 ```bash
 npm install @fjell/cache
 # or
-pnpm add @fjell/cache
+npm install @fjell/cache
 # or
 yarn add @fjell/cache
 ```

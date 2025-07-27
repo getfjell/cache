@@ -1,7 +1,7 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.6.18",
+  "version": "4.6.19",
   "keywords": [
     "cache",
     "fjell"
@@ -18,12 +18,12 @@
   },
   "scripts": {
     "dev": "concurrently \"tsc --noEmit --watch\" \"node build.js --watch\"",
-    "build": "pnpm run lint && tsc --noEmit && node build.js",
+    "build": "npm run lint && tsc --noEmit && node build.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts --fix",
     "clean": "rimraf dist",
-    "test": "pnpm run lint && vitest run --coverage",
-    "prepublishOnly": "pnpm run clean && pnpm run build",
+    "test": "npm run lint && vitest run --coverage",
+    "prepublishOnly": "npm run clean && npm run build",
     "docs:dev": "cd docs && npm run dev",
     "docs:build": "cd docs && npm run build",
     "docs:preview": "cd docs && npm run preview",
@@ -58,7 +58,6 @@
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   },
-  "packageManager": "pnpm@10.13.1",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/getfjell/cache.git"
