@@ -20,14 +20,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile --strict-peer-dependencies
-      - run: pnpm run lint
-      - run: pnpm run build
-      - run: pnpm run test
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test
       - uses: codecov/codecov-action@v5
         with:
-          slug: getfjell/cache
+          slug: getfjell/registry
           token: ${{ secrets.CODECOV_TOKEN }}
 
 
@@ -40,8 +39,7 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
-      - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile --strict-peer-dependencies
-      - run: pnpm publish --access public --no-git-checks
+      - run: npm ci
+      - run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
