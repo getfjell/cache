@@ -1,6 +1,6 @@
-import { Aggregator, CacheConfig, createAggregator, toCacheConfig } from '@/Aggregator';
-import { Cache } from '@/Cache';
-import { CacheMap } from '@/CacheMap';
+import { Aggregator, CacheConfig, createAggregator, toCacheConfig } from '../src/Aggregator';
+import { Cache } from '../src/Cache';
+import { CacheMap } from '../src/CacheMap';
 import { Item, PriKey } from '@fjell/core';
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
