@@ -1,5 +1,5 @@
 
-import { CacheMap } from "@/CacheMap";
+import { CacheMap } from "../src/CacheMap";
 import { ComKey, IQFactory, Item, ItemQuery, LocKeyArray, PriKey, UUID } from "@fjell/core";
 import { beforeEach, describe, expect, it } from 'vitest';
 

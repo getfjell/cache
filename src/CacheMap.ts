@@ -139,19 +139,38 @@ export class CacheMap<
 > extends Dictionary<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, V> {
 
   private types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>;
+  private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
 
   public constructor(
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
     map?: { [key: string]: V },
   ) {
-    super(map, createNormalizedHashFunction<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>>());
+    const hashFunc = createNormalizedHashFunction<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>>();
+    super(map, hashFunc);
     this.types = types;
+    this.normalizedHashFunction = hashFunc;
   }
 
   public get(
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
   ): V | null {
-    return super.get(key) as V | null;
+    logger.trace('get', { key });
+    const hashedKey = this.normalizedHashFunction(key);
+    const entry = this.map[hashedKey];
+    // Check if entry exists AND the normalized keys match
+    return entry && this.normalizedHashFunction(entry.originalKey) === this.normalizedHashFunction(key) ? entry.value : null;
+  }
+
+  public includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean {
+    const hashedKey = this.normalizedHashFunction(key);
+    const entry = this.map[hashedKey];
+    return entry ? this.normalizedHashFunction(entry.originalKey) === this.normalizedHashFunction(key) : false;
+  }
+
+  public delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
+    logger.trace('delete', { key });
+    const hashedKey = this.normalizedHashFunction(key);
+    delete this.map[hashedKey];
   }
 
   public allIn(
@@ -196,7 +215,11 @@ export class CacheMap<
   }
 
   public clone(): CacheMap<V, S, L1, L2, L3, L4, L5> {
-    const clone = new CacheMap<V, S, L1, L2, L3, L4, L5>(this.types, this.map);
+    const clone = new CacheMap<V, S, L1, L2, L3, L4, L5>(this.types);
+    // Share the same underlying map reference (not a copy)
+    clone.map = this.map;
+    // Ensure the clone uses the same normalized hash function
+    clone.normalizedHashFunction = this.normalizedHashFunction;
     return clone;
   }
 

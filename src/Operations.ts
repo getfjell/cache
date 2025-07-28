@@ -1,7 +1,7 @@
 import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/core";
 import { ClientApi } from "@fjell/client-api";
 import { Coordinate } from "@fjell/registry";
-import { CacheMap } from "@/CacheMap";
+import { CacheMap } from "./CacheMap";
 
 // Import all operation functions
 import { all } from "./ops/all";

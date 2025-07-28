@@ -3,9 +3,9 @@ import { ClientApi } from "@fjell/client-api";
 import { InstanceFactory as BaseInstanceFactory, Registry, RegistryHub } from "@fjell/registry";
 import { Instance } from "./Instance";
 import { Coordinate } from "@fjell/registry";
-import { CacheMap } from "@/CacheMap";
-import { createOperations } from "@/Operations";
-import LibLogger from "@/logger";
+import { CacheMap } from "./CacheMap";
+import { createOperations } from "./Operations";
+import LibLogger from "./logger";
 
 const logger = LibLogger.get("InstanceFactory");
 

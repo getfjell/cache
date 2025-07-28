@@ -5,8 +5,8 @@ import {
 } from "@fjell/core";
 import { ClientApi } from "@fjell/client-api";
 import { NotFoundError } from "@fjell/http-api";
-import { CacheMap } from "@/CacheMap";
-import LibLogger from "@/logger";
+import { CacheMap } from "../CacheMap";
+import LibLogger from "../logger";
 
 const logger = LibLogger.get('allAction');
 
