@@ -1,4 +1,4 @@
-import { Cache, createCache } from '@/Cache';
+import { Cache, createCache } from '../../src/Cache';
 import { CItemApi } from "@fjell/client-api";
 import { ComKey, Item, ItemQuery, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/core";
 import { createCoordinate, createRegistry } from "@fjell/registry";
