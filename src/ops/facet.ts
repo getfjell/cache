@@ -4,8 +4,8 @@ import {
   PriKey
 } from "@fjell/core";
 import { ClientApi } from "@fjell/client-api";
-import { CacheMap } from "@/CacheMap";
-import LibLogger from "@/logger";
+import { CacheMap } from "../CacheMap";
+import LibLogger from "../logger";
 
 const logger = LibLogger.get('facet');
 

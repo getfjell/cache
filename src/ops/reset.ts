@@ -1,7 +1,7 @@
 import {
   Item
 } from "@fjell/core";
-import { CacheMap } from "@/CacheMap";
+import { CacheMap } from "../CacheMap";
 import { Coordinate } from "@fjell/registry";
 
 export const reset = async <

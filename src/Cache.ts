@@ -1,9 +1,9 @@
 import { Item } from "@fjell/core";
 import { Instance as BaseInstance, Coordinate, Registry } from "@fjell/registry";
 import { ClientApi } from "@fjell/client-api";
-import { CacheMap } from "@/CacheMap";
-import { createOperations, Operations } from "@/Operations";
-import LibLogger from "@/logger";
+import { CacheMap } from "./CacheMap";
+import { createOperations, Operations } from "./Operations";
+import LibLogger from "./logger";
 
 const logger = LibLogger.get('Cache');
 

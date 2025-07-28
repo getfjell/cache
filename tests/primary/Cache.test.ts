@@ -1,5 +1,5 @@
-import { CacheMap } from '@/CacheMap';
-import { Cache, createCache } from '@/Cache';
+import { CacheMap } from '../../src/CacheMap';
+import { Cache, createCache } from '../../src/Cache';
 import { PItemApi } from '@fjell/client-api';
 import { Item, PriKey } from '@fjell/core';
 import { createCoordinate, createRegistry } from '@fjell/registry';

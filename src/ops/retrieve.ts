@@ -5,8 +5,8 @@ import {
   PriKey,
   validatePK
 } from "@fjell/core";
-import { CacheMap } from "@/CacheMap";
-import LibLogger from "@/logger";
+import { CacheMap } from "../CacheMap";
+import LibLogger from "../logger";
 import { get } from "./get";
 import { ClientApi } from "@fjell/client-api";
 

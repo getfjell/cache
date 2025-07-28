@@ -1,5 +1,5 @@
 
-import LibLogger from "@/logger";
+import LibLogger from "./logger";
 import { Item } from "@fjell/core";
 import { Coordinate, Registry } from "@fjell/registry";
 import { ClientApi } from "@fjell/client-api";

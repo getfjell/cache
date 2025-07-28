@@ -1,4 +1,4 @@
-import LibLogger from '@/logger';
+import LibLogger from './logger';
 import {
   Registry as BaseRegistry,
   createRegistry as createBaseRegistry,

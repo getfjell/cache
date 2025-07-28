@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
-import { createInstanceFactory } from '@/InstanceFactory';
+import { createInstanceFactory } from '../src/InstanceFactory';
 import { createCoordinate, Registry, RegistryHub } from '@fjell/registry';
 import { Item } from '@fjell/core';
 import { ClientApi } from '@fjell/client-api';
@@ -29,7 +29,7 @@ vi.mock('../src/logger', () => {
 });
 
 // Mock CacheMap
-vi.mock('@/CacheMap', () => ({
+vi.mock('../src/CacheMap', () => ({
   CacheMap: vi.fn().mockImplementation(() => ({
     get: vi.fn(),
     set: vi.fn(),
@@ -45,7 +45,7 @@ vi.mock('@/CacheMap', () => ({
 }));
 
 // Mock Operations
-vi.mock('@/Operations', () => ({
+vi.mock('../src/Operations', () => ({
   createOperations: vi.fn().mockReturnValue({
     all: vi.fn(),
     one: vi.fn(),

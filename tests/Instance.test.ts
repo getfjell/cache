@@ -1,10 +1,10 @@
 /* eslint-disable no-undefined */
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { createInstance, isInstance } from '@/Instance';
+import { createInstance, isInstance } from '../src/Instance';
 import { createCoordinate, Registry } from '@fjell/registry';
 
 // Mock the logger
-vi.mock('@/logger', () => {
+vi.mock('../src/logger', () => {
   const logger = {
     get: vi.fn().mockReturnThis(),
     error: vi.fn(),
@@ -29,11 +29,11 @@ vi.mock('@/logger', () => {
 });
 
 // Mock the createCache function
-vi.mock('@/Cache', () => ({
+vi.mock('../src/Cache', () => ({
   createCache: vi.fn(),
 }));
 
-import { createCache } from '@/Cache';
+import { createCache } from '../src/Cache';
 
 describe('Instance', () => {
   const mockRegistry: Registry = { type: 'cache' } as Registry;

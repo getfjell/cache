@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createRegistry, createRegistryFactory } from '@/Registry';
+import { createRegistry, createRegistryFactory } from '../src/Registry';
 
 // Mock the logger to avoid logging during tests
 vi.mock('../src/logger', () => {

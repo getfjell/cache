@@ -1,4 +1,4 @@
-import { Cache, createCache } from "@/Cache";
+import { Cache, createCache } from "../src/Cache";
 import { ClientApi } from "@fjell/client-api";
 import { ComKey, Item } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
