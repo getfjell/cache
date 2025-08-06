@@ -6,7 +6,7 @@ import {
   PriKey,
   validatePK
 } from "@fjell/core";
-import { CacheMap } from "../CacheMap";
+import { CacheContext } from "../CacheContext";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('set');
@@ -70,11 +70,11 @@ export const set = async <
   L4 extends string = never,
   L5 extends string = never
 >(
-  cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
-  pkType: S,
   key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-  v: Item<S, L1, L2, L3, L4, L5>
-): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
+  v: Item<S, L1, L2, L3, L4, L5>,
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
+  const { cacheMap, pkType } = context;
   logger.default('set', { key, v });
 
   if (!isValidItemKey(key)) {
@@ -91,5 +91,5 @@ export const set = async <
   }
 
   cacheMap.set(key, v as V);
-  return [cacheMap, validatePK(v, pkType) as V];
+  return [context, validatePK(v, pkType) as V];
 };

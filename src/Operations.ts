@@ -2,6 +2,7 @@ import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/core";
 import { ClientApi } from "@fjell/client-api";
 import { Coordinate } from "@fjell/registry";
 import { CacheMap } from "./CacheMap";
+import { createCacheContext } from "./CacheContext";
 
 // Import all operation functions
 import { all } from "./ops/all";
@@ -19,6 +20,7 @@ import { find } from "./ops/find";
 import { findOne } from "./ops/findOne";
 import { set } from "./ops/set";
 import { reset } from "./ops/reset";
+import { Options } from "./Options";
 
 export interface Operations<
   V extends Item<S, L1, L2, L3, L4, L5>,
@@ -166,23 +168,28 @@ export const createOperations = <
     api: ClientApi<V, S, L1, L2, L3, L4, L5>,
     coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
     cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
-    pkType: S
+    pkType: S,
+    options: Options<V, S, L1, L2, L3, L4, L5>
   ): Operations<V, S, L1, L2, L3, L4, L5> => {
+
+  // Create the cache context once and reuse it across all operations
+  const context = createCacheContext(api, cacheMap, pkType, options);
+
   return {
-    all: (query, locations) => all(api, cacheMap, pkType, query, locations),
-    one: (query, locations) => one(api, cacheMap, pkType, query, locations),
-    create: (item, locations) => create(api, cacheMap, pkType, item, locations),
-    get: (key) => get(api, cacheMap, pkType, key),
-    retrieve: (key) => retrieve(api, cacheMap, pkType, key),
-    remove: (key) => remove(api, cacheMap, key),
-    update: (key, item) => update(api, cacheMap, pkType, key, item),
-    action: (key, actionName, body) => action(api, cacheMap, pkType, key, actionName, body),
-    allAction: (actionName, body, locations) => allAction(api, cacheMap, pkType, actionName, body, locations),
-    facet: (key, facetName, params) => facet(api, cacheMap, key, facetName, params),
-    allFacet: (facetName, params, locations) => allFacet(api, cacheMap, facetName, params, locations),
-    find: (finder, params, locations) => find(api, cacheMap, pkType, finder, params, locations),
-    findOne: (finder, params, locations) => findOne(api, cacheMap, pkType, finder, params, locations),
-    set: (key, item) => set(cacheMap, pkType, key, item),
-    reset: () => reset(coordinate)
+    all: (query, locations) => all(query, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),
+    one: (query, locations) => one(query, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),
+    create: (item, locations) => create(item, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),
+    get: (key) => get(key, context).then(([ctx, result]) => [ctx.cacheMap, result]),
+    retrieve: (key) => retrieve(key, context).then(([ctx, result]) => [ctx ? ctx.cacheMap : null, result]),
+    remove: (key) => remove(key, context).then((ctx) => ctx.cacheMap),
+    update: (key, item) => update(key, item, context).then(([ctx, result]) => [ctx.cacheMap, result]),
+    action: (key, actionName, body) => action(key, actionName, body, context).then(([ctx, result]) => [ctx.cacheMap, result]),
+    allAction: (actionName, body, locations) => allAction(actionName, body, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),
+    facet: (key, facetName, params) => facet(key, facetName, params, context).then(result => [context.cacheMap, result]),
+    allFacet: (facetName, params, locations) => allFacet(facetName, params, locations, context).then(result => [context.cacheMap, result]),
+    find: (finder, params, locations) => find(finder, params, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),
+    findOne: (finder, params, locations) => findOne(finder, params, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),
+    set: (key, item) => set(key, item, context).then(([ctx, result]) => [ctx.cacheMap, result]),
+    reset: () => reset(coordinate, options)
   };
 };

@@ -2,6 +2,7 @@ import {
   Item
 } from "@fjell/core";
 import { CacheMap } from "../CacheMap";
+import { createCacheMap, Options } from "../Options";
 import { Coordinate } from "@fjell/registry";
 
 export const reset = async <
@@ -13,8 +14,10 @@ export const reset = async <
   L4 extends string = never,
   L5 extends string = never
 >(
-  coordinate: Coordinate<S, L1, L2, L3, L4, L5>
+  coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
+  options: Options<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>]> => {
-  const cacheMap = new CacheMap<V, S, L1, L2, L3, L4, L5>(coordinate.kta);
+  // Create a new cache map using the same configuration as the original
+  const cacheMap = createCacheMap<V, S, L1, L2, L3, L4, L5>(coordinate.kta, options);
   return [cacheMap];
 };

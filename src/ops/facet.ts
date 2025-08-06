@@ -3,8 +3,7 @@ import {
   Item,
   PriKey
 } from "@fjell/core";
-import { ClientApi } from "@fjell/client-api";
-import { CacheMap } from "../CacheMap";
+import { CacheContext } from "../CacheContext";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('facet');
@@ -18,13 +17,13 @@ export const facet = async <
   L4 extends string = never,
   L5 extends string = never
 >(
-  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-  cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
   key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
   facet: string,
-  params: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {}
-): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]> => {
+  params: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<any> => {
+  const { api } = context;
   logger.default('facet', { key, facet });
   const ret = await api.facet(key, facet, params);
-  return [cacheMap, ret];
+  return ret;
 };
