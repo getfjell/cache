@@ -12,7 +12,7 @@
     "test:watch": "vitest --watch"
   },
   "dependencies": {
-    "@fjell/docs-template": "file:../../fjell-docs-template",
+    "@fjell/docs-template": "^1.0.24",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
