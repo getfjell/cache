@@ -35,7 +35,10 @@ export class IndexDBCacheMap<
   private memoryCache: MemoryCacheMap<V, S, L1, L2, L3, L4, L5>;
   private syncInterval: NodeJS.Timeout | null = null;
   private readonly SYNC_INTERVAL_MS = 5000; // Sync every 5 seconds
-  private pendingSyncOperations: Set<string> = new Set();
+  private pendingSyncOperations: Map<string, { type: 'set' | 'delete'; key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>; value?: V }> = new Map();
+  private initializationPromise: Promise<void> | null = null;
+  private isInitialized = false;
+  private readonly MAX_RETRY_ATTEMPTS = 3;
 
   public constructor(
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
@@ -55,25 +58,32 @@ export class IndexDBCacheMap<
   }
 
   private async initializeFromIndexedDB(): Promise<void> {
-    try {
-      // This is a fire-and-forget async operation
-      // The memory cache will be populated as data becomes available
-      setTimeout(async () => {
-        try {
-          const keys = await this.asyncCache.keys();
-          for (const key of keys) {
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = (async () => {
+      try {
+        const keys = await this.asyncCache.keys();
+        for (const key of keys) {
+          // Only load from IndexedDB if not already in memory cache
+          // This prevents overwriting newer data with stale data
+          if (!this.memoryCache.includesKey(key)) {
             const value = await this.asyncCache.get(key);
             if (value) {
               this.memoryCache.set(key, value);
             }
           }
-        } catch (error) {
-          console.warn('Failed to initialize from IndexedDB:', error);
         }
-      }, 0);
-    } catch (error) {
-      console.warn('IndexedDB initialization failed:', error);
-    }
+        this.isInitialized = true;
+      } catch (error) {
+        console.warn('Failed to initialize from IndexedDB:', error);
+        // Still mark as initialized to prevent infinite retries
+        this.isInitialized = true;
+      }
+    })();
+
+    return this.initializationPromise;
   }
 
   private startPeriodicSync(): void {
@@ -84,7 +94,10 @@ export class IndexDBCacheMap<
 
   private async syncToIndexedDB(): Promise<void> {
     try {
-      // Sync memory cache changes to IndexedDB
+      // Process pending operations first
+      await this.processPendingOperations();
+
+      // Then sync memory cache changes to IndexedDB
       const memoryKeys = this.memoryCache.keys();
       for (const key of memoryKeys) {
         const value = this.memoryCache.get(key);
@@ -97,19 +110,43 @@ export class IndexDBCacheMap<
     }
   }
 
+  private async processPendingOperations(): Promise<void> {
+    const pendingOps = Array.from(this.pendingSyncOperations.entries());
+
+    for (const [keyStr, operation] of pendingOps) {
+      try {
+        if (operation.type === 'set' && operation.value) {
+          await this.asyncCache.set(operation.key, operation.value);
+        } else if (operation.type === 'delete') {
+          await this.asyncCache.delete(operation.key);
+        }
+
+        // Remove from pending operations on success
+        this.pendingSyncOperations.delete(keyStr);
+      } catch (error) {
+        console.warn(`Failed to process pending ${operation.type} operation:`, error);
+        // Keep in pending operations for retry
+      }
+    }
+  }
+
   private queueForSync(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
     // Convert key to string for tracking
     const keyStr = JSON.stringify(key);
-    this.pendingSyncOperations.add(keyStr);
+    this.pendingSyncOperations.set(keyStr, { type: 'set', key, value });
 
     // Trigger immediate sync in background
     setTimeout(async () => {
       try {
         await this.asyncCache.set(key, value);
-        this.pendingSyncOperations.delete(keyStr);
+        // Only remove if this exact operation is still pending
+        const pending = this.pendingSyncOperations.get(keyStr);
+        if (pending && pending.type === 'set' && pending.value === value) {
+          this.pendingSyncOperations.delete(keyStr);
+        }
       } catch (error) {
         console.warn('Failed to sync single operation to IndexedDB:', error);
-        // Keep in pending set for next periodic sync
+        // Keep in pending operations for retry
       }
     }, 0);
   }
@@ -117,16 +154,20 @@ export class IndexDBCacheMap<
   private queueDeleteForSync(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
     // Convert key to string for tracking
     const keyStr = JSON.stringify(key);
-    this.pendingSyncOperations.add(keyStr);
+    this.pendingSyncOperations.set(keyStr, { type: 'delete', key });
 
     // Trigger immediate delete sync in background
     setTimeout(async () => {
       try {
         await this.asyncCache.delete(key);
-        this.pendingSyncOperations.delete(keyStr);
+        // Only remove if this exact operation is still pending
+        const pending = this.pendingSyncOperations.get(keyStr);
+        if (pending && pending.type === 'delete') {
+          this.pendingSyncOperations.delete(keyStr);
+        }
       } catch (error) {
         console.warn('Failed to sync delete operation to IndexedDB:', error);
-        // Keep in pending set for next periodic sync
+        // Keep in pending operations for retry
       }
     }, 0);
   }
@@ -146,6 +187,11 @@ export class IndexDBCacheMap<
   }
 
   public get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): V | null {
+    // Ensure initialization is complete before reading
+    if (!this.isInitialized && this.initializationPromise) {
+      // For synchronous API, we can't wait for async initialization
+      // Fall back to memory cache only and let background init continue
+    }
     return this.memoryCache.get(key);
   }
 

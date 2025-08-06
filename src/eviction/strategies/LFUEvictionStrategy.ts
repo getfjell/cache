@@ -3,18 +3,32 @@ import { DEFAULT_LFU_CONFIG, LFUConfig } from '../EvictionStrategyConfig';
 import { createValidatedConfig } from '../EvictionStrategyValidation';
 
 /**
- * Improved hash function for Count-Min Sketch with better distribution
- * Fixes issues with Math.abs() causing -0/+0 collisions and poor distribution
+ * High-quality hash function for Count-Min Sketch based on FNV-1a
+ * Provides excellent avalanche effect and distribution properties
  */
-function simpleHash(key: string, seed: number): number {
-  let hash = seed;
+function fnv1aHash(key: string, seed: number): number {
+  // FNV-1a constants for 32-bit hash
+  const FNV_OFFSET_BASIS = 2166136261;
+  const FNV_PRIME = 16777619;
+
+  // Start with seed-modified offset basis for different hash functions
+  let hash = (FNV_OFFSET_BASIS ^ seed) >>> 0;
+
   for (let i = 0; i < key.length; i++) {
-    hash = ((hash << 5) - hash + key.charCodeAt(i)) & 0xffffffff;
+    // XOR with byte value
+    hash ^= key.charCodeAt(i);
+    // Multiply by FNV prime
+    hash = (hash * FNV_PRIME) >>> 0;
   }
 
-  // Use unsigned right shift to ensure positive values without Math.abs() issues
-  // This handles the -0/+0 problem and provides better distribution
-  return (hash >>> 0);
+  // Additional mixing for better avalanche
+  hash ^= hash >>> 16;
+  hash = (hash * 0x85ebca6b) >>> 0;
+  hash ^= hash >>> 13;
+  hash = (hash * 0xc2b2ae35) >>> 0;
+  hash ^= hash >>> 16;
+
+  return hash >>> 0;
 }
 
 /**
@@ -47,7 +61,7 @@ class CountMinSketch {
     for (let i = 0; i < this.depth; i++) {
       // Use bit masking for better distribution when width is power of 2
       // For non-power of 2, fall back to modulo but with improved hash
-      const hash = simpleHash(key, this.seeds[i]);
+      const hash = fnv1aHash(key, this.seeds[i]);
       const index = this.isPowerOfTwo(this.width)
         ? hash & (this.width - 1)
         : hash % this.width;
@@ -62,7 +76,7 @@ class CountMinSketch {
     let minCount = Infinity;
     for (let i = 0; i < this.depth; i++) {
       // Use same improved indexing as in increment method
-      const hash = simpleHash(key, this.seeds[i]);
+      const hash = fnv1aHash(key, this.seeds[i]);
       const index = this.isPowerOfTwo(this.width)
         ? hash & (this.width - 1)
         : hash % this.width;

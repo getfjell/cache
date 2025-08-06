@@ -6,6 +6,24 @@ export const normalizeKeyValue = (value: string | number): string => {
   return String(value);
 };
 
+// Helper function to create deterministic JSON string with sorted keys
+const deterministicStringify = (obj: any): string => {
+  if (obj === null || typeof obj !== 'object') {
+    return JSON.stringify(obj);
+  }
+
+  if (Array.isArray(obj)) {
+    return '[' + obj.map(deterministicStringify).join(',') + ']';
+  }
+
+  const sortedKeys = Object.keys(obj).sort();
+  const keyValuePairs = sortedKeys.map(key => {
+    return JSON.stringify(key) + ':' + deterministicStringify(obj[key]);
+  });
+
+  return '{' + keyValuePairs.join(',') + '}';
+};
+
 // Normalized hash function for Dictionary that converts pk/lk values to strings
 export const createNormalizedHashFunction = <T>() => {
   return (key: T): string => {
@@ -33,7 +51,8 @@ export const createNormalizedHashFunction = <T>() => {
         });
       }
 
-      return JSON.stringify(normalizedKey);
+      // Use deterministic stringify to ensure consistent key ordering
+      return deterministicStringify(normalizedKey);
     }
     return JSON.stringify(key);
   };
@@ -49,7 +68,7 @@ export const isLocKeyArrayEqual = (a: any[], b: any[]): boolean => {
     const normalizedA = normalizeLocKeyItem(a[i]);
     const normalizedB = normalizeLocKeyItem(b[i]);
 
-    if (JSON.stringify(normalizedA) !== JSON.stringify(normalizedB)) {
+    if (deterministicStringify(normalizedA) !== deterministicStringify(normalizedB)) {
       return false;
     }
   }
@@ -119,7 +138,7 @@ export const createQueryHash = <
     locations: normalizedLocations
   };
 
-  return JSON.stringify(hashInput);
+  return deterministicStringify(hashInput);
 };
 
 /**
@@ -158,5 +177,5 @@ export const createFinderHash = <
     locations: normalizedLocations
   };
 
-  return JSON.stringify(hashInput);
+  return deterministicStringify(hashInput);
 };

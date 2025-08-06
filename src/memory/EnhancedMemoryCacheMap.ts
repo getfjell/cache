@@ -46,6 +46,8 @@ export class EnhancedMemoryCacheMap<
 
   // Query result cache: maps query hash to cache entry with expiration
   private queryResultCache: { [queryHash: string]: QueryCacheEntry } = {};
+  // Mutex-like tracking for TTL operations to prevent race conditions
+  private ttlOperationsInProgress: Set<string> = new Set();
 
   // Size tracking
   private currentSizeBytes: number = 0;
@@ -163,14 +165,20 @@ export class EnhancedMemoryCacheMap<
       const sizeDiff = estimatedSize - existingEntry.metadata.estimatedSize;
       this.currentSizeBytes += sizeDiff;
 
+      const oldValue = existingEntry.value;
       existingEntry.value = value;
       existingEntry.metadata.estimatedSize = estimatedSize;
-      this.evictionStrategy.onItemAccessed(hashedKey, existingEntry.metadata);
+
+      // For updates, we need to notify eviction strategy properly
+      // Since the value changed, this is effectively a remove + add
+      this.evictionStrategy.onItemRemoved(hashedKey);
+      this.evictionStrategy.onItemAdded(hashedKey, existingEntry.metadata);
 
       logger.trace('Updated existing cache entry', {
         key: hashedKey,
         sizeDiff,
-        currentSize: this.currentSizeBytes
+        currentSize: this.currentSizeBytes,
+        oldValue: oldValue !== value
       });
     } else {
       // New entry - check if we need to evict first
@@ -425,34 +433,70 @@ export class EnhancedMemoryCacheMap<
 
   public getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null {
     logger.trace('getQueryResult', { queryHash });
+
+    // Check if TTL operation is already in progress for this query
+    if (this.ttlOperationsInProgress.has(queryHash)) {
+      // Another thread is handling TTL, return current value or null
+      const entry = this.queryResultCache[queryHash];
+      return entry ? [...entry.itemKeys] : null;
+    }
+
     const entry = this.queryResultCache[queryHash];
 
     if (!entry) {
       return null;
     }
 
-    // Check if entry has expired
+    // Check if entry has expired - use atomic operation
     if (entry.expiresAt && Date.now() > entry.expiresAt) {
-      logger.trace('Query result expired, removing', { queryHash, expiresAt: entry.expiresAt });
-      this.removeQueryResultFromSizeTracking(queryHash);
-      delete this.queryResultCache[queryHash];
-      return null;
+      // Mark TTL operation in progress
+      this.ttlOperationsInProgress.add(queryHash);
+
+      try {
+        // Double-check expiry inside the critical section
+        if (entry.expiresAt && Date.now() > entry.expiresAt) {
+          logger.trace('Query result expired, removing', { queryHash, expiresAt: entry.expiresAt });
+          this.removeQueryResultFromSizeTracking(queryHash);
+          delete this.queryResultCache[queryHash];
+          return null;
+        }
+      } finally {
+        // Always release the lock
+        this.ttlOperationsInProgress.delete(queryHash);
+      }
     }
 
     return [...entry.itemKeys]; // Return a copy to avoid external mutations
   }
 
   public hasQueryResult(queryHash: string): boolean {
+    // Check if TTL operation is already in progress for this query
+    if (this.ttlOperationsInProgress.has(queryHash)) {
+      // Another thread is handling TTL, return current state
+      return queryHash in this.queryResultCache;
+    }
+
     const entry = this.queryResultCache[queryHash];
     if (!entry) {
       return false;
     }
 
-    // Check if entry has expired
+    // Check if entry has expired - use atomic operation
     if (entry.expiresAt && Date.now() > entry.expiresAt) {
-      this.removeQueryResultFromSizeTracking(queryHash);
-      delete this.queryResultCache[queryHash];
-      return false;
+      // Mark TTL operation in progress
+      this.ttlOperationsInProgress.add(queryHash);
+
+      try {
+        // Double-check expiry inside the critical section
+        if (entry.expiresAt && Date.now() > entry.expiresAt) {
+          this.removeQueryResultFromSizeTracking(queryHash);
+          delete this.queryResultCache[queryHash];
+          return false;
+        }
+      } finally {
+        // Always release the lock
+        this.ttlOperationsInProgress.delete(queryHash);
+      }
     }
 
     return true;

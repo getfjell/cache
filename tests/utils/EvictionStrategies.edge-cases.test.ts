@@ -297,7 +297,7 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       // Access item1 (should move to hot queue)
       strategy.onItemAccessed('item1', metadata1);
 
-      // When evicting, should prefer item2 from recent queue
+      // When evicting, should prefer item2 from recent queue (item1 was promoted to hot queue)
       const selected = strategy.selectForEviction(mockMetadata);
       expect(selected).toBe('item2');
     });

@@ -118,22 +118,73 @@ export class ARCEvictionStrategy extends EvictionStrategy {
   }
 
   onItemRemoved(key: string): void {
-    // Add to appropriate ghost list
-    if (this.recentGhosts.size < this.maxGhostSize) {
-      this.recentGhosts.add(key);
-    }
+    // Determine which ghost list to add to based on item characteristics
+    // For now, add to recent ghost list by default
+    this.addToRecentGhosts(key);
 
-    // Clean up ghost lists if they get too large
-    if (this.recentGhosts.size > this.maxGhostSize) {
+    // Ensure both ghost lists stay within bounds
+    this.cleanupGhostLists();
+  }
+
+  /**
+   * Add key to recent ghost list with proper size management
+   */
+  private addToRecentGhosts(key: string): void {
+    // Remove from frequent ghosts if present (item moved lists)
+    this.frequentGhosts.delete(key);
+
+    // Add to recent ghosts
+    this.recentGhosts.add(key);
+
+    // Maintain size limit by removing oldest entries
+    while (this.recentGhosts.size > this.maxGhostSize) {
       const firstKey = this.recentGhosts.values().next().value;
       if (firstKey) {
         this.recentGhosts.delete(firstKey);
       }
     }
-    if (this.frequentGhosts.size > this.maxGhostSize) {
+  }
+
+  /**
+   * Add key to frequent ghost list with proper size management
+   */
+  private addToFrequentGhosts(key: string): void {
+    // Remove from recent ghosts if present (item moved lists)
+    this.recentGhosts.delete(key);
+
+    // Add to frequent ghosts
+    this.frequentGhosts.add(key);
+
+    // Maintain size limit by removing oldest entries
+    while (this.frequentGhosts.size > this.maxGhostSize) {
       const firstKey = this.frequentGhosts.values().next().value;
       if (firstKey) {
         this.frequentGhosts.delete(firstKey);
+      }
+    }
+  }
+
+  /**
+   * Cleanup ghost lists to prevent memory leaks
+   */
+  private cleanupGhostLists(): void {
+    // Clean up recent ghosts
+    while (this.recentGhosts.size > this.maxGhostSize) {
+      const firstKey = this.recentGhosts.values().next().value;
+      if (firstKey) {
+        this.recentGhosts.delete(firstKey);
+      } else {
+        break; // Safety check
+      }
+    }
+
+    // Clean up frequent ghosts
+    while (this.frequentGhosts.size > this.maxGhostSize) {
+      const firstKey = this.frequentGhosts.values().next().value;
+      if (firstKey) {
+        this.frequentGhosts.delete(firstKey);
+      } else {
+        break; // Safety check
       }
     }
   }
@@ -235,14 +286,17 @@ export class ARCEvictionStrategy extends EvictionStrategy {
     const timeSinceDecay = now - this.lastDecayTime;
 
     if (timeSinceDecay >= (this.config.frequencyDecayInterval ?? 600000)) {
-      // Apply decay to all items
-      for (const metadata of items.values()) {
-        if (typeof metadata.frequencyScore === 'number') {
-          const decayAmount = (this.config.frequencyDecayFactor ?? 0.05);
-          metadata.frequencyScore = Math.max(1, metadata.frequencyScore * (1 - decayAmount));
+      // Only update lastDecayTime if we actually have items to decay
+      if (items.size > 0) {
+        // Apply decay to all items
+        for (const metadata of items.values()) {
+          if (typeof metadata.frequencyScore === 'number') {
+            const decayAmount = (this.config.frequencyDecayFactor ?? 0.05);
+            metadata.frequencyScore = Math.max(1, metadata.frequencyScore * (1 - decayAmount));
+          }
         }
+        this.lastDecayTime = now;
       }
-      this.lastDecayTime = now;
     }
   }
 

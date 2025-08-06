@@ -32,8 +32,10 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
     // Apply periodic decay if enabled
     this.applyPeriodicDecay(items);
 
-    // First try to evict from recent queue (A1) - always prioritize recent queue
-    for (const key of this.recentQueue) {
+    // First try to evict from recent queue (A1) - evict oldest (tail) of recent queue
+    // Recent queue is maintained with newest at front, oldest at back
+    for (let i = this.recentQueue.length - 1; i >= 0; i--) {
+      const key = this.recentQueue[i];
       if (items.has(key)) {
         return key;
       }
@@ -244,15 +246,18 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
     const timeSinceDecay = now - this.lastDecayTime;
 
     if (timeSinceDecay >= (this.config.hotQueueDecayInterval ?? 300000)) {
-      // Apply decay to all items in hot queue
-      for (const key of this.hotQueue) {
-        const metadata = items.get(key);
-        if (metadata && typeof metadata.frequencyScore === 'number') {
-          const decayAmount = (this.config.hotQueueDecayFactor ?? 0.05);
-          metadata.frequencyScore = Math.max(1, metadata.frequencyScore * (1 - decayAmount));
+      // Only update lastDecayTime if we actually have items to decay
+      if (this.hotQueue.length > 0) {
+        // Apply decay to all items in hot queue
+        for (const key of this.hotQueue) {
+          const metadata = items.get(key);
+          if (metadata && typeof metadata.frequencyScore === 'number') {
+            const decayAmount = (this.config.hotQueueDecayFactor ?? 0.05);
+            metadata.frequencyScore = Math.max(1, metadata.frequencyScore * (1 - decayAmount));
+          }
         }
+        this.lastDecayTime = now;
       }
-      this.lastDecayTime = now;
     }
   }
 

@@ -385,7 +385,7 @@ describe('Normalization Utilities', () => {
         const array2 = [item2];
 
         // This will throw due to JSON.stringify in normalization, which is expected behavior
-        expect(() => isLocKeyArrayEqual(array1, array2)).toThrow('Converting circular structure to JSON');
+        expect(() => isLocKeyArrayEqual(array1, array2)).toThrow('Maximum call stack size exceeded');
       });
     });
   });
