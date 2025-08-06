@@ -90,7 +90,7 @@ describe('Cache Configuration Example', () => {
     await cacheConfigurationExample();
 
     // Verify environment-specific configuration was used
-    expect(consoleLogSpy).toHaveBeenCalledWith('✅ Environment-based cache factory created (asyncIndexedDB)');
+    expect(consoleLogSpy).toHaveBeenCalledWith('✅ Environment-based cache factory created (indexedDB)');
   });
 
   it('should handle development environment configuration', async () => {

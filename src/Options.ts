@@ -5,7 +5,7 @@ import { EnhancedMemoryCacheMap } from './memory/EnhancedMemoryCacheMap';
 import { LocalStorageCacheMap } from './browser/LocalStorageCacheMap';
 import { SessionStorageCacheMap } from './browser/SessionStorageCacheMap';
 import { IndexDBCacheMap } from './browser/IndexDBCacheMap';
-import { AsyncIndexDBCacheMap } from './browser/AsyncIndexDBCacheMap';
+
 import { validateSizeConfig } from './utils/CacheSize';
 import { EvictionStrategyConfigs } from './eviction/EvictionStrategyConfig';
 
@@ -263,14 +263,6 @@ export const createCacheMap = <
         options.indexedDBConfig?.version
       );
 
-    case 'asyncIndexedDB':
-      return new AsyncIndexDBCacheMap<V, S, L1, L2, L3, L4, L5>(
-        kta as any,
-        options.indexedDBConfig?.dbName,
-        options.indexedDBConfig?.storeName,
-        options.indexedDBConfig?.version
-      ) as any;
-
     case 'custom':
       if (!options.customCacheMapFactory) {
         throw new Error('Custom cache map factory is required when cacheType is "custom"');
@@ -337,9 +329,14 @@ export const validateOptions = <
   }
 
   // IndexedDB validation
-  if (['indexedDB', 'asyncIndexedDB'].includes(options.cacheType)) {
+  if (options.cacheType === 'indexedDB') {
     if (typeof window === 'undefined' || !window.indexedDB) {
       throw new Error(`${options.cacheType} is not available in this environment`);
     }
+  }
+
+  // AsyncIndexedDB validation - should not be used with synchronous cache factory
+  if (options.cacheType === 'asyncIndexedDB') {
+    throw new Error('asyncIndexedDB cannot be used with synchronous cache factory. Use AsyncIndexDBCacheMap directly for async operations.');
   }
 };

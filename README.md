@@ -146,18 +146,23 @@ const options: Partial<Options<User, 'user'>> = {
 };
 ```
 
-#### AsyncIndexedDB (Large-scale, Asynchronous)
+#### IndexedDB (Large-scale, Asynchronous)
 Recommended IndexedDB implementation with full async support:
 
 ```typescript
 const options: Partial<Options<User, 'user'>> = {
-  cacheType: 'asyncIndexedDB',
+  cacheType: 'indexedDB',
   indexedDBConfig: {
     dbName: 'MyAppCache',
     version: 1,
     storeName: 'userData'
   }
 };
+
+// Access async operations via the asyncCache property
+const cache = createCache(api, coordinate, options);
+const asyncValue = await cache.cacheMap.asyncCache.get(key);
+await cache.cacheMap.asyncCache.set(key, value);
 ```
 
 #### Custom Cache Implementation
@@ -384,7 +389,7 @@ const getOptimalCacheOptions = (): Partial<Options<User, 'user'>> => {
   // Browser environment with IndexedDB support
   if (typeof window !== 'undefined' && 'indexedDB' in window) {
     return {
-      cacheType: 'asyncIndexedDB',
+      cacheType: 'indexedDB',
       indexedDBConfig: {
         dbName: 'MyAppCache',
         version: 1,
@@ -425,7 +430,7 @@ const factory = createInstanceFactory(userApi, getOptimalCacheOptions());
 interface Options<V extends Item<S>, S extends string> {
   // Cache type selection
   cacheType: 'memory' | 'localStorage' | 'sessionStorage' |
-             'indexedDB' | 'asyncIndexedDB' | 'custom';
+             'indexedDB' | 'custom';
 
   // Memory cache configuration
   memoryConfig?: {
@@ -592,3 +597,4 @@ Apache-2.0
 We welcome contributions! Please see our contributing guidelines for more information.
 
 Built with love by the Fjell team.
+# Test fix for sendit config bug

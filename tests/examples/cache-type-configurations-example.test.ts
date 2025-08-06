@@ -52,7 +52,7 @@ describe('Cache Type Configuration Examples', () => {
 
     it('should export IndexedDB cache options', () => {
       expect(indexedDBOptions).toBeDefined();
-      expect(indexedDBOptions.cacheType).toBe('asyncIndexedDB');
+      expect(indexedDBOptions.cacheType).toBe('indexedDB');
       expect(indexedDBOptions.indexedDBConfig?.dbName).toBe('UserAppCache');
       expect(indexedDBOptions.indexedDBConfig?.version).toBe(2);
       expect(indexedDBOptions.indexedDBConfig?.storeName).toBe('users');
@@ -83,7 +83,7 @@ describe('Cache Type Configuration Examples', () => {
 
       const config = createOptimalCacheConfiguration();
 
-      expect(config.cacheType).toBe('asyncIndexedDB');
+      expect(config.cacheType).toBe('indexedDB');
       expect(config.indexedDBConfig?.dbName).toBe('OptimalCache');
       expect(config.indexedDBConfig?.version).toBe(1);
       expect(config.indexedDBConfig?.storeName).toBe('items');
@@ -91,7 +91,7 @@ describe('Cache Type Configuration Examples', () => {
       expect(config.maxRetries).toBe(5);
       expect(config.retryDelay).toBe(2000);
 
-      expect(consoleLogSpy).toHaveBeenCalledWith('🌐 Browser with IndexedDB detected - using AsyncIndexedDB');
+      expect(consoleLogSpy).toHaveBeenCalledWith('🌐 Browser with IndexedDB detected - using IndexedDB');
     });
 
     it('should return localStorage config for browser without IndexedDB', () => {
@@ -402,7 +402,7 @@ describe('Cache Type Configuration Examples', () => {
       } as any;
 
       const config = createOptimalCacheConfiguration();
-      expect(config.cacheType).toBe('asyncIndexedDB');
+      expect(config.cacheType).toBe('indexedDB');
       expect(config.indexedDBConfig?.dbName).toBe('OptimalCache');
     });
 
@@ -585,7 +585,7 @@ describe('Cache Type Configuration Examples', () => {
 
       // Test that the configurations are properly defined (covers the void expressions)
       expect(memoryOptions.cacheType).toBe('memory');
-      expect(indexedDBOptions.cacheType).toBe('asyncIndexedDB');
+      expect(indexedDBOptions.cacheType).toBe('indexedDB');
       expect(localStorageOptions.cacheType).toBe('localStorage');
     });
 

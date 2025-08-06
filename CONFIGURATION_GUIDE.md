@@ -38,7 +38,7 @@ const cache = factory(coordinate, { registry });
 
 ```typescript
 const indexedDBOptions: Partial<Options<User, 'user'>> = {
-  cacheType: 'asyncIndexedDB',
+  cacheType: 'indexedDB',
   indexedDBConfig: {
     dbName: 'UserAppCache',     // Database name
     version: 2,                 // Database version (increment for schema changes)
@@ -99,7 +99,7 @@ function createOptimalCacheConfiguration(): Partial<Options<User, 'user'>> {
   // Browser with IndexedDB support
   if (typeof window !== 'undefined' && 'indexedDB' in window) {
     return {
-      cacheType: 'asyncIndexedDB',
+      cacheType: 'indexedDB',
       indexedDBConfig: {
         dbName: 'OptimalCache',
         version: 1,

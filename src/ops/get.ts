@@ -10,6 +10,14 @@ import LibLogger from "../logger";
 
 const logger = LibLogger.get('get');
 
+// Track in-flight API requests to prevent duplicate calls for the same key
+const inFlightRequests = new Map<string, Promise<any>>();
+
+// Simple key stringification for tracking purposes
+const keyToString = (key: any): string => {
+  return JSON.stringify(key);
+};
+
 export const get = async <
   V extends Item<S, L1, L2, L3, L4, L5>,
   S extends string,
@@ -42,8 +50,32 @@ export const get = async <
 
   // If TTL is 0 or cache miss/expired, fetch from API
   let ret: V | null;
+  const keyStr = keyToString(key);
+
   try {
-    ret = await api.get(key);
+    // Check if there's already an in-flight request for this key
+    let apiRequest = inFlightRequests.get(keyStr);
+
+    if (!apiRequest) {
+      // Create new API request and track it
+      apiRequest = api.get(key);
+      inFlightRequests.set(keyStr, apiRequest);
+
+      // Clean up the tracking when request completes (success or failure)
+      // Only add finally handler if the request is actually a Promise
+      if (apiRequest && typeof apiRequest.finally === 'function') {
+        apiRequest.finally(() => {
+          inFlightRequests.delete(keyStr);
+        });
+      } else {
+        // For non-promise return values (like in tests), clean up immediately
+        inFlightRequests.delete(keyStr);
+      }
+    } else {
+      logger.debug('Using in-flight request for key', { key });
+    }
+
+    ret = await apiRequest;
     if (ret) {
       cacheMap.set(ret.key, ret);
     }

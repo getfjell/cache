@@ -94,7 +94,7 @@ console.log('2️⃣ IndexedDB Cache Configuration');
 console.log('Best for: Large datasets, offline capability, persistent storage');
 
 const indexedDBOptions: Partial<Options<User, 'user'>> = {
-  cacheType: 'asyncIndexedDB',
+  cacheType: 'indexedDB',
   indexedDBConfig: {
     dbName: 'UserAppCache',     // Database name
     version: 2,                 // Database version (increment for schema changes)
@@ -170,9 +170,9 @@ function createOptimalCacheConfiguration(): Partial<Options<User, 'user'>> {
   if (isBrowser) {
     // Check for IndexedDB support (best for large datasets)
     if ('indexedDB' in window) {
-      console.log('🌐 Browser with IndexedDB detected - using AsyncIndexedDB');
+      console.log('🌐 Browser with IndexedDB detected - using IndexedDB');
       return {
-        cacheType: 'asyncIndexedDB',
+        cacheType: 'indexedDB',
         indexedDBConfig: {
           dbName: 'OptimalCache',
           version: 1,

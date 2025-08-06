@@ -1,15 +1,20 @@
 import { CacheItemMetadata, EvictionStrategy } from '../EvictionStrategy';
 import { DEFAULT_LFU_CONFIG, LFUConfig } from '../EvictionStrategyConfig';
+import { createValidatedConfig } from '../EvictionStrategyValidation';
 
 /**
- * Simple hash function for Count-Min Sketch
+ * Improved hash function for Count-Min Sketch with better distribution
+ * Fixes issues with Math.abs() causing -0/+0 collisions and poor distribution
  */
 function simpleHash(key: string, seed: number): number {
   let hash = seed;
   for (let i = 0; i < key.length; i++) {
     hash = ((hash << 5) - hash + key.charCodeAt(i)) & 0xffffffff;
   }
-  return Math.abs(hash);
+
+  // Use unsigned right shift to ensure positive values without Math.abs() issues
+  // This handles the -0/+0 problem and provides better distribution
+  return (hash >>> 0);
 }
 
 /**
@@ -29,11 +34,23 @@ class CountMinSketch {
   }
 
   /**
+   * Check if a number is a power of 2 for optimized bit masking
+   */
+  private isPowerOfTwo(n: number): boolean {
+    return n > 0 && (n & (n - 1)) === 0;
+  }
+
+  /**
    * Increment the frequency count for a key
    */
   increment(key: string): void {
     for (let i = 0; i < this.depth; i++) {
-      const index = simpleHash(key, this.seeds[i]) % this.width;
+      // Use bit masking for better distribution when width is power of 2
+      // For non-power of 2, fall back to modulo but with improved hash
+      const hash = simpleHash(key, this.seeds[i]);
+      const index = this.isPowerOfTwo(this.width)
+        ? hash & (this.width - 1)
+        : hash % this.width;
       this.sketches[i][index]++;
     }
   }
@@ -44,7 +61,11 @@ class CountMinSketch {
   estimate(key: string): number {
     let minCount = Infinity;
     for (let i = 0; i < this.depth; i++) {
-      const index = simpleHash(key, this.seeds[i]) % this.width;
+      // Use same improved indexing as in increment method
+      const hash = simpleHash(key, this.seeds[i]);
+      const index = this.isPowerOfTwo(this.width)
+        ? hash & (this.width - 1)
+        : hash % this.width;
       minCount = Math.min(minCount, this.sketches[i][index]);
     }
     return minCount === Infinity ? 0 : minCount;
@@ -91,7 +112,8 @@ export class LFUEvictionStrategy extends EvictionStrategy {
       decayFactor: 0,
       decayInterval: Number.MAX_SAFE_INTEGER
     };
-    this.config = { ...DEFAULT_LFU_CONFIG, ...defaultBackwardsCompatible, ...config };
+    const baseConfig = { ...DEFAULT_LFU_CONFIG, ...defaultBackwardsCompatible };
+    this.config = createValidatedConfig(baseConfig, config);
     this.sketch = this.config.useProbabilisticCounting
       ? new CountMinSketch(this.config.sketchWidth, this.config.sketchDepth)
       : null;

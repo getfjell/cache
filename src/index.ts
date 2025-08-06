@@ -8,6 +8,10 @@ export { MemoryCacheMap } from './memory/MemoryCacheMap';
 export { EnhancedMemoryCacheMap } from './memory/EnhancedMemoryCacheMap';
 export { LocalStorageCacheMap } from './browser/LocalStorageCacheMap';
 export { SessionStorageCacheMap } from './browser/SessionStorageCacheMap';
+
+// IndexedDB implementations - choose based on your needs:
+// - IndexDBCacheMap: Synchronous API with background IndexedDB persistence (good for sync compatibility)
+// - AsyncIndexDBCacheMap: Pure async API with direct IndexedDB operations (good for modern async apps)
 export { IndexDBCacheMap } from './browser/IndexDBCacheMap';
 export { AsyncIndexDBCacheMap } from './browser/AsyncIndexDBCacheMap';
 
@@ -29,9 +33,11 @@ export type {
 } from './Options';
 
 // Instance factory and instance
+// Note: Instance is a type alias for Cache - both represent the same cache interface
 export { createInstanceFactory } from './InstanceFactory';
 export type { InstanceFactory } from './InstanceFactory';
-export { Instance, createInstance, isInstance } from './Instance';
+export { createInstance, isInstance } from './Instance';
+export type { Instance } from './Instance';
 
 // Utilities
 export {
@@ -53,7 +59,18 @@ export type {
   CacheItemMetadata,
   EvictionStrategy
 } from './eviction';
+export {
+  validateEvictionStrategyConfig,
+  validateLFUConfig,
+  validateARCConfig,
+  validateTwoQueueConfig,
+  createValidatedConfig
+} from './eviction/EvictionStrategyValidation';
 
 // Operations
 export { createOperations } from './Operations';
 export type { Operations } from './Operations';
+
+// Aggregator functionality
+export { createAggregator, toCacheConfig } from './Aggregator';
+export type { Aggregator, CacheConfig, AggregateConfig } from './Aggregator';

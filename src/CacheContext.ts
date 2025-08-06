@@ -59,6 +59,6 @@ export const createCacheContext = <
     pkType,
     options,
     itemTtl: options.memoryConfig?.ttl || options.ttl,
-    queryTtl: options.ttl
+    queryTtl: options.memoryConfig?.ttl || options.ttl
   };
 };

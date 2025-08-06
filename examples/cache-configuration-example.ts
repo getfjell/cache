@@ -102,8 +102,8 @@ async function cacheConfigurationExample() {
   // Example 5: Async IndexedDB Cache
   console.log('\n📝 Example 5: Async IndexedDB Cache');
   if (typeof window !== 'undefined' && window.indexedDB) {
-    const asyncIndexedDBOptions: Partial<Options<User, 'user'>> = {
-      cacheType: 'asyncIndexedDB',
+    const indexedDBOptions: Partial<Options<User, 'user'>> = {
+      cacheType: 'indexedDB',
       indexedDBConfig: {
         dbName: 'MyAppAsyncCache',
         version: 1,
@@ -113,7 +113,7 @@ async function cacheConfigurationExample() {
       maxRetries: 3
     };
 
-    createInstanceFactory(api, asyncIndexedDBOptions);
+    createInstanceFactory(api, indexedDBOptions);
     console.log('✅ Async IndexedDB cache factory created');
   } else {
     console.log('⚠️ Async IndexedDB not available in this environment, skipping');
@@ -148,7 +148,7 @@ async function cacheConfigurationExample() {
       // Production: Use persistent storage
       if (isBrowser && window.indexedDB) {
         return {
-          cacheType: 'asyncIndexedDB',
+          cacheType: 'indexedDB',
           indexedDBConfig: {
             dbName: 'ProdUserCache',
             version: 1,

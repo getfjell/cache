@@ -27,25 +27,66 @@ describe('Browser Storage Extended Coverage Tests', () => {
 
   describe('LocalStorage Error Scenarios', () => {
     let localStorage: LocalStorageCacheMap<TestItem, 'test', 'container'>;
+    let originalSetItem: any;
+    let originalRemoveItem: any;
+    let originalGetItem: any;
+    let originalKey: any;
+    let originalLength: any;
 
     beforeEach(() => {
+      // Clear localStorage before each test
+      window.localStorage.clear();
       localStorage = new LocalStorageCacheMap<TestItem, 'test', 'container'>(['test', 'container'], 'test-prefix');
+
+      // Store original methods
+      originalSetItem = window.localStorage.setItem;
+      originalRemoveItem = window.localStorage.removeItem;
+      originalGetItem = window.localStorage.getItem;
+      originalKey = window.localStorage.key;
+      originalLength = Object.getOwnPropertyDescriptor(window.localStorage, 'length');
     });
 
-    it('should handle quota exceeded errors during set', () => {
+    afterEach(() => {
+      // Restore all original methods
+      window.localStorage.setItem = originalSetItem;
+      window.localStorage.removeItem = originalRemoveItem;
+      window.localStorage.getItem = originalGetItem;
+      window.localStorage.key = originalKey;
+      if (originalLength) {
+        Object.defineProperty(window.localStorage, 'length', originalLength);
+      }
+      window.localStorage.clear();
+    });
+
+    it('should handle quota exceeded errors during set by falling back to memory cache', () => {
       // Mock localStorage.setItem to throw quota exceeded error
-      const originalSetItem = window.localStorage.setItem;
       window.localStorage.setItem = vi.fn().mockImplementation(() => {
         const error = new Error('QuotaExceededError');
         error.name = 'QuotaExceededError';
         throw error;
       });
 
+      // Should not throw, should fall back to memory cache
+      expect(() => {
+        localStorage.set(priKey1, testItems[0]);
+      }).not.toThrow();
+
+      // Verify the item was stored in memory fallback
+      const result = localStorage.get(priKey1);
+      expect(result).toEqual(testItems[0]);
+    });
+
+    it('should handle non-quota localStorage errors by throwing', () => {
+      // Mock localStorage.setItem to throw a non-quota error
+      window.localStorage.setItem = vi.fn().mockImplementation(() => {
+        const error = new Error('Some other localStorage error');
+        error.name = 'SecurityError';
+        throw error;
+      });
+
       expect(() => {
         localStorage.set(priKey1, testItems[0]);
       }).toThrow('Failed to store item in localStorage');
-
-      window.localStorage.setItem = originalSetItem;
     });
 
     it('should handle JSON parsing errors gracefully', () => {
@@ -101,9 +142,6 @@ describe('Browser Storage Extended Coverage Tests', () => {
     });
 
     it('should handle getAllStorageKeys when localStorage.key returns null', () => {
-      const originalKey = window.localStorage.key;
-      const originalLength = Object.getOwnPropertyDescriptor(window.localStorage, 'length');
-
       // Mock localStorage.length and key to simulate edge case
       Object.defineProperty(window.localStorage, 'length', { value: 2, configurable: true });
       window.localStorage.key = vi.fn()
@@ -112,12 +150,6 @@ describe('Browser Storage Extended Coverage Tests', () => {
 
       const keys = localStorage.keys();
       expect(keys).toHaveLength(0); // Should handle null gracefully
-
-      // Restore original
-      window.localStorage.key = originalKey;
-      if (originalLength) {
-        Object.defineProperty(window.localStorage, 'length', originalLength);
-      }
     });
 
     it('should handle error in invalidateItemKeys', () => {
@@ -125,7 +157,6 @@ describe('Browser Storage Extended Coverage Tests', () => {
       localStorage.set(priKey2, testItems[1]);
 
       // Mock delete to throw an error for one key
-      const originalRemoveItem = window.localStorage.removeItem;
       let callCount = 0;
       window.localStorage.removeItem = vi.fn().mockImplementation((key) => {
         callCount++;
@@ -137,8 +168,6 @@ describe('Browser Storage Extended Coverage Tests', () => {
 
       // Should not throw, should handle errors gracefully
       localStorage.invalidateItemKeys([priKey1, priKey2]);
-
-      window.localStorage.removeItem = originalRemoveItem;
     });
 
     it('should handle query result parsing errors', () => {
@@ -280,106 +309,171 @@ describe('Browser Storage Extended Coverage Tests', () => {
       indexDB = new IndexDBCacheMap<TestItem, 'test', 'container'>(['test', 'container']);
     });
 
-    it('should throw error for synchronous get operation', () => {
-      expect(() => {
-        indexDB.get(priKey1);
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.get() instead.');
+    it('should work synchronously for get operation using memory cache', () => {
+      // Initially should return null
+      expect(indexDB.get(priKey1)).toBeNull();
+
+      // After setting, should return the value from memory cache
+      indexDB.set(priKey1, testItems[0]);
+      expect(indexDB.get(priKey1)).toEqual(testItems[0]);
     });
 
-    it('should throw error for synchronous set operation', () => {
+    it('should work synchronously for set operation using memory cache', () => {
       expect(() => {
         indexDB.set(priKey1, testItems[0]);
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.set() instead.');
+      }).not.toThrow();
+
+      // Should be available immediately from memory cache
+      expect(indexDB.get(priKey1)).toEqual(testItems[0]);
     });
 
-    it('should throw error for synchronous includesKey operation', () => {
-      expect(() => {
-        indexDB.includesKey(priKey1);
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.includesKey() instead.');
+    it('should work synchronously for includesKey operation using memory cache', () => {
+      expect(indexDB.includesKey(priKey1)).toBe(false);
+
+      indexDB.set(priKey1, testItems[0]);
+      expect(indexDB.includesKey(priKey1)).toBe(true);
     });
 
-    it('should throw error for synchronous delete operation', () => {
+    it('should work synchronously for delete operation using memory cache', () => {
+      indexDB.set(priKey1, testItems[0]);
+      expect(indexDB.includesKey(priKey1)).toBe(true);
+
       expect(() => {
         indexDB.delete(priKey1);
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.delete() instead.');
+      }).not.toThrow();
+
+      expect(indexDB.includesKey(priKey1)).toBe(false);
     });
 
-    it('should throw error for synchronous allIn operation', () => {
+    it('should work synchronously for allIn operation using memory cache', () => {
+      indexDB.set(comKey1, testItems[2]);
+      indexDB.set(priKey1, testItems[0]);
+
       expect(() => {
         indexDB.allIn([]);
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.allIn() instead.');
+      }).not.toThrow();
+
+      const items = indexDB.allIn([]);
+      expect(items.length).toBeGreaterThanOrEqual(0);
     });
 
-    it('should throw error for synchronous contains operation', () => {
-      expect(() => {
-        indexDB.contains({ value: 100 }, []);
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.contains() instead.');
+    it('should work synchronously for contains operation using memory cache', () => {
+      indexDB.set(priKey1, testItems[0]);
+
+      const result = indexDB.contains({ value: 100 }, []);
+      expect(typeof result).toBe('boolean');
     });
 
-    it('should throw error for synchronous queryIn operation', () => {
-      expect(() => {
-        indexDB.queryIn({ value: 100 }, []);
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.queryIn() instead.');
+    it('should work synchronously for queryIn operation using memory cache', () => {
+      indexDB.set(priKey1, testItems[0]);
+      indexDB.set(priKey2, testItems[1]);
+
+      const result = indexDB.queryIn({ value: 100 }, []);
+      expect(Array.isArray(result)).toBe(true);
     });
 
-    it('should throw error for synchronous keys operation', () => {
-      expect(() => {
-        indexDB.keys();
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.keys() instead.');
+    it('should work synchronously for keys operation using memory cache', () => {
+      expect(indexDB.keys()).toEqual([]);
+
+      indexDB.set(priKey1, testItems[0]);
+      indexDB.set(priKey2, testItems[1]);
+
+      const keys = indexDB.keys();
+      expect(keys).toHaveLength(2);
+      expect(keys).toContain(priKey1);
+      expect(keys).toContain(priKey2);
     });
 
-    it('should throw error for synchronous values operation', () => {
-      expect(() => {
-        indexDB.values();
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.values() instead.');
+    it('should work synchronously for values operation using memory cache', () => {
+      expect(indexDB.values()).toEqual([]);
+
+      indexDB.set(priKey1, testItems[0]);
+      indexDB.set(priKey2, testItems[1]);
+
+      const values = indexDB.values();
+      expect(values).toHaveLength(2);
+      expect(values).toContain(testItems[0]);
+      expect(values).toContain(testItems[1]);
     });
 
-    it('should throw error for synchronous clear operation', () => {
+    it('should work synchronously for clear operation using memory cache', () => {
+      indexDB.set(priKey1, testItems[0]);
+      indexDB.set(priKey2, testItems[1]);
+      expect(indexDB.keys()).toHaveLength(2);
+
       expect(() => {
         indexDB.clear();
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.clear() instead.');
+      }).not.toThrow();
+
+      expect(indexDB.keys()).toHaveLength(0);
     });
 
-    it('should throw error for synchronous setQueryResult operation', () => {
+    it('should work synchronously for setQueryResult operation using memory cache', () => {
       expect(() => {
         indexDB.setQueryResult('test', [priKey1]);
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.setQueryResult() instead.');
+      }).not.toThrow();
+
+      expect(indexDB.hasQueryResult('test')).toBe(true);
     });
 
-    it('should throw error for synchronous getQueryResult operation', () => {
-      expect(() => {
-        indexDB.getQueryResult('test');
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.getQueryResult() instead.');
+    it('should work synchronously for getQueryResult operation using memory cache', () => {
+      indexDB.setQueryResult('test', [priKey1, priKey2]);
+
+      const result = indexDB.getQueryResult('test');
+      expect(result).toEqual([priKey1, priKey2]);
+
+      // Non-existent query should return null
+      expect(indexDB.getQueryResult('non-existent')).toBeNull();
     });
 
-    it('should throw error for synchronous hasQueryResult operation', () => {
-      expect(() => {
-        indexDB.hasQueryResult('test');
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.hasQueryResult() instead.');
+    it('should work synchronously for hasQueryResult operation using memory cache', () => {
+      expect(indexDB.hasQueryResult('test')).toBe(false);
+
+      indexDB.setQueryResult('test', [priKey1]);
+      expect(indexDB.hasQueryResult('test')).toBe(true);
     });
 
-    it('should throw error for synchronous deleteQueryResult operation', () => {
+    it('should work synchronously for deleteQueryResult operation using memory cache', () => {
+      indexDB.setQueryResult('test', [priKey1]);
+      expect(indexDB.hasQueryResult('test')).toBe(true);
+
       expect(() => {
         indexDB.deleteQueryResult('test');
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.deleteQueryResult() instead.');
+      }).not.toThrow();
+
+      expect(indexDB.hasQueryResult('test')).toBe(false);
     });
 
-    it('should throw error for synchronous invalidateItemKeys operation', () => {
+    it('should work synchronously for invalidateItemKeys operation using memory cache', () => {
+      indexDB.set(priKey1, testItems[0]);
+      indexDB.set(priKey2, testItems[1]);
+      indexDB.setQueryResult('test', [priKey1, priKey2]);
+
       expect(() => {
         indexDB.invalidateItemKeys([priKey1]);
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.invalidateItemKeys() instead.');
+      }).not.toThrow();
     });
 
-    it('should throw error for synchronous invalidateLocation operation', () => {
+    it('should work synchronously for invalidateLocation operation using memory cache', () => {
+      indexDB.set(comKey1, testItems[2]);
+
       expect(() => {
         indexDB.invalidateLocation([]);
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.invalidateLocation() instead.');
+      }).not.toThrow();
     });
 
-    it('should throw error for synchronous clearQueryResults operation', () => {
+    it('should work synchronously for clearQueryResults operation using memory cache', () => {
+      indexDB.setQueryResult('test1', [priKey1]);
+      indexDB.setQueryResult('test2', [priKey2]);
+      expect(indexDB.hasQueryResult('test1')).toBe(true);
+      expect(indexDB.hasQueryResult('test2')).toBe(true);
+
       expect(() => {
         indexDB.clearQueryResults();
-      }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.clearQueryResults() instead.');
+      }).not.toThrow();
+
+      expect(indexDB.hasQueryResult('test1')).toBe(false);
+      expect(indexDB.hasQueryResult('test2')).toBe(false);
     });
 
     it('should create a clone successfully', () => {

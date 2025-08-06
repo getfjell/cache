@@ -197,7 +197,7 @@ describe('LFUEvictionStrategy', () => {
         decayInterval: 30000, // 30 seconds
         sketchWidth: 32,
         sketchDepth: 3,
-        minFrequencyThreshold: 0.5
+        minFrequencyThreshold: 1
       };
       strategy = new LFUEvictionStrategy(config);
     });
@@ -382,7 +382,7 @@ describe('LFUEvictionStrategy', () => {
         useProbabilisticCounting: false,
         decayFactor: 0.1,
         decayInterval: 60000,
-        minFrequencyThreshold: 0.5
+        minFrequencyThreshold: 1
       };
       strategy = new LFUEvictionStrategy(config);
 

@@ -1,5 +1,6 @@
 import { CacheItemMetadata, EvictionStrategy } from '../EvictionStrategy';
 import { ARCConfig, DEFAULT_ARC_CONFIG } from '../EvictionStrategyConfig';
+import { createValidatedConfig } from '../EvictionStrategyValidation';
 
 /**
  * ARC (Adaptive Replacement Cache) eviction strategy with enhanced frequency tracking
@@ -15,7 +16,8 @@ export class ARCEvictionStrategy extends EvictionStrategy {
 
   constructor(maxCacheSize: number = 1000, config: Partial<ARCConfig> = {}) {
     super();
-    this.config = { ...DEFAULT_ARC_CONFIG, maxCacheSize, ...config };
+    const baseConfig = { ...DEFAULT_ARC_CONFIG, maxCacheSize };
+    this.config = createValidatedConfig(baseConfig, config);
     this.maxGhostSize = this.config.maxCacheSize!;
     this.lastDecayTime = Date.now();
   }

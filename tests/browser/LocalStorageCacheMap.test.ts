@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalStorageCacheMap } from '../../src/browser/LocalStorageCacheMap';
 import { ComKey, IQFactory, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/core';
 
@@ -873,7 +873,7 @@ describe('LocalStorageCacheMap', () => {
     });
 
     describe('localStorage capacity and quota handling', () => {
-      it('should throw descriptive error when localStorage quota is exceeded', () => {
+      it('should handle quota exceeded error gracefully by falling back to memory cache', () => {
         // @ts-ignore
         window.localStorage.setItem.mockImplementationOnce(() => {
           const error = new Error('QuotaExceededError');
@@ -881,9 +881,14 @@ describe('LocalStorageCacheMap', () => {
           throw error;
         });
 
+        // Should not throw error, should handle gracefully
         expect(() => {
           cacheMap.set(priKey1, testItems[0]);
-        }).toThrow('Failed to store item in localStorage');
+        }).not.toThrow();
+
+        // Verify item was stored (either after cleanup retry or in fallback cache)
+        const retrieved = cacheMap.get(priKey1);
+        expect(retrieved).toEqual(testItems[0]);
       });
 
       it('should handle other localStorage setItem errors', () => {

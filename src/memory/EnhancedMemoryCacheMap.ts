@@ -9,7 +9,7 @@ import {
   PriKey
 } from "@fjell/core";
 import { CacheMap } from "../CacheMap";
-import { createNormalizedHashFunction, isLocKeyArrayEqual } from "../normalization";
+import { createNormalizedHashFunction, isLocKeyArrayEqual, QueryCacheEntry } from "../normalization";
 import { CacheSizeConfig } from "../Options";
 import {
   CacheItemMetadata,
@@ -44,12 +44,13 @@ export class EnhancedMemoryCacheMap<
   private map: { [key: string]: EnhancedDictionaryEntry<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, V> } = {};
   private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
 
-  // Query result cache
-  private queryResultCache: { [queryHash: string]: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] } = {};
+  // Query result cache: maps query hash to cache entry with expiration
+  private queryResultCache: { [queryHash: string]: QueryCacheEntry } = {};
 
   // Size tracking
   private currentSizeBytes: number = 0;
   private currentItemCount: number = 0;
+  private queryResultsCacheSize: number = 0;
 
   // Size limits
   private readonly maxSizeBytes?: number;
@@ -133,7 +134,7 @@ export class EnhancedMemoryCacheMap<
       const now = Date.now();
       const age = now - entry.metadata.addedAt;
 
-      if (age > ttl) {
+      if (age >= ttl) {
         // Item has expired, remove it from cache
         logger.trace('Item expired, removing from enhanced cache', { key, age, ttl });
         this.delete(key);
@@ -369,8 +370,8 @@ export class EnhancedMemoryCacheMap<
       });
     }
 
-    // Check if we need to evict based on size
-    while (this.maxSizeBytes && (this.currentSizeBytes + newItemSize) > this.maxSizeBytes) {
+    // Check if we need to evict based on size (including query results cache)
+    while (this.maxSizeBytes && (this.getTotalSizeBytes() + newItemSize) > this.maxSizeBytes) {
       const keyToEvict = this.evictionStrategy.selectForEviction(itemMetadata);
       if (!keyToEvict) {
         logger.debug('No item selected for eviction despite being over size limit');
@@ -380,7 +381,9 @@ export class EnhancedMemoryCacheMap<
       this.evictItem(keyToEvict, itemMetadata);
       logger.debug('Evicted item due to size limit', {
         evictedKey: keyToEvict,
-        currentSize: this.currentSizeBytes,
+        currentItemsSize: this.currentSizeBytes,
+        queryResultsSize: this.queryResultsCacheSize,
+        totalSize: this.getTotalSizeBytes(),
         newItemSize,
         maxSizeBytes: this.maxSizeBytes
       });
@@ -402,23 +405,69 @@ export class EnhancedMemoryCacheMap<
   // Query result caching methods
   public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], ttl?: number): void {
     logger.trace('setQueryResult', { queryHash, itemKeys, ttl });
-    this.queryResultCache[queryHash] = itemKeys;
+
+    // Remove existing entry to get accurate size tracking
+    if (queryHash in this.queryResultCache) {
+      this.removeQueryResultFromSizeTracking(queryHash);
+    }
+
+    const entry: QueryCacheEntry = {
+      itemKeys: [...itemKeys] // Create a copy to avoid external mutations
+    };
+
+    if (ttl) {
+      entry.expiresAt = Date.now() + ttl;
+    }
+
+    this.queryResultCache[queryHash] = entry;
+    this.addQueryResultToSizeTracking(queryHash, entry);
   }
 
   public getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null {
-    return this.queryResultCache[queryHash] || null;
+    logger.trace('getQueryResult', { queryHash });
+    const entry = this.queryResultCache[queryHash];
+
+    if (!entry) {
+      return null;
+    }
+
+    // Check if entry has expired
+    if (entry.expiresAt && Date.now() > entry.expiresAt) {
+      logger.trace('Query result expired, removing', { queryHash, expiresAt: entry.expiresAt });
+      this.removeQueryResultFromSizeTracking(queryHash);
+      delete this.queryResultCache[queryHash];
+      return null;
+    }
+
+    return [...entry.itemKeys]; // Return a copy to avoid external mutations
   }
 
   public hasQueryResult(queryHash: string): boolean {
-    return queryHash in this.queryResultCache;
+    const entry = this.queryResultCache[queryHash];
+    if (!entry) {
+      return false;
+    }
+
+    // Check if entry has expired
+    if (entry.expiresAt && Date.now() > entry.expiresAt) {
+      this.removeQueryResultFromSizeTracking(queryHash);
+      delete this.queryResultCache[queryHash];
+      return false;
+    }
+
+    return true;
   }
 
   public deleteQueryResult(queryHash: string): void {
-    delete this.queryResultCache[queryHash];
+    if (queryHash in this.queryResultCache) {
+      this.removeQueryResultFromSizeTracking(queryHash);
+      delete this.queryResultCache[queryHash];
+    }
   }
 
   public clearQueryResults(): void {
     this.queryResultCache = {};
+    this.queryResultsCacheSize = 0;
   }
 
   public invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
@@ -447,5 +496,50 @@ export class EnhancedMemoryCacheMap<
     // For now, we'll clear all query results to be safe
     // A more sophisticated approach would be to track which queries are location-specific
     this.clearQueryResults();
+  }
+
+  /**
+   * Add query result to size tracking
+   */
+  private addQueryResultToSizeTracking(queryHash: string, entry: QueryCacheEntry): void {
+    // Estimate size: queryHash + itemKeys array + metadata
+    const hashSize = estimateValueSize(queryHash);
+    const itemKeysSize = estimateValueSize(entry.itemKeys);
+    const metadataSize = entry.expiresAt ? 8 : 0; // 8 bytes for timestamp
+    const totalSize = hashSize + itemKeysSize + metadataSize;
+
+    this.queryResultsCacheSize += totalSize;
+    logger.trace('Added query result to size tracking', {
+      queryHash,
+      estimatedSize: totalSize,
+      totalQueryCacheSize: this.queryResultsCacheSize
+    });
+  }
+
+  /**
+   * Remove query result from size tracking
+   */
+  private removeQueryResultFromSizeTracking(queryHash: string): void {
+    const entry = this.queryResultCache[queryHash];
+    if (entry) {
+      const hashSize = estimateValueSize(queryHash);
+      const itemKeysSize = estimateValueSize(entry.itemKeys);
+      const metadataSize = entry.expiresAt ? 8 : 0;
+      const totalSize = hashSize + itemKeysSize + metadataSize;
+
+      this.queryResultsCacheSize = Math.max(0, this.queryResultsCacheSize - totalSize);
+      logger.trace('Removed query result from size tracking', {
+        queryHash,
+        estimatedSize: totalSize,
+        totalQueryCacheSize: this.queryResultsCacheSize
+      });
+    }
+  }
+
+  /**
+   * Get total cache size including query results
+   */
+  public getTotalSizeBytes(): number {
+    return this.currentSizeBytes + this.queryResultsCacheSize;
   }
 }

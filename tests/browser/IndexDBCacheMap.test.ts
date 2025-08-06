@@ -1,8 +1,35 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IndexDBCacheMap } from '../../src/browser/IndexDBCacheMap';
 import { AsyncIndexDBCacheMap } from '../../src/browser/AsyncIndexDBCacheMap';
 import { ComKey, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/core';
+
+// Mock IndexedDB
+Object.defineProperty(global, 'indexedDB', {
+  value: {
+    open: vi.fn().mockImplementation(() => ({
+      result: {
+        transaction: vi.fn().mockReturnValue({
+          objectStore: vi.fn().mockReturnValue({
+            get: vi.fn().mockReturnValue({ result: null }),
+            put: vi.fn(),
+            delete: vi.fn(),
+            clear: vi.fn(),
+            openCursor: vi.fn().mockReturnValue({ result: null })
+          })
+        }),
+        objectStoreNames: {
+          contains: vi.fn().mockReturnValue(false)
+        },
+        createObjectStore: vi.fn()
+      },
+      onerror: null,
+      onsuccess: null,
+      onupgradeneeded: null
+    }))
+  },
+  writable: true
+});
 
 describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
   // Test data types
@@ -14,6 +41,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
 
   // Test keys
   const priKey1: PriKey<'test'> = { kt: 'test', pk: '1' as UUID };
+  const priKey2: PriKey<'test'> = { kt: 'test', pk: '2' as UUID };
   const comKey1: ComKey<'test', 'container'> = {
     kt: 'test',
     pk: '3' as UUID,
@@ -21,9 +49,16 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
   };
 
   let cacheMap: IndexDBCacheMap<TestItem, 'test', 'container'>;
+  let testItem1: TestItem;
+  let testItem2: TestItem;
+  let testItem3: TestItem;
 
   beforeEach(() => {
     cacheMap = new IndexDBCacheMap<TestItem, 'test', 'container'>(['test', 'container']);
+
+    testItem1 = { key: priKey1, id: '1', name: 'Item 1', value: 100 } as TestItem;
+    testItem2 = { key: priKey2, id: '2', name: 'Item 2', value: 200 } as TestItem;
+    testItem3 = { key: comKey1, id: '3', name: 'Item 3', value: 300 } as TestItem;
   });
 
   describe('Constructor', () => {
@@ -50,130 +85,212 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
     });
   });
 
-  describe('Synchronous Method Errors', () => {
-    describe('get()', () => {
-      it('should throw error indicating async operation required', () => {
-        expect(() => {
-          cacheMap.get(priKey1);
-        }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.get() instead.');
+  describe('Synchronous Memory Cache Operations', () => {
+    describe('get() and set()', () => {
+      it('should store and retrieve items synchronously', () => {
+        // Set item
+        cacheMap.set(priKey1, testItem1);
+
+        // Get item immediately (from memory cache)
+        const retrieved = cacheMap.get(priKey1);
+        expect(retrieved).toEqual(testItem1);
       });
-    });
 
-    describe('set()', () => {
-      it('should throw error indicating async operation required', () => {
-        const testItem: TestItem = { key: priKey1, id: '1', name: 'Item 1', value: 100 } as TestItem;
+      it('should return null for non-existent keys', () => {
+        const result = cacheMap.get(priKey1);
+        expect(result).toBeNull();
+      });
 
-        expect(() => {
-          cacheMap.set(priKey1, testItem);
-        }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.set() instead.');
+      it('should handle multiple items', () => {
+        cacheMap.set(priKey1, testItem1);
+        cacheMap.set(priKey2, testItem2);
+
+        expect(cacheMap.get(priKey1)).toEqual(testItem1);
+        expect(cacheMap.get(priKey2)).toEqual(testItem2);
       });
     });
 
     describe('includesKey()', () => {
-      it('should throw error indicating async operation required', () => {
-        expect(() => {
-          cacheMap.includesKey(priKey1);
-        }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.includesKey() instead.');
+      it('should return true for existing keys', () => {
+        cacheMap.set(priKey1, testItem1);
+        expect(cacheMap.includesKey(priKey1)).toBe(true);
+      });
+
+      it('should return false for non-existent keys', () => {
+        expect(cacheMap.includesKey(priKey1)).toBe(false);
       });
     });
 
     describe('delete()', () => {
-      it('should throw error indicating async operation required', () => {
-        expect(() => {
-          cacheMap.delete(priKey1);
-        }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.delete() instead.');
-      });
-    });
+      it('should remove items from memory cache', () => {
+        cacheMap.set(priKey1, testItem1);
+        expect(cacheMap.includesKey(priKey1)).toBe(true);
 
-    describe('allIn()', () => {
-      it('should throw error indicating async operation required', () => {
-        const locations: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
-
-        expect(() => {
-          cacheMap.allIn(locations);
-        }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.allIn() instead.');
-      });
-    });
-
-    describe('contains()', () => {
-      it('should throw error indicating async operation required', () => {
-        // @ts-ignore
-        const query: ItemQuery = { type: 'attribute', attribute: 'name', value: 'Item 1' };
-        // @ts-ignore
-        const locations: LocKeyArray<'container'> = [];
-
-        expect(() => {
-          cacheMap.contains(query, locations);
-        }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.contains() instead.');
-      });
-    });
-
-    describe('queryIn()', () => {
-      it('should throw error indicating async operation required', () => {
-        // @ts-ignore
-        const query: ItemQuery = { type: 'attribute', attribute: 'name', value: 'Item 1' };
-        // @ts-ignore
-        const locations: LocKeyArray<'container'> = [];
-
-        expect(() => {
-          cacheMap.queryIn(query, locations);
-        }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.queryIn() instead.');
+        cacheMap.delete(priKey1);
+        expect(cacheMap.includesKey(priKey1)).toBe(false);
+        expect(cacheMap.get(priKey1)).toBeNull();
       });
     });
 
     describe('keys()', () => {
-      it('should throw error indicating async operation required', () => {
-        expect(() => {
-          cacheMap.keys();
-        }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.keys() instead.');
+      it('should return all keys', () => {
+        cacheMap.set(priKey1, testItem1);
+        cacheMap.set(priKey2, testItem2);
+
+        const keys = cacheMap.keys();
+        expect(keys).toHaveLength(2);
+        expect(keys).toContain(priKey1);
+        expect(keys).toContain(priKey2);
+      });
+
+      it('should return empty array when no items', () => {
+        const keys = cacheMap.keys();
+        expect(keys).toEqual([]);
       });
     });
 
     describe('values()', () => {
-      it('should throw error indicating async operation required', () => {
-        expect(() => {
-          cacheMap.values();
-        }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.values() instead.');
+      it('should return all values', () => {
+        cacheMap.set(priKey1, testItem1);
+        cacheMap.set(priKey2, testItem2);
+
+        const values = cacheMap.values();
+        expect(values).toHaveLength(2);
+        expect(values).toContain(testItem1);
+        expect(values).toContain(testItem2);
       });
     });
 
     describe('clear()', () => {
-      it('should throw error indicating async operation required', () => {
-        expect(() => {
-          cacheMap.clear();
-        }).toThrow('IndexedDB operations are asynchronous. Use asyncCache.clear() instead.');
+      it('should remove all items from memory cache', () => {
+        cacheMap.set(priKey1, testItem1);
+        cacheMap.set(priKey2, testItem2);
+        expect(cacheMap.keys()).toHaveLength(2);
+
+        cacheMap.clear();
+        expect(cacheMap.keys()).toHaveLength(0);
+      });
+    });
+
+    describe('allIn()', () => {
+      it('should return items in specified locations', () => {
+        cacheMap.set(comKey1, testItem3);
+        cacheMap.set(priKey1, testItem1); // This has no location
+
+        const locations: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
+        const items = cacheMap.allIn(locations);
+
+        expect(items).toHaveLength(1);
+        expect(items[0]).toEqual(testItem3);
+      });
+
+      it('should return all items when locations is empty', () => {
+        cacheMap.set(priKey1, testItem1);
+        cacheMap.set(comKey1, testItem3);
+
+        const items = cacheMap.allIn([]);
+        expect(items).toHaveLength(2);
       });
     });
   });
 
-  describe('Async Cache Access', () => {
-    it('should provide access to the async implementation', () => {
-      expect(cacheMap.asyncCache).toBeInstanceOf(AsyncIndexDBCacheMap);
+  describe('TTL Support', () => {
+    it('should support getWithTTL', () => {
+      cacheMap.set(priKey1, testItem1);
+
+      // Should get the item within TTL
+      const result = cacheMap.getWithTTL(priKey1, 1000);
+      expect(result).toEqual(testItem1);
     });
+  });
 
-    it('should allow calling async methods through asyncCache', async () => {
-      // This test verifies the API structure, actual functionality is tested in AsyncIndexDBCacheMap tests
-      expect(typeof cacheMap.asyncCache.get).toBe('function');
-      expect(typeof cacheMap.asyncCache.set).toBe('function');
-      expect(typeof cacheMap.asyncCache.delete).toBe('function');
-      expect(typeof cacheMap.asyncCache.keys).toBe('function');
-      expect(typeof cacheMap.asyncCache.values).toBe('function');
-      expect(typeof cacheMap.asyncCache.clear).toBe('function');
-      expect(typeof cacheMap.asyncCache.allIn).toBe('function');
-      expect(typeof cacheMap.asyncCache.contains).toBe('function');
-      expect(typeof cacheMap.asyncCache.queryIn).toBe('function');
-    });
-
-    it('should demonstrate correct usage pattern', async () => {
-      // Example of how the wrapper should be used
-      const testItem: TestItem = { key: priKey1, id: '1', name: 'Item 1', value: 100 } as TestItem;
-
-      // These calls should work (though they'll use mocked IndexedDB in tests)
-      expect(async () => {
-        await cacheMap.asyncCache.set(priKey1, testItem);
-        await cacheMap.asyncCache.get(priKey1);
-        await cacheMap.asyncCache.delete(priKey1);
+  describe('Background IndexedDB Sync', () => {
+    it('should sync set operations to IndexedDB in background', () => {
+      // This test verifies the async sync doesn't throw errors
+      expect(() => {
+        cacheMap.set(priKey1, testItem1);
       }).not.toThrow();
+    });
+
+    it('should sync delete operations to IndexedDB in background', () => {
+      cacheMap.set(priKey1, testItem1);
+
+      expect(() => {
+        cacheMap.delete(priKey1);
+      }).not.toThrow();
+    });
+
+    it('should sync clear operations to IndexedDB in background', () => {
+      cacheMap.set(priKey1, testItem1);
+
+      expect(() => {
+        cacheMap.clear();
+      }).not.toThrow();
+    });
+  });
+
+  describe('Query Result Caching', () => {
+    it('should support query result caching methods', () => {
+      const queryHash = 'test-query-hash';
+      const itemKeys = [priKey1, priKey2];
+
+      expect(() => {
+        cacheMap.setQueryResult(queryHash, itemKeys);
+      }).not.toThrow();
+
+      const result = cacheMap.getQueryResult(queryHash);
+      expect(result).toEqual(itemKeys);
+
+      expect(cacheMap.hasQueryResult(queryHash)).toBe(true);
+
+      cacheMap.deleteQueryResult(queryHash);
+      expect(cacheMap.hasQueryResult(queryHash)).toBe(false);
+    });
+
+    it('should support query result caching with TTL', () => {
+      const queryHash = 'test-query-hash-ttl';
+      const itemKeys = [priKey1];
+      const ttl = 5000;
+
+      expect(() => {
+        cacheMap.setQueryResult(queryHash, itemKeys, ttl);
+      }).not.toThrow();
+    });
+  });
+
+  describe('Invalidation Methods', () => {
+    it('should support item key invalidation', () => {
+      cacheMap.set(priKey1, testItem1);
+      cacheMap.set(priKey2, testItem2);
+
+      expect(() => {
+        cacheMap.invalidateItemKeys([priKey1, priKey2]);
+      }).not.toThrow();
+
+      // Items should be removed from memory cache
+      expect(cacheMap.includesKey(priKey1)).toBe(false);
+      expect(cacheMap.includesKey(priKey2)).toBe(false);
+    });
+
+    it('should support location invalidation', () => {
+      cacheMap.set(comKey1, testItem3);
+      const locations: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
+
+      expect(() => {
+        cacheMap.invalidateLocation(locations);
+      }).not.toThrow();
+    });
+
+    it('should support clearing query results', () => {
+      cacheMap.setQueryResult('query1', [priKey1]);
+      cacheMap.setQueryResult('query2', [priKey2]);
+
+      expect(() => {
+        cacheMap.clearQueryResults();
+      }).not.toThrow();
+
+      expect(cacheMap.hasQueryResult('query1')).toBe(false);
+      expect(cacheMap.hasQueryResult('query2')).toBe(false);
     });
   });
 
@@ -195,121 +312,50 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       // But both have their own async cache instances
       expect(cloned.asyncCache).not.toBe(cacheMap.asyncCache);
     });
+
+    it('should not share memory cache state', () => {
+      cacheMap.set(priKey1, testItem1);
+      const cloned = cacheMap.clone();
+
+      // Cloned instance should start empty
+      expect(cloned.get(priKey1)).toBeNull();
+      expect(cloned.keys()).toHaveLength(0);
+    });
   });
 
-  describe('Interface Compliance', () => {
-    it('should extend CacheMap base class', () => {
-      // Test that the wrapper properly implements the CacheMap interface
-      expect(cacheMap).toHaveProperty('get');
-      expect(cacheMap).toHaveProperty('set');
-      expect(cacheMap).toHaveProperty('delete');
-      expect(cacheMap).toHaveProperty('includesKey');
-      expect(cacheMap).toHaveProperty('allIn');
-      expect(cacheMap).toHaveProperty('contains');
-      expect(cacheMap).toHaveProperty('queryIn');
-      expect(cacheMap).toHaveProperty('keys');
-      expect(cacheMap).toHaveProperty('values');
-      expect(cacheMap).toHaveProperty('clear');
-      expect(cacheMap).toHaveProperty('clone');
-    });
+  describe('Resource Cleanup', () => {
+    it('should provide destroy method for cleanup', () => {
+      expect(typeof cacheMap.destroy).toBe('function');
 
-    it('should maintain type safety', () => {
-      // TypeScript compilation ensures type safety, this test verifies runtime behavior
       expect(() => {
-        const cache: IndexDBCacheMap<TestItem, 'test', 'container'> = cacheMap;
-        expect(cache).toBeDefined();
+        cacheMap.destroy();
       }).not.toThrow();
     });
   });
 
-  describe('Error Messages', () => {
-    it('should provide clear error messages for each method', () => {
-      const expectedMessages = {
-        get: 'IndexedDB operations are asynchronous. Use asyncCache.get() instead.',
-        set: 'IndexedDB operations are asynchronous. Use asyncCache.set() instead.',
-        includesKey: 'IndexedDB operations are asynchronous. Use asyncCache.includesKey() instead.',
-        delete: 'IndexedDB operations are asynchronous. Use asyncCache.delete() instead.',
-        allIn: 'IndexedDB operations are asynchronous. Use asyncCache.allIn() instead.',
-        contains: 'IndexedDB operations are asynchronous. Use asyncCache.contains() instead.',
-        queryIn: 'IndexedDB operations are asynchronous. Use asyncCache.queryIn() instead.',
-        keys: 'IndexedDB operations are asynchronous. Use asyncCache.keys() instead.',
-        values: 'IndexedDB operations are asynchronous. Use asyncCache.values() instead.',
-        clear: 'IndexedDB operations are asynchronous. Use asyncCache.clear() instead.'
-      };
+  describe('Integration with Memory Cache', () => {
+    it('should demonstrate synchronous usage pattern', () => {
+      // This is the correct usage pattern for IndexDBCacheMap
 
-      // Test each method throws with the expected message
-      expect(() => cacheMap.get(priKey1)).toThrow(expectedMessages.get);
-      expect(() => cacheMap.set(priKey1, {} as TestItem)).toThrow(expectedMessages.set);
-      expect(() => cacheMap.includesKey(priKey1)).toThrow(expectedMessages.includesKey);
-      expect(() => cacheMap.delete(priKey1)).toThrow(expectedMessages.delete);
-      expect(() => cacheMap.allIn([])).toThrow(expectedMessages.allIn);
-      expect(() => cacheMap.contains({} as ItemQuery, [])).toThrow(expectedMessages.contains);
-      expect(() => cacheMap.queryIn({} as ItemQuery, [])).toThrow(expectedMessages.queryIn);
-      expect(() => cacheMap.keys()).toThrow(expectedMessages.keys);
-      expect(() => cacheMap.values()).toThrow(expectedMessages.values);
-      expect(() => cacheMap.clear()).toThrow(expectedMessages.clear);
-    });
-  });
+      // Synchronous operations work immediately with memory cache
+      cacheMap.set(priKey1, testItem1);
+      expect(cacheMap.get(priKey1)).toEqual(testItem1);
+      expect(cacheMap.includesKey(priKey1)).toBe(true);
 
-  describe('Usage Documentation', () => {
-    it('should demonstrate recommended usage pattern', async () => {
-      // This test serves as live documentation for how to use the IndexDBCacheMap
+      cacheMap.set(priKey2, testItem2);
+      expect(cacheMap.keys()).toHaveLength(2);
+      expect(cacheMap.values()).toHaveLength(2);
 
-      // ❌ WRONG: Trying to use synchronous methods
-      expect(() => cacheMap.get(priKey1)).toThrow();
-      expect(() => cacheMap.set(priKey1, {} as TestItem)).toThrow();
-
-      // ✅ CORRECT: Using async methods through asyncCache
-      const testItem: TestItem = { key: priKey1, id: '1', name: 'Item 1', value: 100 } as TestItem;
-
-      // These would work with real IndexedDB (mocked in tests)
-      expect(async () => {
-        await cacheMap.asyncCache.set(priKey1, testItem);
-        const retrieved = await cacheMap.asyncCache.get(priKey1);
-        const exists = await cacheMap.asyncCache.includesKey(priKey1);
-        await cacheMap.asyncCache.delete(priKey1);
-      }).not.toThrow();
+      cacheMap.delete(priKey1);
+      expect(cacheMap.includesKey(priKey1)).toBe(false);
+      expect(cacheMap.keys()).toHaveLength(1);
     });
 
-    it('should show how to migrate from synchronous to async', () => {
-      // Migration example in comments for documentation
-
-      /*
-      // OLD synchronous approach (would work with MemoryCacheMap):
-      // cacheMap.set(key, item);
-      // const item = cacheMap.get(key);
-      // const exists = cacheMap.includesKey(key);
-
-      // NEW async approach (required for IndexDBCacheMap):
-      // await cacheMap.asyncCache.set(key, item);
-      // const item = await cacheMap.asyncCache.get(key);
-      // const exists = await cacheMap.asyncCache.includesKey(key);
-      */
-
-      expect(true).toBe(true); // Placeholder assertion
-    });
-  });
-
-  describe('Parameter Validation', () => {
-    it('should accept valid key type arrays', () => {
-      expect(() => {
-        new IndexDBCacheMap<TestItem, 'test'>(['test']);
-      }).not.toThrow();
-
-      expect(() => {
-        new IndexDBCacheMap<TestItem, 'test', 'container'>(['test', 'container']);
-      }).not.toThrow();
-    });
-
-    it('should accept valid database configuration', () => {
-      expect(() => {
-        new IndexDBCacheMap<TestItem, 'test'>(
-          ['test'],
-          'valid-db-name',
-          'valid-store-name',
-          1
-        );
-      }).not.toThrow();
+    it('should provide access to async cache for advanced operations', async () => {
+      // For operations that need to be explicitly async or for direct IndexedDB access
+      expect(cacheMap.asyncCache).toBeDefined();
+      expect(typeof cacheMap.asyncCache.get).toBe('function');
+      expect(typeof cacheMap.asyncCache.set).toBe('function');
     });
   });
 });

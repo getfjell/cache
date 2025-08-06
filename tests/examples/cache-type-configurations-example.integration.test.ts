@@ -12,7 +12,7 @@ describe('Cache Type Configurations Example Integration', () => {
     expect(example.memoryOptions.memoryConfig?.ttl).toBe(300000);
 
     expect(example.indexedDBOptions).toBeDefined();
-    expect(example.indexedDBOptions.cacheType).toBe('asyncIndexedDB');
+    expect(example.indexedDBOptions.cacheType).toBe('indexedDB');
     expect(example.indexedDBOptions.indexedDBConfig?.dbName).toBe('UserAppCache');
     expect(example.indexedDBOptions.indexedDBConfig?.version).toBe(2);
     expect(example.indexedDBOptions.indexedDBConfig?.storeName).toBe('users');

@@ -187,9 +187,9 @@ describe('Options', () => {
       expect(options.indexedDBConfig?.storeName).toBe('testStore');
     });
 
-    it('should handle asyncIndexedDB configuration', () => {
+    it('should handle indexedDB configuration', () => {
       const options = createOptions<TestItem, 'test'>({
-        cacheType: 'asyncIndexedDB',
+        cacheType: 'indexedDB',
         indexedDBConfig: {
           dbName: 'AsyncTestDB',
           version: 1,
@@ -274,10 +274,7 @@ describe('Options', () => {
       delete (global as any).indexedDB;
 
       const indexedDBOptions = createOptions<TestItem, 'test'>({ cacheType: 'indexedDB' });
-      const asyncIndexedDBOptions = createOptions<TestItem, 'test'>({ cacheType: 'asyncIndexedDB' });
-
       expect(() => validateOptions(indexedDBOptions)).toThrow('indexedDB is not available in this environment');
-      expect(() => validateOptions(asyncIndexedDBOptions)).toThrow('asyncIndexedDB is not available in this environment');
     });
 
     it('should pass validation in node environment for memory cache', () => {

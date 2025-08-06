@@ -32,7 +32,7 @@ function demonstrateEnhancedLFU() {
     useProbabilisticCounting: false,
     decayFactor: 0.1,        // 10% decay
     decayInterval: 30000,    // Every 30 seconds
-    minFrequencyThreshold: 0.5
+    minFrequencyThreshold: 1
   };
   const decayLFU = createEvictionStrategy('lfu', 1000, decayConfig);
   demonstrateDecayStrategy(decayLFU, 'Decay-based LFU');
@@ -205,7 +205,7 @@ function configurationExamples() {
         sketchDepth: 6,
         decayFactor: 0.2,
         decayInterval: 60000, // 1 minute
-        minFrequencyThreshold: 0.1
+        minFrequencyThreshold: 1
       },
       description: 'Aggressive decay for rapidly changing data patterns'
     }

@@ -30,10 +30,13 @@ export const remove = async <
   }
 
   try {
+    // First remove from API, then from cache to maintain consistency
     await api.remove(key);
     cacheMap.delete(key);
+    logger.debug('Successfully removed item from API and cache', { key });
   } catch (e) {
     logger.error("Error deleting item", { error: e });
+    // Don't delete from cache if API deletion failed
     throw e;
   }
 

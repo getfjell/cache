@@ -1,5 +1,6 @@
 import { CacheItemMetadata, EvictionStrategy } from '../EvictionStrategy';
 import { DEFAULT_TWO_QUEUE_CONFIG, TwoQueueConfig } from '../EvictionStrategyConfig';
+import { createValidatedConfig } from '../EvictionStrategyValidation';
 
 /**
  * 2Q (Two Queues) eviction strategy with enhanced frequency tracking
@@ -17,7 +18,8 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
 
   constructor(maxCacheSize: number = 1000, config: Partial<TwoQueueConfig> = {}) {
     super();
-    this.config = { ...DEFAULT_TWO_QUEUE_CONFIG, maxCacheSize, ...config };
+    const baseConfig = { ...DEFAULT_TWO_QUEUE_CONFIG, maxCacheSize };
+    this.config = createValidatedConfig(baseConfig, config);
     // Allocate 25% to recent queue, 75% to hot queue
     this.maxRecentSize = Math.max(1, Math.floor(this.config.maxCacheSize! * 0.25));
     this.maxGhostSize = this.config.maxCacheSize!;

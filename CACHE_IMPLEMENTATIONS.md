@@ -89,20 +89,42 @@ const items = await cache.allIn(locations);
 - Better performance for large datasets
 - Supports transactions and indexing
 
-### 5. IndexDBCacheMap (Wrapper)
+### 5. IndexDBCacheMap (Synchronous Wrapper)
 **Location**: `src/browser/IndexDBCacheMap.ts`
-**Use case**: Interface compatibility only - use AsyncIndexDBCacheMap instead
+**Use case**: Browser applications needing synchronous API with IndexedDB persistence
 
 ```typescript
 import { IndexDBCacheMap } from '@fjell/cache';
 
-const wrapper = new IndexDBCacheMap<YourItem, 'item-type'>(keyTypeArray);
-// Access the async implementation
-const asyncCache = wrapper.asyncCache;
-await asyncCache.set(key, value);
+const cache = new IndexDBCacheMap<YourItem, 'item-type'>(
+  keyTypeArray,
+  'my-database',    // database name
+  'cache-store',    // object store name
+  1                 // version
+);
+
+// Synchronous operations work immediately
+cache.set(key, value);          // Sets in memory cache immediately
+const item = cache.get(key);    // Gets from memory cache immediately
+const items = cache.allIn(locations);
+
+// Background sync to IndexedDB happens automatically
+// For explicit async operations, use:
+await cache.asyncCache.set(key, value);
+const item = await cache.asyncCache.get(key);
 ```
 
-**Note**: This is a synchronous wrapper that throws errors for all operations. It exists only to satisfy the CacheMap interface. Use `AsyncIndexDBCacheMap` directly for IndexedDB functionality.
+**Characteristics:**
+- Synchronous API compatible with other CacheMap implementations
+- Memory cache for immediate operations
+- Background IndexedDB sync for persistence
+- Higher memory usage (dual storage)
+- Best for apps migrating from synchronous cache implementations
+- Provides access to async cache via `asyncCache` property
+
+**When to use IndexDBCacheMap vs AsyncIndexDBCacheMap:**
+- **IndexDBCacheMap**: When you need synchronous compatibility or are migrating from MemoryCacheMap
+- **AsyncIndexDBCacheMap**: When you can work with async/await and want direct IndexedDB control
 
 ## Migration Guide
 

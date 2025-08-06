@@ -31,29 +31,55 @@ const isItemKeyEqualNormalized = <
   return isItemKeyEqual(normalizedA as ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, normalizedB as ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>);
 };
 
-// Helper function to normalize a key
+// Helper function to normalize a key efficiently without deep cloning
 const normalizeKey = (key: any): any => {
   if (typeof key === 'object' && key !== null) {
-    const normalizedKey = JSON.parse(JSON.stringify(key));
+    let needsNormalization = false;
+    let normalizedKey = key;
 
-    // Normalize pk values
-    if ('pk' in normalizedKey && normalizedKey.pk !== null) {
-      normalizedKey.pk = normalizeKeyValue(normalizedKey.pk);
+    // Check if pk needs normalization
+    if ('pk' in key && key.pk !== null && typeof key.pk !== 'string') {
+      needsNormalization = true;
     }
 
-    // Normalize lk values
-    if ('lk' in normalizedKey && normalizedKey.lk !== null) {
-      normalizedKey.lk = normalizeKeyValue(normalizedKey.lk);
+    // Check if lk needs normalization
+    if ('lk' in key && key.lk !== null && typeof key.lk !== 'string') {
+      needsNormalization = true;
     }
 
-    // Normalize loc array lk values
-    if ('loc' in normalizedKey && Array.isArray(normalizedKey.loc)) {
-      normalizedKey.loc = normalizedKey.loc.map((locItem: any) => {
-        if (locItem && 'lk' in locItem && locItem.lk !== null) {
-          return { ...locItem, lk: normalizeKeyValue(locItem.lk) };
+    // Check if loc array has lk values that need normalization
+    if ('loc' in key && Array.isArray(key.loc)) {
+      for (const locItem of key.loc) {
+        if (locItem && 'lk' in locItem && locItem.lk !== null && typeof locItem.lk !== 'string') {
+          needsNormalization = true;
+          break;
         }
-        return locItem;
-      });
+      }
+    }
+
+    // Only create a new object if normalization is actually needed
+    if (needsNormalization) {
+      normalizedKey = { ...key };
+
+      // Normalize pk values
+      if ('pk' in normalizedKey && normalizedKey.pk !== null) {
+        normalizedKey.pk = normalizeKeyValue(normalizedKey.pk);
+      }
+
+      // Normalize lk values
+      if ('lk' in normalizedKey && normalizedKey.lk !== null) {
+        normalizedKey.lk = normalizeKeyValue(normalizedKey.lk);
+      }
+
+      // Normalize loc array lk values
+      if ('loc' in normalizedKey && Array.isArray(normalizedKey.loc)) {
+        normalizedKey.loc = normalizedKey.loc.map((locItem: any) => {
+          if (locItem && 'lk' in locItem && locItem.lk !== null && typeof locItem.lk !== 'string') {
+            return { ...locItem, lk: normalizeKeyValue(locItem.lk) };
+          }
+          return locItem;
+        });
+      }
     }
 
     return normalizedKey;

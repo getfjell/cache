@@ -93,7 +93,7 @@ export class MemoryCacheMap<
     const now = Date.now();
     const age = now - entry.timestamp;
 
-    if (age > ttl) {
+    if (age >= ttl) {
       // Item has expired, remove it from cache
       logger.trace('Item expired, removing from cache', { key, age, ttl });
       delete this.map[hashedKey];

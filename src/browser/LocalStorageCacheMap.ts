@@ -11,6 +11,7 @@ import {
 import { CacheMap } from "../CacheMap";
 import { createNormalizedHashFunction, isLocKeyArrayEqual } from "../normalization";
 import LibLogger from "../logger";
+import { MemoryCacheMap } from "../memory/MemoryCacheMap";
 
 const logger = LibLogger.get("LocalStorageCacheMap");
 
@@ -33,6 +34,8 @@ export class LocalStorageCacheMap<
 
   private keyPrefix: string;
   private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
+  private fallbackCache: MemoryCacheMap<V, S, L1, L2, L3, L4, L5> | null = null;
+  private quotaExceeded = false;
 
   public constructor(
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
@@ -48,6 +51,69 @@ export class LocalStorageCacheMap<
     return `${this.keyPrefix}:${hashedKey}`;
   }
 
+  private initializeFallbackCache(): void {
+    if (!this.fallbackCache) {
+      this.fallbackCache = new MemoryCacheMap<V, S, L1, L2, L3, L4, L5>(this.types);
+      logger.warning('LocalStorage quota exceeded, falling back to in-memory cache');
+    }
+  }
+
+  private isQuotaExceededError(error: any): boolean {
+    return error && (
+      error.name === 'QuotaExceededError' ||
+      error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      error.code === 22 ||
+      error.code === 1014
+    );
+  }
+
+  private tryCleanupOldEntries(): boolean {
+    try {
+      const allEntries = this.collectCacheEntries();
+      return this.removeOldestEntries(allEntries);
+    } catch (error) {
+      logger.error('Failed to cleanup old localStorage entries', { error });
+      return false;
+    }
+  }
+
+  private collectCacheEntries(): { key: string; timestamp: number }[] {
+    const allEntries: { key: string; timestamp: number }[] = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(this.keyPrefix + ':')) {
+        continue;
+      }
+
+      try {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          allEntries.push({ key, timestamp: parsed.timestamp || 0 });
+        }
+      } catch {
+        // If we can't parse it, mark it for deletion
+        allEntries.push({ key, timestamp: 0 });
+      }
+    }
+
+    return allEntries;
+  }
+
+  private removeOldestEntries(allEntries: { key: string; timestamp: number }[]): boolean {
+    // Sort by timestamp (oldest first) and remove the oldest 25% of entries
+    allEntries.sort((a, b) => a.timestamp - b.timestamp);
+    const toRemove = Math.ceil(allEntries.length * 0.25);
+
+    for (let i = 0; i < toRemove; i++) {
+      localStorage.removeItem(allEntries[i].key);
+    }
+
+    logger.info(`Cleaned up ${toRemove} old localStorage entries to free space`);
+    return toRemove > 0;
+  }
+
   private getAllStorageKeys(): string[] {
     const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -61,6 +127,15 @@ export class LocalStorageCacheMap<
 
   public get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): V | null {
     logger.trace('get', { key });
+
+    // If in fallback mode, check memory cache first
+    if (this.quotaExceeded && this.fallbackCache) {
+      const memoryResult = this.fallbackCache.get(key);
+      if (memoryResult) {
+        return memoryResult;
+      }
+    }
+
     try {
       const storageKey = this.getStorageKey(key);
       const stored = localStorage.getItem(storageKey);
@@ -71,9 +146,21 @@ export class LocalStorageCacheMap<
           return parsed.value as V;
         }
       }
+
+      // If not in fallback mode but have fallback cache, check it too
+      if (!this.quotaExceeded && this.fallbackCache) {
+        return this.fallbackCache.get(key);
+      }
+
       return null;
     } catch (error) {
       logger.error('Error retrieving from localStorage', { key, error });
+
+      // If localStorage fails but we have fallback, use it
+      if (this.fallbackCache) {
+        return this.fallbackCache.get(key);
+      }
+
       return null;
     }
   }
@@ -124,6 +211,13 @@ export class LocalStorageCacheMap<
 
   public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
     logger.trace('set', { key, value });
+
+    // If we're already in fallback mode, use memory cache
+    if (this.quotaExceeded && this.fallbackCache) {
+      this.fallbackCache.set(key, value);
+      return;
+    }
+
     try {
       const storageKey = this.getStorageKey(key);
       const toStore = {
@@ -132,14 +226,60 @@ export class LocalStorageCacheMap<
         timestamp: Date.now()
       };
       localStorage.setItem(storageKey, JSON.stringify(toStore));
+
+      // If we previously had quota issues but this succeeds, we might be okay now
+      if (this.quotaExceeded) {
+        logger.info('LocalStorage is working again, switching back from fallback cache');
+        this.quotaExceeded = false;
+      }
     } catch (error) {
       logger.error('Error storing to localStorage', { key, value, error });
-      // Handle quota exceeded or other localStorage errors
-      throw new Error(`Failed to store item in localStorage: ${error}`);
+
+      if (this.isQuotaExceededError(error)) {
+        logger.warning('LocalStorage quota exceeded, attempting cleanup...');
+
+        // Try to clean up old entries first
+        const cleanupSucceeded = this.tryCleanupOldEntries();
+
+        if (cleanupSucceeded) {
+          // Try again after cleanup
+          try {
+            const storageKey = this.getStorageKey(key);
+            const toStore = {
+              originalKey: key,
+              value: value,
+              timestamp: Date.now()
+            };
+            localStorage.setItem(storageKey, JSON.stringify(toStore));
+            logger.info('Successfully stored item after cleanup');
+            return;
+          } catch {
+            logger.warning('Storage failed even after cleanup, falling back to memory cache');
+          }
+        }
+
+        // Cleanup failed or retry failed, switch to fallback
+        this.quotaExceeded = true;
+        this.initializeFallbackCache();
+        if (this.fallbackCache) {
+          this.fallbackCache.set(key, value);
+          logger.info('Item stored in fallback memory cache');
+        }
+      } else {
+        // For non-quota errors, still throw
+        throw new Error(`Failed to store item in localStorage: ${error}`);
+      }
     }
   }
 
   public includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean {
+    // If in fallback mode, check memory cache first
+    if (this.quotaExceeded && this.fallbackCache) {
+      if (this.fallbackCache.includesKey(key)) {
+        return true;
+      }
+    }
+
     try {
       const storageKey = this.getStorageKey(key);
       const stored = localStorage.getItem(storageKey);
@@ -147,20 +287,39 @@ export class LocalStorageCacheMap<
         const parsed = JSON.parse(stored);
         return this.normalizedHashFunction(parsed.originalKey) === this.normalizedHashFunction(key);
       }
+
+      // If not in fallback mode but have fallback cache, check it too
+      if (!this.quotaExceeded && this.fallbackCache) {
+        return this.fallbackCache.includesKey(key);
+      }
+
       return false;
     } catch (error) {
       logger.error('Error checking key in localStorage', { key, error });
+
+      // If localStorage fails but we have fallback, use it
+      if (this.fallbackCache) {
+        return this.fallbackCache.includesKey(key);
+      }
+
       return false;
     }
   }
 
   public delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
     logger.trace('delete', { key });
+
+    // Always delete from fallback cache if it exists
+    if (this.fallbackCache) {
+      this.fallbackCache.delete(key);
+    }
+
     try {
       const storageKey = this.getStorageKey(key);
       localStorage.removeItem(storageKey);
     } catch (error) {
       logger.error('Error deleting from localStorage', { key, error });
+      // Non-critical error for delete operation
     }
   }
 

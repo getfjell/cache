@@ -11,7 +11,9 @@ const logger = LibLogger.get("Instance");
  * The Cache Instance interface represents a cache model instance that extends the base Instance
  * from @fjell/registry and adds cache operations for interacting with cached data.
  *
- * This is an alias for the Cache interface since Cache now extends Instance directly.
+ * This is a type alias for the Cache interface. Both Cache and Instance refer to the same
+ * cache interface - Instance exists for backward compatibility and consistency with other
+ * Fjell packages that export Instance types.
  *
  * @template V - The type of the data model item, extending Item
  * @template S - The string literal type representing the model's key type
