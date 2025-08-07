@@ -51,6 +51,19 @@ describe('SessionStorageCacheMap', () => {
       const cache = new SessionStorageCacheMap<TestItem, 'test', 'container'>(['test', 'container'], 'custom-prefix');
       expect(cache).toBeInstanceOf(SessionStorageCacheMap);
     });
+
+    it('should have correct implementationType', () => {
+      expect(cacheMap.implementationType).toBe('browser/sessionStorage');
+    });
+
+    it('should provide correct cache information', () => {
+      const cacheInfo = cacheMap.getCacheInfo();
+      expect(cacheInfo.implementationType).toBe('browser/sessionStorage');
+      expect(cacheInfo.evictionPolicy).toBeUndefined();
+      expect(cacheInfo.defaultTTL).toBeUndefined();
+      expect(cacheInfo.supportsTTL).toBe(true);
+      expect(cacheInfo.supportsEviction).toBe(false);
+    });
   });
 
   describe('Basic Operations', () => {

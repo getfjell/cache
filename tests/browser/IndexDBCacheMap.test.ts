@@ -79,6 +79,19 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       expect(cache.asyncCache).toBeInstanceOf(AsyncIndexDBCacheMap);
     });
 
+    it('should have correct implementationType', () => {
+      expect(cacheMap.implementationType).toBe('browser/indexedDB');
+    });
+
+    it('should provide correct cache information', () => {
+      const cacheInfo = cacheMap.getCacheInfo();
+      expect(cacheInfo.implementationType).toBe('browser/indexedDB');
+      expect(cacheInfo.evictionPolicy).toBeUndefined();
+      expect(cacheInfo.defaultTTL).toBeUndefined();
+      expect(cacheInfo.supportsTTL).toBe(true);
+      expect(cacheInfo.supportsEviction).toBe(false);
+    });
+
     it('should provide access to async cache instance', () => {
       expect(cacheMap.asyncCache).toBeDefined();
       expect(cacheMap.asyncCache).toBeInstanceOf(AsyncIndexDBCacheMap);

@@ -7,7 +7,7 @@ import {
   LocKeyArray,
   PriKey
 } from "@fjell/core";
-import { CacheMap } from "../CacheMap";
+import { CacheInfo, CacheMap } from "../CacheMap";
 import { AsyncIndexDBCacheMap } from "./AsyncIndexDBCacheMap";
 import { MemoryCacheMap } from "../memory/MemoryCacheMap";
 
@@ -30,6 +30,8 @@ export class IndexDBCacheMap<
   L4 extends string = never,
   L5 extends string = never
 > extends CacheMap<V, S, L1, L2, L3, L4, L5> {
+
+  public readonly implementationType = "browser/indexedDB";
 
   public asyncCache: AsyncIndexDBCacheMap<V, S, L1, L2, L3, L4, L5>;
   private memoryCache: MemoryCacheMap<V, S, L1, L2, L3, L4, L5>;
@@ -292,5 +294,13 @@ export class IndexDBCacheMap<
       clearInterval(this.syncInterval);
       this.syncInterval = null;
     }
+  }
+
+  public getCacheInfo(): CacheInfo {
+    return {
+      implementationType: this.implementationType,
+      supportsTTL: true, // Supports TTL via getWithTTL()
+      supportsEviction: false // IndexedDB handles its own storage management
+    };
   }
 }

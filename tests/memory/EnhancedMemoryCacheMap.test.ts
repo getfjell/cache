@@ -65,6 +65,37 @@ describe('EnhancedMemoryCacheMap', () => {
     types = ['test'];
   });
 
+  describe('Constructor and basic properties', () => {
+    it('should have correct implementationType', () => {
+      cache = new EnhancedMemoryCacheMap(types);
+      expect(cache.implementationType).toBe('memory/enhanced');
+    });
+
+    it('should provide correct cache information with default configuration', () => {
+      cache = new EnhancedMemoryCacheMap(types);
+      const cacheInfo = cache.getCacheInfo();
+      expect(cacheInfo.implementationType).toBe('memory/enhanced');
+      expect(cacheInfo.evictionPolicy).toBe('lru'); // Default eviction policy
+      expect(cacheInfo.defaultTTL).toBeUndefined();
+      expect(cacheInfo.supportsTTL).toBe(true);
+      expect(cacheInfo.supportsEviction).toBe(true);
+    });
+
+    it('should provide correct cache information with custom eviction policy', () => {
+      const sizeConfig: CacheSizeConfig = {
+        maxItems: 100,
+        evictionPolicy: 'lfu'
+      };
+      cache = new EnhancedMemoryCacheMap(types, sizeConfig);
+      const cacheInfo = cache.getCacheInfo();
+      expect(cacheInfo.implementationType).toBe('memory/enhanced');
+      expect(cacheInfo.evictionPolicy).toBe('lfu');
+      expect(cacheInfo.defaultTTL).toBeUndefined();
+      expect(cacheInfo.supportsTTL).toBe(true);
+      expect(cacheInfo.supportsEviction).toBe(true);
+    });
+  });
+
   describe('Size limits and tracking', () => {
     it('should track cache size in bytes', () => {
       const sizeConfig: CacheSizeConfig = {

@@ -377,6 +377,16 @@ describe('Cache Size and Eviction Integration Tests', () => {
         }
       );
 
+      // Verify implementationType
+      expect(cache.implementationType).toBe('memory/enhanced');
+
+      // Verify cache info provides eviction information
+      const cacheInfo = cache.getCacheInfo();
+      expect(cacheInfo.implementationType).toBe('memory/enhanced');
+      expect(cacheInfo.evictionPolicy).toBe('random'); // Should match configured policy
+      expect(cacheInfo.supportsTTL).toBe(true);
+      expect(cacheInfo.supportsEviction).toBe(true);
+
       const startTime = Date.now();
 
       // Add many users rapidly

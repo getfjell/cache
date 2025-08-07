@@ -70,6 +70,19 @@ describe('LocalStorageCacheMap', () => {
       const cache = new LocalStorageCacheMap<TestItem, 'test', 'container'>(['test', 'container'], 'custom-prefix');
       expect(cache).toBeInstanceOf(LocalStorageCacheMap);
     });
+
+    it('should have correct implementationType', () => {
+      expect(cacheMap.implementationType).toBe('browser/localStorage');
+    });
+
+    it('should provide correct cache information', () => {
+      const cacheInfo = cacheMap.getCacheInfo();
+      expect(cacheInfo.implementationType).toBe('browser/localStorage');
+      expect(cacheInfo.evictionPolicy).toBeUndefined();
+      expect(cacheInfo.defaultTTL).toBeUndefined();
+      expect(cacheInfo.supportsTTL).toBe(true);
+      expect(cacheInfo.supportsEviction).toBe(false);
+    });
   });
 
   describe('Basic Operations', () => {
