@@ -21,6 +21,7 @@ Fjell Cache provides intelligent caching capabilities for complex data models an
 - **Cache Size Limits**: Configure maximum cache size in bytes or item count with automatic eviction
 - **Advanced Eviction Policies**: LRU, LFU, FIFO, MRU, Random, ARC, and 2Q strategies for optimal performance
 - **Performance Monitoring**: Built-in cache statistics and utilization tracking
+- **Cache Introspection**: Runtime visibility into cache implementation type, eviction policies, and capabilities
 
 ## Installation
 
@@ -57,6 +58,12 @@ await userCache.operations.set(userKey, updatedUser);
 const memoryCache = new MemoryCacheMap<User>(['user']);
 memoryCache.set(userKey, user);
 const cachedUser = memoryCache.get(userKey);
+
+// Get cache information for debugging or monitoring
+const cacheInfo = memoryCache.getCacheInfo();
+console.log(`Using ${cacheInfo.implementationType} cache`);
+console.log(`TTL support: ${cacheInfo.supportsTTL}`);
+console.log(`Eviction support: ${cacheInfo.supportsEviction}`);
 ```
 
 ## Configuration Options

@@ -8,7 +8,7 @@ import {
   LocKeyArray,
   PriKey
 } from "@fjell/core";
-import { CacheMap } from "../CacheMap";
+import { CacheInfo, CacheMap } from "../CacheMap";
 import { createNormalizedHashFunction, isLocKeyArrayEqual } from "../normalization";
 import LibLogger from "../logger";
 import { MemoryCacheMap } from "../memory/MemoryCacheMap";
@@ -31,6 +31,8 @@ export class LocalStorageCacheMap<
   L4 extends string = never,
   L5 extends string = never
 > extends CacheMap<V, S, L1, L2, L3, L4, L5> {
+
+  public readonly implementationType = "browser/localStorage";
 
   private keyPrefix: string;
   private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
@@ -538,5 +540,13 @@ export class LocalStorageCacheMap<
     } catch (error) {
       logger.error('Failed to clear query results from localStorage', { error });
     }
+  }
+
+  public getCacheInfo(): CacheInfo {
+    return {
+      implementationType: this.implementationType,
+      supportsTTL: true, // Supports TTL via getWithTTL()
+      supportsEviction: false // Browser storage handles its own eviction
+    };
   }
 }

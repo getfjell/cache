@@ -51,6 +51,19 @@ describe('MemoryCacheMap', () => {
       const cache = new MemoryCacheMap<TestItem, 'test', 'container'>(['test', 'container']);
       expect(cache).toBeInstanceOf(MemoryCacheMap);
     });
+
+    it('should have correct implementationType', () => {
+      expect(cacheMap.implementationType).toBe('memory/memory');
+    });
+
+    it('should provide correct cache information', () => {
+      const cacheInfo = cacheMap.getCacheInfo();
+      expect(cacheInfo.implementationType).toBe('memory/memory');
+      expect(cacheInfo.evictionPolicy).toBeUndefined();
+      expect(cacheInfo.defaultTTL).toBeUndefined();
+      expect(cacheInfo.supportsTTL).toBe(true);
+      expect(cacheInfo.supportsEviction).toBe(false);
+    });
   });
 
   describe('Basic Operations', () => {
@@ -381,8 +394,8 @@ describe('MemoryCacheMap', () => {
       });
 
       it('should return null when item has expired', () => {
-        // Set an item fresh, then test with very short TTL after a delay
-        const shortTTL = 1; // 1ms
+        // Set an item fresh, then test with short TTL after a delay
+        const shortTTL = 10; // 10ms - more reliable for testing
 
         // Set the item fresh to ensure timing is controlled
         cacheMap.set(priKey1, testItems[0]);
@@ -391,7 +404,7 @@ describe('MemoryCacheMap', () => {
         const immediate = cacheMap.getWithTTL(priKey1, shortTTL);
         expect(immediate).toEqual(testItems[0]);
 
-        // Wait a bit and try again - should be expired
+        // Wait for TTL to expire and try again - should be expired
         return new Promise(resolve => {
           setTimeout(() => {
             const expired = cacheMap.getWithTTL(priKey1, shortTTL);
@@ -399,7 +412,7 @@ describe('MemoryCacheMap', () => {
             // Verify item was actually removed from cache
             expect(cacheMap.includesKey(priKey1)).toBe(false);
             resolve(undefined);
-          }, 5);
+          }, 15); // Wait longer than TTL
         });
       });
 

@@ -2,6 +2,7 @@
 export { createCache, isCache } from './Cache';
 export type { Cache } from './Cache';
 export { CacheMap } from './CacheMap';
+export type { CacheInfo } from './CacheMap';
 
 // Cache implementations
 export { MemoryCacheMap } from './memory/MemoryCacheMap';
@@ -77,3 +78,5 @@ export * from './events';
 // Aggregator functionality
 export { createAggregator, toCacheConfig } from './Aggregator';
 export type { Aggregator, CacheConfig, AggregateConfig } from './Aggregator';
+
+export * from './Registry';

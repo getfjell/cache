@@ -8,7 +8,7 @@ import {
   LocKeyArray,
   PriKey
 } from "@fjell/core";
-import { CacheMap } from "../CacheMap";
+import { CacheInfo, CacheMap } from "../CacheMap";
 import { createNormalizedHashFunction, isLocKeyArrayEqual, QueryCacheEntry } from "../normalization";
 import { CacheSizeConfig } from "../Options";
 import {
@@ -41,6 +41,8 @@ export class EnhancedMemoryCacheMap<
   L5 extends string = never
 > extends CacheMap<V, S, L1, L2, L3, L4, L5> {
 
+  public readonly implementationType = "memory/enhanced";
+
   private map: { [key: string]: EnhancedDictionaryEntry<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, V> } = {};
   private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
 
@@ -60,6 +62,7 @@ export class EnhancedMemoryCacheMap<
 
   // Eviction strategy
   private readonly evictionStrategy: EvictionStrategy;
+  private readonly evictionPolicy: string;
 
   public constructor(
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
@@ -82,6 +85,7 @@ export class EnhancedMemoryCacheMap<
 
     // Initialize eviction strategy
     const policy = sizeConfig?.evictionPolicy || 'lru';
+    this.evictionPolicy = policy;
     const maxCacheSize = this.maxItems || 1000; // Default for strategies that need it
     this.evictionStrategy = createEvictionStrategy(policy, maxCacheSize);
     logger.debug('Eviction strategy initialized', { policy });
@@ -585,5 +589,14 @@ export class EnhancedMemoryCacheMap<
    */
   public getTotalSizeBytes(): number {
     return this.currentSizeBytes + this.queryResultsCacheSize;
+  }
+
+  public getCacheInfo(): CacheInfo {
+    return {
+      implementationType: this.implementationType,
+      evictionPolicy: this.evictionPolicy,
+      supportsTTL: true, // Supports TTL via getWithTTL()
+      supportsEviction: true // Enhanced implementation supports eviction
+    };
   }
 }
