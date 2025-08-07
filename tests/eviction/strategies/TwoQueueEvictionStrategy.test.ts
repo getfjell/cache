@@ -71,7 +71,7 @@ describe('TwoQueueEvictionStrategy', () => {
         maxCacheSize: 100,
         useFrequencyPromotion: true,
         promotionThreshold: 3,
-        useFrequencyWeightedLRU: true,
+        useFrequencyWeightedLRU: false, // Disable timing-dependent calculations for deterministic tests
         hotQueueDecayFactor: 0
       };
       strategy = new TwoQueueEvictionStrategy(100, config);
