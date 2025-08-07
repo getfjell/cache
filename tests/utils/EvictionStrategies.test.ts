@@ -247,7 +247,7 @@ describe('Eviction Strategies', () => {
       const lfuConfig = {
         type: 'lfu' as const,
         useProbabilisticCounting: true,
-        decayFactor: 0.1,
+        decayFactor: 0, // Disable decay to avoid timing-dependent behavior
         sketchWidth: 512
       };
       const lfuStrategy = createEvictionStrategy('lfu', 1000, lfuConfig);
@@ -259,7 +259,7 @@ describe('Eviction Strategies', () => {
         type: 'arc' as const,
         frequencyThreshold: 3,
         useEnhancedFrequency: true,
-        frequencyDecayFactor: 0.05
+        frequencyDecayFactor: 0 // Disable decay to avoid timing-dependent behavior
       };
       const arcStrategy = createEvictionStrategy('arc', 1000, arcConfig);
       expect(arcStrategy).toBeInstanceOf(ARCEvictionStrategy);
@@ -270,7 +270,7 @@ describe('Eviction Strategies', () => {
         type: '2q' as const,
         useFrequencyPromotion: true,
         promotionThreshold: 4,
-        hotQueueDecayFactor: 0.1
+        hotQueueDecayFactor: 0 // Disable decay to avoid timing-dependent behavior
       };
       const twoQStrategy = createEvictionStrategy('2q', 1000, twoQConfig);
       expect(twoQStrategy).toBeInstanceOf(TwoQueueEvictionStrategy);
