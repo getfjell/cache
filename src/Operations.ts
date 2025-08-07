@@ -3,6 +3,7 @@ import { ClientApi } from "@fjell/client-api";
 import { Coordinate } from "@fjell/registry";
 import { CacheMap } from "./CacheMap";
 import { createCacheContext } from "./CacheContext";
+import { CacheEventEmitter } from "./events/CacheEventEmitter";
 
 // Import all operation functions
 import { all } from "./ops/all";
@@ -169,11 +170,12 @@ export const createOperations = <
     coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
     cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
     pkType: S,
-    options: Options<V, S, L1, L2, L3, L4, L5>
+    options: Options<V, S, L1, L2, L3, L4, L5>,
+    eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>
   ): Operations<V, S, L1, L2, L3, L4, L5> => {
 
   // Create the cache context once and reuse it across all operations
-  const context = createCacheContext(api, cacheMap, pkType, options);
+  const context = createCacheContext(api, cacheMap, pkType, options, eventEmitter);
 
   return {
     all: (query, locations) => all(query, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),

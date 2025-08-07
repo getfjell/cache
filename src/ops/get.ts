@@ -6,6 +6,7 @@ import {
   validatePK
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
+import { CacheEventFactory } from "../events/CacheEventFactory";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('get');
@@ -78,6 +79,10 @@ export const get = async <
     ret = await apiRequest;
     if (ret) {
       cacheMap.set(ret.key, ret);
+
+      // Emit event for item retrieved from API
+      const event = CacheEventFactory.itemRetrieved(ret.key, ret as V, 'api');
+      context.eventEmitter.emit(event);
     }
   } catch (e: any) {
     logger.error("Error getting item for key", { key, message: e.message, stack: e.stack });
