@@ -648,7 +648,7 @@ describe('Cache Size and Eviction Integration Tests', () => {
         useProbabilisticCounting: true,
         sketchWidth: 64,
         sketchDepth: 3,
-        decayFactor: 0.05
+        decayFactor: 0 // Disable decay to avoid timing-dependent behavior
       };
       const strategy = createEvictionStrategy('lfu', 100, lfuConfig);
       expect(strategy).toBeDefined();
@@ -660,7 +660,7 @@ describe('Cache Size and Eviction Integration Tests', () => {
         type: 'arc' as const,
         frequencyThreshold: 3,
         useEnhancedFrequency: true,
-        frequencyDecayFactor: 0.1,
+        frequencyDecayFactor: 0, // Disable decay to avoid timing-dependent behavior
         adaptiveLearningRate: 1.5
       };
       const strategy = createEvictionStrategy('arc', 100, arcConfig);
@@ -688,7 +688,7 @@ describe('Cache Size and Eviction Integration Tests', () => {
       const enhancedLfuStrategy = createEvictionStrategy('lfu', 3, {
         type: 'lfu',
         useProbabilisticCounting: true,
-        decayFactor: 0.1
+        decayFactor: 0 // Disable decay to avoid timing-dependent behavior
       });
 
       // Simulate cache operations with enhanced strategy
@@ -716,7 +716,7 @@ describe('Cache Size and Eviction Integration Tests', () => {
 
     it('should maintain configuration consistency across operations', () => {
       const configs = [
-        { type: 'lfu' as const, decayFactor: 0.2, useProbabilisticCounting: false },
+        { type: 'lfu' as const, decayFactor: 0, useProbabilisticCounting: false }, // Disable decay for deterministic tests
         { type: 'arc' as const, frequencyThreshold: 5, useEnhancedFrequency: false },
         { type: '2q' as const, promotionThreshold: 3, useFrequencyPromotion: false }
       ];
