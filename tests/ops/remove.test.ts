@@ -23,13 +23,28 @@ describe('remove operation', () => {
 
     // Setup mock cache map
     mockCacheMap = {
+      get: vi.fn(),
+      getWithTTL: vi.fn(),
+      set: vi.fn(),
+      includesKey: vi.fn(),
+      remove: vi.fn(),
       delete: vi.fn(),
+      clear: vi.fn(),
+      keys: vi.fn(),
+      values: vi.fn(),
+      size: 0
+    };
+
+    // Mock EventEmitter
+    const mockEventEmitter = {
+      emit: vi.fn()
     };
 
     // Setup context
     context = {
       api: mockApi,
       cacheMap: mockCacheMap,
+      eventEmitter: mockEventEmitter
     } as CacheContext<TestItem, 'test', 'container'>;
   });
 

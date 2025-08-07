@@ -39,6 +39,7 @@ describe('set operation', () => {
 
   let mockApi: ClientApi<TestItem, 'test', 'container'>;
   let mockCacheMap: CacheMap<TestItem, 'test', 'container'>;
+  let mockEventEmitter: any;
   let context: CacheContext<TestItem, 'test', 'container'>;
 
   beforeEach(() => {
@@ -70,10 +71,21 @@ describe('set operation', () => {
       size: 0
     } as any;
 
+    // Mock EventEmitter
+    mockEventEmitter = {
+      emit: vi.fn(),
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+      getSubscriptionCount: vi.fn(),
+      getSubscriptions: vi.fn(),
+      destroy: vi.fn()
+    } as any;
+
     // Setup context
     context = {
       api: mockApi,
       cacheMap: mockCacheMap,
+      eventEmitter: mockEventEmitter,
       pkType: 'test',
       options: {},
       itemTtl: void 0,

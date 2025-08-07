@@ -7,6 +7,7 @@ import {
 import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";
 import { createQueryHash } from "../normalization";
+import { CacheEventFactory } from "../events/CacheEventFactory";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('all');
@@ -72,6 +73,10 @@ export const all = async <
     const itemKeys = ret.map(item => item.key);
     cacheMap.setQueryResult(queryHash, itemKeys, queryTtl);
     logger.debug('Cached query result', { queryHash, itemKeyCount: itemKeys.length, ttl: queryTtl });
+
+    // Emit query event
+    const event = CacheEventFactory.createQueryEvent(query, locations, ret);
+    context.eventEmitter.emit(event as any);
 
   } catch (e: unknown) {
     if (e instanceof NotFoundError) {

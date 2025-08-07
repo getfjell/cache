@@ -8,6 +8,8 @@ import {
 } from "@fjell/core";
 import { Cache } from "./Cache";
 import { CacheMap } from "./CacheMap";
+import { CacheEventEmitter } from "./events/CacheEventEmitter";
+import { CacheEventListener, CacheSubscription, CacheSubscriptionOptions } from "./events/CacheEventTypes";
 import LibLogger from "./logger";
 
 const logger = LibLogger.get('ItemAggregator');
@@ -100,6 +102,22 @@ export interface Aggregator<
   populate: (item: V) => Promise<V>;
   populateAggregate: (key: string, item: V) => Promise<void>;
   populateEvent: (key: string, item: V) => Promise<void>;
+
+  /** Event emitter for cache events */
+  eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>;
+
+  /**
+   * Subscribe to cache events
+   */
+  subscribe(
+    listener: CacheEventListener<V, S, L1, L2, L3, L4, L5>,
+    options?: CacheSubscriptionOptions<S, L1, L2, L3, L4, L5>
+  ): CacheSubscription;
+
+  /**
+   * Unsubscribe from cache events
+   */
+  unsubscribe(subscription: CacheSubscription): boolean;
 }
 
 export interface CacheConfig { cache: any, optional: boolean }
@@ -407,6 +425,10 @@ export const createAggregator = async <
     // Aggregator-specific operations
     populate,
     populateAggregate,
-    populateEvent
+    populateEvent,
+    // Event system
+    eventEmitter: cache.eventEmitter,
+    subscribe: (listener, options) => cache.subscribe(listener, options),
+    unsubscribe: (subscription) => cache.unsubscribe(subscription)
   }
 }

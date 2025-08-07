@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from '../../src/ops/get';
 import { CacheContext } from '../../src/CacheContext';
 import { CacheMap } from '../../src/CacheMap';
+
 import { ClientApi } from '@fjell/client-api';
 import { ComKey, Item, PriKey, UUID } from '@fjell/core';
 
@@ -30,6 +31,7 @@ describe('get operation', () => {
 
   let mockApi: ClientApi<TestItem, 'test', 'container'>;
   let mockCacheMap: CacheMap<TestItem, 'test', 'container'>;
+  let mockEventEmitter: any;
   let context: CacheContext<TestItem, 'test', 'container'>;
 
   beforeEach(() => {
@@ -52,12 +54,23 @@ describe('get operation', () => {
       size: vi.fn()
     } as any;
 
+    // Mock EventEmitter
+    mockEventEmitter = {
+      emit: vi.fn(),
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+      getSubscriptionCount: vi.fn(),
+      getSubscriptions: vi.fn(),
+      destroy: vi.fn()
+    } as any;
+
     // Create context
     context = {
       api: mockApi,
       cacheMap: mockCacheMap,
       pkType: 'test',
       options: {} as any,
+      eventEmitter: mockEventEmitter,
       itemTtl: undefined,
       queryTtl: undefined
     };

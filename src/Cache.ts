@@ -5,6 +5,8 @@ import { CacheMap } from "./CacheMap";
 import { createOperations, Operations } from "./Operations";
 import { createCacheMap, createOptions, Options } from "./Options";
 import LibLogger from "./logger";
+import { CacheEventEmitter } from "./events/CacheEventEmitter";
+import { CacheEventListener, CacheSubscription, CacheSubscriptionOptions } from "./events/CacheEventTypes";
 
 const logger = LibLogger.get('Cache');
 
@@ -41,6 +43,27 @@ export interface Cache<
 
   /** Cache configuration options */
   options?: Options<V, S, L1, L2, L3, L4, L5>;
+
+  /** Event emitter for cache events */
+  eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>;
+
+  /**
+   * Subscribe to cache events
+   * @param listener Function to call when events occur
+   * @param options Optional filters for which events to receive
+   * @returns Subscription object with unsubscribe method
+   */
+  subscribe(
+    listener: CacheEventListener<V, S, L1, L2, L3, L4, L5>,
+    options?: CacheSubscriptionOptions<S, L1, L2, L3, L4, L5>
+  ): CacheSubscription;
+
+  /**
+   * Unsubscribe from cache events
+   * @param subscription Subscription to cancel
+   * @returns True if subscription was found and cancelled
+   */
+  unsubscribe(subscription: CacheSubscription): boolean;
 }
 
 export const createCache = <
@@ -68,8 +91,11 @@ export const createCache = <
   // Get the primary key type from the coordinate
   const pkType = coordinate.kta[0] as S;
 
-  // Create operations
-  const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions);
+  // Create event emitter
+  const eventEmitter = new CacheEventEmitter<V, S, L1, L2, L3, L4, L5>();
+
+  // Create operations with event emitter
+  const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions, eventEmitter);
 
   return {
     coordinate,
@@ -77,7 +103,10 @@ export const createCache = <
     api,
     cacheMap,
     operations,
-    options: completeOptions
+    options: completeOptions,
+    eventEmitter,
+    subscribe: (listener, options) => eventEmitter.subscribe(listener, options),
+    unsubscribe: (subscription) => eventEmitter.unsubscribe(subscription.id)
   };
 };
 
