@@ -13,7 +13,7 @@
  * - Manage cache lifecycle and cleanup
  */
 
-import { CacheMap } from '../src/CacheMap';
+import { MemoryCacheMap } from '../src/memory/MemoryCacheMap';
 import { ComKey, Item, PriKey } from '@fjell/core';
 
 // Define test data models
@@ -58,8 +58,8 @@ export const runCacheMapExample = async (): Promise<void> => {
   console.log('-----------------------------------');
 
   // Create CacheMaps for different item types
-  const documentCacheMap = new CacheMap<Document, 'document'>(['document']);
-  const commentCacheMap = new CacheMap<Comment, 'comment', 'document'>(['comment', 'document']);
+  const documentCacheMap = new MemoryCacheMap<Document, 'document'>(['document']);
+  const commentCacheMap = new MemoryCacheMap<Comment, 'comment', 'document'>(['comment', 'document']);
 
   console.log('✅ Created CacheMap instances for documents and comments');
   console.log(`   📄 Document CacheMap: supports primary keys only`);
@@ -122,10 +122,18 @@ export const runCacheMapExample = async (): Promise<void> => {
 
   console.log(`\n🗂️ All cached keys:`);
   console.log(`   📄 Document keys: ${allDocKeys.length} items`);
-  allDocKeys.forEach(key => console.log(`      - ${(key as PriKey<'document'>).pk}`));
+  allDocKeys.forEach((key: PriKey<'document'>) => console.log(`      - ${key.pk}`));
 
   console.log(`   💬 Comment keys: ${allCommentKeys.length} items`);
-  allCommentKeys.forEach(key => console.log(`      - ${(key as ComKey<'comment', 'document'>).pk} in document ${(key as ComKey<'comment', 'document'>).loc?.[0]?.lk}`));
+  allCommentKeys.forEach((key) => {
+    if ('loc' in key) {
+      const comKey = key as ComKey<'comment', 'document'>;
+      console.log(`      - ${comKey.pk} in document ${comKey.loc?.[0]?.lk}`);
+    } else {
+      const priKey = key as PriKey<'comment'>;
+      console.log(`      - ${priKey.pk} (primary key)`);
+    }
+  });
 
   // Step 5: Bulk operations
   console.log('\n\nStep 5: Bulk operations');
@@ -137,10 +145,10 @@ export const runCacheMapExample = async (): Promise<void> => {
 
   console.log(`📋 Retrieved all items:`);
   console.log(`   📄 Documents: ${allDocuments.length} items`);
-  allDocuments.forEach(doc => console.log(`      - "${doc.title}" (${doc.tags.join(', ')})`));
+  allDocuments.forEach((doc: Document) => console.log(`      - "${doc.title}" (${doc.tags.join(', ')})`));
 
   console.log(`   💬 Comments: ${allComments.length} items`);
-  allComments.forEach(comment => console.log(`      - "${comment.content}" on doc ${comment.documentId}`));
+  allComments.forEach((comment: Comment) => console.log(`      - "${comment.content}" on doc ${comment.documentId}`));
 
   // Get all values (another way to access items)
   const allDocumentValues = documentCacheMap.values();
@@ -155,7 +163,7 @@ export const runCacheMapExample = async (): Promise<void> => {
 
   console.log(`🔍 Location-based retrieval:`);
   console.log(`   💬 Comments in document "${doc1.title}": ${doc1Comments.length} found`);
-  doc1Comments.forEach(comment => console.log(`      - "${comment.content}" by ${comment.author}`));
+  doc1Comments.forEach((comment: Comment) => console.log(`      - "${comment.content}" by ${comment.author}`));
 
   // Step 7: Update operations
   console.log('\n\nStep 7: Update operations');

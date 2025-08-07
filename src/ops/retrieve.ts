@@ -5,10 +5,9 @@ import {
   PriKey,
   validatePK
 } from "@fjell/core";
-import { CacheMap } from "../CacheMap";
+import { CacheContext } from "../CacheContext";
 import LibLogger from "../logger";
 import { get } from "./get";
-import { ClientApi } from "@fjell/client-api";
 
 const logger = LibLogger.get('retrieve');
 
@@ -21,11 +20,10 @@ export const retrieve = async <
   L4 extends string = never,
   L5 extends string = never
 >(
-  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-  cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
-  pkType: S,
-  key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
-): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5> | null, V | null]> => {
+  key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5> | null, V | null]> => {
+  const { cacheMap, pkType } = context;
   logger.default('retrieve', { key });
 
   if (!isValidItemKey(key)) {
@@ -41,11 +39,11 @@ export const retrieve = async <
     retrieved = cacheMap.get(key);
   } else {
     logger.default('Object Not Found in Cache, Retrieving from Server API', { key });
-    [, retrieved] = await get(api, cacheMap, pkType, key);
+    [, retrieved] = await get(key, context);
   }
 
-  const retValue: [CacheMap<V, S, L1, L2, L3, L4, L5> | null, V | null] = [
-    containsItemKey ? null : cacheMap,
+  const retValue: [CacheContext<V, S, L1, L2, L3, L4, L5> | null, V | null] = [
+    containsItemKey ? null : context,
     retrieved ?
       validatePK(retrieved, pkType) as V :
       null
