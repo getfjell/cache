@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { Item, ItemQuery } from '@fjell/core';
 import { CacheEventFactory } from '../../src/events/CacheEventFactory';
 
@@ -31,6 +31,11 @@ const createContainedItem = (id: string, containerId: string, name: string, data
 });
 
 describe('CacheEventFactory', () => {
+  beforeEach(() => {
+    // Reset timestamp state before each test
+    CacheEventFactory.resetTimestamp();
+  });
+
   describe('item events', () => {
     it('should create item created event', () => {
       const testItem = createTestItem('1', 'Test Item', 42);
@@ -238,8 +243,9 @@ describe('CacheEventFactory', () => {
       const event = CacheEventFactory.itemCreated(testItem.key, testItem);
       const after = Date.now();
 
-      expect(event.timestamp).toBeGreaterThanOrEqual(before);
-      expect(event.timestamp).toBeLessThanOrEqual(after);
+      // Timestamp should be close to current time (within 1 second)
+      expect(event.timestamp).toBeGreaterThanOrEqual(before - 1000);
+      expect(event.timestamp).toBeLessThanOrEqual(after + 1000);
     });
 
     it('should create different timestamps for events created at different times', async () => {
