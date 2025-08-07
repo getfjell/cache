@@ -381,8 +381,11 @@ describe('MemoryCacheMap', () => {
       });
 
       it('should return null when item has expired', () => {
-        // Set an item, then test with very short TTL after a delay
+        // Set an item fresh, then test with very short TTL after a delay
         const shortTTL = 1; // 1ms
+
+        // Set the item fresh to ensure timing is controlled
+        cacheMap.set(priKey1, testItems[0]);
 
         // First call should return the item
         const immediate = cacheMap.getWithTTL(priKey1, shortTTL);
