@@ -280,7 +280,14 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
     let strategy: TwoQueueEvictionStrategy;
 
     beforeEach(() => {
-      strategy = new TwoQueueEvictionStrategy(10);
+      // Use configuration that ensures deterministic behavior for testing
+      strategy = new TwoQueueEvictionStrategy(10, {
+        type: '2q',
+        useFrequencyPromotion: true,
+        promotionThreshold: 2,
+        hotQueueDecayFactor: 0, // Disable decay to avoid timing-dependent behavior
+        useFrequencyWeightedLRU: false // Use simple LRU to avoid timing calculations
+      });
     });
 
     it('should manage queue transitions correctly', () => {
