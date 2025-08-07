@@ -194,6 +194,9 @@ export interface CacheSubscriptionOptions<
 
   /** Whether to emit events for items that match the subscription criteria */
   includeExistingItems?: boolean;
+
+  /** Optional error handler for listener errors */
+  onError?: (error: Error, event: any) => void;
 }
 
 /**

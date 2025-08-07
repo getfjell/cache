@@ -35,10 +35,11 @@ export class IndexDBCacheMap<
   private memoryCache: MemoryCacheMap<V, S, L1, L2, L3, L4, L5>;
   private syncInterval: NodeJS.Timeout | null = null;
   private readonly SYNC_INTERVAL_MS = 5000; // Sync every 5 seconds
-  private pendingSyncOperations: Map<string, { type: 'set' | 'delete'; key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>; value?: V }> = new Map();
+  private pendingSyncOperations: Map<string, { type: 'set' | 'delete'; key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>; value?: V; sequenceId: number }> = new Map();
   private initializationPromise: Promise<void> | null = null;
   private isInitialized = false;
   private readonly MAX_RETRY_ATTEMPTS = 3;
+  private operationSequence = 0;
 
   public constructor(
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
@@ -133,57 +134,59 @@ export class IndexDBCacheMap<
   private queueForSync(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
     // Convert key to string for tracking
     const keyStr = JSON.stringify(key);
-    this.pendingSyncOperations.set(keyStr, { type: 'set', key, value });
+    const sequenceId = ++this.operationSequence;
+    this.pendingSyncOperations.set(keyStr, { type: 'set', key, value, sequenceId });
 
-    // Trigger immediate sync in background
-    setTimeout(async () => {
+    // Use Promise.resolve() to ensure proper async execution order
+    Promise.resolve().then(async () => {
       try {
         await this.asyncCache.set(key, value);
-        // Only remove if this exact operation is still pending
+        // Only remove if this exact operation is still pending and has the same sequence ID
         const pending = this.pendingSyncOperations.get(keyStr);
-        if (pending && pending.type === 'set' && pending.value === value) {
+        if (pending && pending.type === 'set' && pending.sequenceId === sequenceId) {
           this.pendingSyncOperations.delete(keyStr);
         }
       } catch (error) {
         console.warn('Failed to sync single operation to IndexedDB:', error);
         // Keep in pending operations for retry
       }
-    }, 0);
+    });
   }
 
   private queueDeleteForSync(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
     // Convert key to string for tracking
     const keyStr = JSON.stringify(key);
-    this.pendingSyncOperations.set(keyStr, { type: 'delete', key });
+    const sequenceId = ++this.operationSequence;
+    this.pendingSyncOperations.set(keyStr, { type: 'delete', key, sequenceId });
 
-    // Trigger immediate delete sync in background
-    setTimeout(async () => {
+    // Use Promise.resolve() to ensure proper async execution order
+    Promise.resolve().then(async () => {
       try {
         await this.asyncCache.delete(key);
-        // Only remove if this exact operation is still pending
+        // Only remove if this exact operation is still pending and has the same sequence ID
         const pending = this.pendingSyncOperations.get(keyStr);
-        if (pending && pending.type === 'delete') {
+        if (pending && pending.type === 'delete' && pending.sequenceId === sequenceId) {
           this.pendingSyncOperations.delete(keyStr);
         }
       } catch (error) {
         console.warn('Failed to sync delete operation to IndexedDB:', error);
         // Keep in pending operations for retry
       }
-    }, 0);
+    });
   }
 
   private queueClearForSync(): void {
     // Clear all pending operations since we're clearing everything
     this.pendingSyncOperations.clear();
 
-    // Trigger immediate clear sync in background
-    setTimeout(async () => {
+    // Use Promise.resolve() to ensure proper async execution order
+    Promise.resolve().then(async () => {
       try {
         await this.asyncCache.clear();
       } catch (error) {
         console.warn('Failed to sync clear operation to IndexedDB:', error);
       }
-    }, 0);
+    });
   }
 
   public get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): V | null {

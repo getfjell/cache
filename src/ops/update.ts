@@ -48,7 +48,7 @@ export const update = async <
 
     // Emit event
     const event = CacheEventFactory.itemUpdated(updated.key, updated as V, previousItem, 'api');
-    context.eventEmitter.emit(event as any);
+    context.eventEmitter.emit(event);
 
     return [context, validatePK(updated, pkType) as V];
   } catch (e) {

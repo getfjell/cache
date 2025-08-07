@@ -1,4 +1,4 @@
-import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/core";
+import { ComKey, Item, ItemQuery, LocKey, LocKeyArray, PriKey } from "@fjell/core";
 import {
   AnyCacheEvent,
   CacheEventListener,
@@ -70,7 +70,7 @@ export class CacheEventEmitter<
       id,
       unsubscribe: () => this.unsubscribe(id),
       isActive: () => this.subscriptions.get(id)?.isActive ?? false,
-      getOptions: () => ({ ...options } as any)
+      getOptions: () => ({ ...options }) as CacheSubscriptionOptions<S, L1, L2, L3, L4, L5>
     };
   }
 
@@ -86,6 +86,7 @@ export class CacheEventEmitter<
     // Clear any pending debounce timer
     if (subscription.debounceTimer) {
       clearTimeout(subscription.debounceTimer);
+      subscription.debounceTimer = null;
     }
 
     subscription.isActive = false;
@@ -137,6 +138,7 @@ export class CacheEventEmitter<
     for (const subscription of this.subscriptions.values()) {
       if (subscription.debounceTimer) {
         clearTimeout(subscription.debounceTimer);
+        subscription.debounceTimer = null;
       }
       subscription.isActive = false;
     }
@@ -232,7 +234,7 @@ export class CacheEventEmitter<
       try {
         subscription.listener(event);
       } catch (error) {
-        console.error('Error in cache event listener:', error);
+        this.handleListenerError(error, event, subscription);
       }
       return;
     }
@@ -240,6 +242,7 @@ export class CacheEventEmitter<
     // Clear existing debounce timer
     if (subscription.debounceTimer) {
       clearTimeout(subscription.debounceTimer);
+      subscription.debounceTimer = null;
     }
 
     // Set new debounce timer
@@ -249,9 +252,10 @@ export class CacheEventEmitter<
           subscription.listener(event);
           subscription.lastEmitTime = Date.now();
         } catch (error) {
-          console.error('Error in debounced cache event listener:', error);
+          this.handleListenerError(error, event, subscription);
         }
       }
+      // Clear the timer reference to allow garbage collection
       subscription.debounceTimer = null;
     }, subscription.options.debounceMs);
   }
@@ -260,6 +264,18 @@ export class CacheEventEmitter<
    * Normalize a key for comparison
    */
   private normalizeKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): string {
+    return JSON.stringify(key, (k, v) => {
+      if (typeof v === 'string' || typeof v === 'number') {
+        return normalizeKeyValue(v);
+      }
+      return v;
+    });
+  }
+
+  /**
+   * Normalize a location key for comparison
+   */
+  private normalizeLocKey(key: LocKey<L1 | L2 | L3 | L4 | L5>): string {
     return JSON.stringify(key, (k, v) => {
       if (typeof v === 'string' || typeof v === 'number') {
         return normalizeKeyValue(v);
@@ -285,6 +301,7 @@ export class CacheEventEmitter<
 
     return filter.every((filterLoc, index) => {
       const eventLoc = eventLocations[index];
+      // LocKey has different structure from ComKey/PriKey, so we need to normalize using their own properties
       return this.normalizeKey(filterLoc as any) === this.normalizeKey(eventLoc as any);
     });
   }
@@ -306,10 +323,45 @@ export class CacheEventEmitter<
   }
 
   /**
-   * Check if two queries match (simplified comparison)
+   * Check if two queries match (improved comparison)
    */
   private queriesMatch(filterQuery: ItemQuery, eventQuery: ItemQuery): boolean {
-    // This is a simplified comparison - could be enhanced for more sophisticated matching
-    return JSON.stringify(filterQuery) === JSON.stringify(eventQuery);
+    // Normalize queries for consistent comparison
+    const normalize = (obj: any): any => {
+      if (obj === null || typeof obj === 'undefined') return obj;
+      if (typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return obj.map(normalize).sort();
+
+      const sorted: any = {};
+      Object.keys(obj).sort().forEach(key => {
+        sorted[key] = normalize(obj[key]);
+      });
+      return sorted;
+    };
+
+    return JSON.stringify(normalize(filterQuery)) === JSON.stringify(normalize(eventQuery));
+  }
+
+  /**
+   * Handle errors that occur in event listeners
+   */
+  private handleListenerError(
+    error: unknown,
+    event: AnyCacheEvent<V, S, L1, L2, L3, L4, L5>,
+    subscription: InternalSubscription<V, S, L1, L2, L3, L4, L5>
+  ): void {
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+
+    if (subscription.options.onError) {
+      try {
+        subscription.options.onError(errorObj, event);
+      } catch (handlerError) {
+        // If the error handler itself throws, log both errors
+        console.error('Error in cache event listener:', errorObj);
+        console.error('Error in error handler:', handlerError);
+      }
+    } else {
+      console.error('Error in cache event listener:', errorObj);
+    }
   }
 }
