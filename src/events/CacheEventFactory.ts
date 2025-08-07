@@ -12,6 +12,30 @@ import {
  * Factory functions for creating cache events
  */
 export class CacheEventFactory {
+  private static lastTimestamp = 0;
+
+  /**
+   * Reset the timestamp state (useful for testing)
+   */
+  public static resetTimestamp(): void {
+    this.lastTimestamp = 0;
+  }
+
+  /**
+   * Generate a unique timestamp that is always greater than the previous one
+   */
+  private static generateTimestamp(): number {
+    const now = Date.now();
+    // If current time is greater than last timestamp, use current time
+    // Otherwise, increment last timestamp to ensure uniqueness
+    if (now > this.lastTimestamp) {
+      this.lastTimestamp = now;
+    } else {
+      this.lastTimestamp = this.lastTimestamp + 1;
+    }
+    return this.lastTimestamp;
+  }
+
   /**
    * Extract affected locations from an item key
    */
@@ -62,7 +86,7 @@ export class CacheEventFactory {
 
     return {
       type,
-      timestamp: Date.now(),
+      timestamp: this.generateTimestamp(),
       source: options.source || 'operation',
       context: options.context,
       key,
@@ -100,7 +124,7 @@ export class CacheEventFactory {
 
     return {
       type: 'items_queried',
-      timestamp: Date.now(),
+      timestamp: this.generateTimestamp(),
       source: options.source || 'operation',
       context: options.context,
       query,
@@ -127,7 +151,7 @@ export class CacheEventFactory {
   ): CacheClearedEvent {
     return {
       type: 'cache_cleared',
-      timestamp: Date.now(),
+      timestamp: this.generateTimestamp(),
       source: options.source || 'operation',
       context: options.context,
       itemsCleared,
@@ -159,7 +183,7 @@ export class CacheEventFactory {
   ): LocationInvalidatedEvent<S, L1, L2, L3, L4, L5> {
     return {
       type: 'location_invalidated',
-      timestamp: Date.now(),
+      timestamp: this.generateTimestamp(),
       source: options.source || 'operation',
       context: options.context,
       locations,
@@ -184,7 +208,7 @@ export class CacheEventFactory {
   ): QueryInvalidatedEvent {
     return {
       type: 'query_invalidated',
-      timestamp: Date.now(),
+      timestamp: this.generateTimestamp(),
       source: options.source || 'operation',
       context: options.context,
       invalidatedQueries,
