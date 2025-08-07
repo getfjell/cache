@@ -57,7 +57,17 @@ export const createInstanceFactory = <
     // Create the appropriate cache map based on options
     const cacheMap = createCacheMap<V, S, L1, L2, L3, L4, L5>(coordinate.kta, instanceOptions);
     const pkType = coordinate.kta[0] as S;
-    const operations = createOperations(api, coordinate, cacheMap, pkType, instanceOptions);
+    // Create event emitter for this instance (use dynamic import later if needed)
+    // For now, skip event emitter in InstanceFactory since it's an older interface
+    const mockEventEmitter = {
+      subscribe: () => ({ id: 'mock', unsubscribe: () => false, isActive: () => false, getOptions: () => ({}) }),
+      unsubscribe: () => false,
+      emit: () => {},
+      getSubscriptionCount: () => 0,
+      getSubscriptions: () => [],
+      destroy: () => {}
+    } as any;
+    const operations = createOperations(api, coordinate, cacheMap, pkType, instanceOptions, mockEventEmitter);
 
     return {
       coordinate,

@@ -4,6 +4,7 @@ import {
   validatePK
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
+import { CacheEventFactory } from "../events/CacheEventFactory";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('create');
@@ -21,9 +22,14 @@ export const create = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
-  const { api, cacheMap, pkType } = context;
+  const { api, cacheMap, pkType, eventEmitter } = context;
   logger.default('create', { v, locations });
   const created = await api.create(v, locations);
   cacheMap.set(created.key, created);
+
+  // Emit event
+  const event = CacheEventFactory.itemCreated(created.key, created as V, 'api');
+  eventEmitter.emit(event);
+
   return [context, validatePK(created, pkType) as V];
 };

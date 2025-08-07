@@ -71,6 +71,9 @@ export {
 export { createOperations } from './Operations';
 export type { Operations } from './Operations';
 
+// Event system
+export * from './events';
+
 // Aggregator functionality
 export { createAggregator, toCacheConfig } from './Aggregator';
 export type { Aggregator, CacheConfig, AggregateConfig } from './Aggregator';

@@ -7,6 +7,7 @@ import {
   validatePK
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
+import { CacheEventFactory } from "../events/CacheEventFactory";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('set');
@@ -116,6 +117,14 @@ export const set = async <
     throw new Error('Key does not match item key');
   }
 
+  // Get previous item if it exists
+  const previousItem = cacheMap.get(key);
+
   cacheMap.set(key, v as V);
+
+  // Emit event
+  const event = CacheEventFactory.itemSet(key, v as V, previousItem);
+  context.eventEmitter.emit(event as any);
+
   return [context, validatePK(v, pkType) as V];
 };
