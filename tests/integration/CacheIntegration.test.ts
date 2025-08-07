@@ -328,9 +328,19 @@ describe('Cache Integration Tests', () => {
         () => new SessionStorageCacheMap<TestItem, 'test'>(['test'], 'perf-test-session')
       ];
 
-      implementations.forEach(createCacheMap => {
+      implementations.forEach((createCacheMap, index) => {
         const cacheMap = createCacheMap();
         const startTime = Date.now();
+
+        // Verify implementationType for each implementation
+        const expectedTypes = ['memory/memory', 'browser/localStorage', 'browser/sessionStorage'];
+        expect(cacheMap.implementationType).toBe(expectedTypes[index]);
+
+        // Verify cache info provides comprehensive information
+        const cacheInfo = cacheMap.getCacheInfo();
+        expect(cacheInfo.implementationType).toBe(expectedTypes[index]);
+        expect(cacheInfo.supportsTTL).toBe(true); // All implementations support TTL
+        expect(cacheInfo.supportsEviction).toBe(false); // None of these basic implementations support eviction
 
         // Insert all items
         dataset.forEach(({ key, item }) => {

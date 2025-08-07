@@ -8,6 +8,22 @@ import {
 } from "@fjell/core";
 
 /**
+ * Cache configuration information exposed to client applications
+ */
+export interface CacheInfo {
+  /** The implementation type in format "<category>/<implementation>" */
+  implementationType: string;
+  /** The eviction policy being used (if any) */
+  evictionPolicy?: string;
+  /** Default TTL in milliseconds (if configured) */
+  defaultTTL?: number;
+  /** Whether TTL is supported by this implementation */
+  supportsTTL: boolean;
+  /** Whether eviction is supported by this implementation */
+  supportsEviction: boolean;
+}
+
+/**
  * Abstract base interface for cache map implementations.
  * Defines the contract that all cache map implementations must follow.
  *
@@ -26,9 +42,21 @@ export abstract class CacheMap<
 > {
   protected types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>;
 
+  /**
+   * The implementation type identifier in the format "<category>/<implementation>"
+   * Examples: "memory/memory", "memory/enhanced", "browser/localStorage"
+   */
+  public abstract readonly implementationType: string;
+
   public constructor(types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>) {
     this.types = types;
   }
+
+  /**
+   * Get cache configuration information for client applications
+   * Provides visibility into implementation type, eviction policy, TTL settings, and capabilities
+   */
+  public abstract getCacheInfo(): CacheInfo;
 
   /**
    * Retrieve an item by its key

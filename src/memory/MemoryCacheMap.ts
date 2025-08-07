@@ -8,7 +8,7 @@ import {
   LocKeyArray,
   PriKey
 } from "@fjell/core";
-import { CacheMap } from "../CacheMap";
+import { CacheInfo, CacheMap } from "../CacheMap";
 import { createNormalizedHashFunction, isLocKeyArrayEqual, QueryCacheEntry } from "../normalization";
 import LibLogger from "../logger";
 
@@ -33,6 +33,8 @@ export class MemoryCacheMap<
   L4 extends string = never,
   L5 extends string = never
 > extends CacheMap<V, S, L1, L2, L3, L4, L5> {
+
+  public readonly implementationType = "memory/memory";
 
   private map: { [key: string]: DictionaryEntry<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, V> } = {};
   private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
@@ -280,5 +282,13 @@ export class MemoryCacheMap<
   public clearQueryResults(): void {
     logger.trace('clearQueryResults');
     this.queryResultCache = {};
+  }
+
+  public getCacheInfo(): CacheInfo {
+    return {
+      implementationType: this.implementationType,
+      supportsTTL: true, // Supports TTL via getWithTTL()
+      supportsEviction: false // No eviction support in basic implementation
+    };
   }
 }

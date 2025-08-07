@@ -151,6 +151,118 @@ const cache = new MemoryCacheMap(keyTypeArray);
 - **Small data, persistent**: `LocalStorageCacheMap`
 - **Large data, complex queries**: `AsyncIndexDBCacheMap`
 
+## Cache Information and Capabilities
+
+All cache implementations expose metadata about their configuration and capabilities through the `getCacheInfo()` method. This provides client applications with visibility into the cache's behavior and limitations.
+
+### CacheInfo Interface
+
+```typescript
+interface CacheInfo {
+  /** The implementation type in format "<category>/<implementation>" */
+  implementationType: string;
+  /** The eviction policy being used (if any) */
+  evictionPolicy?: string;
+  /** Default TTL in milliseconds (if configured) */
+  defaultTTL?: number;
+  /** Whether TTL is supported by this implementation */
+  supportsTTL: boolean;
+  /** Whether eviction is supported by this implementation */
+  supportsEviction: boolean;
+}
+```
+
+### Getting Cache Information
+
+```typescript
+import { MemoryCacheMap, EnhancedMemoryCacheMap } from '@fjell/cache';
+
+// Basic memory cache
+const basicCache = new MemoryCacheMap<YourItem, 'item'>(keyTypeArray);
+const basicInfo = basicCache.getCacheInfo();
+console.log(basicInfo);
+// Output: {
+//   implementationType: "memory/memory",
+//   supportsTTL: true,
+//   supportsEviction: false
+// }
+
+// Enhanced memory cache with eviction
+const enhancedCache = new EnhancedMemoryCacheMap<YourItem, 'item'>(keyTypeArray, {
+  maxItems: 1000,
+  evictionPolicy: 'lru'
+});
+const enhancedInfo = enhancedCache.getCacheInfo();
+console.log(enhancedInfo);
+// Output: {
+//   implementationType: "memory/enhanced",
+//   evictionPolicy: "lru",
+//   supportsTTL: true,
+//   supportsEviction: true
+// }
+```
+
+### Implementation Types
+
+Each cache implementation has a unique type identifier:
+
+- `memory/memory` - Basic MemoryCacheMap
+- `memory/enhanced` - EnhancedMemoryCacheMap with eviction support
+- `browser/localStorage` - LocalStorageCacheMap
+- `browser/sessionStorage` - SessionStorageCacheMap
+- `browser/indexedDB` - IndexDBCacheMap
+
+### Capability Detection
+
+Use the capability flags to adapt your application behavior:
+
+```typescript
+function configureCache<V extends Item<S>, S extends string>(
+  cache: CacheMap<V, S>
+) {
+  const info = cache.getCacheInfo();
+
+  // Adjust TTL strategy based on support
+  if (info.supportsTTL) {
+    console.log(`TTL operations supported for ${info.implementationType}`);
+  }
+
+  // Show eviction policy if supported
+  if (info.supportsEviction && info.evictionPolicy) {
+    console.log(`Using ${info.evictionPolicy} eviction policy`);
+  }
+
+  // Log implementation details
+  console.log(`Cache implementation: ${info.implementationType}`);
+}
+```
+
+### Display Information for Debugging
+
+The cache info is particularly useful for debugging and monitoring:
+
+```typescript
+function debugCacheStatus<V extends Item<S>, S extends string>(
+  cacheName: string,
+  cache: CacheMap<V, S>
+) {
+  const info = cache.getCacheInfo();
+
+  console.log(`[${cacheName}] Cache Configuration:`);
+  console.log(`  Type: ${info.implementationType}`);
+  console.log(`  TTL Support: ${info.supportsTTL ? 'Yes' : 'No'}`);
+  console.log(`  Eviction Support: ${info.supportsEviction ? 'Yes' : 'No'}`);
+
+  if (info.evictionPolicy) {
+    console.log(`  Eviction Policy: ${info.evictionPolicy}`);
+  }
+
+  if (info.defaultTTL) {
+    console.log(`  Default TTL: ${info.defaultTTL}ms`);
+  }
+}
+```
+
 ## Common Patterns
 
 ### Factory Pattern
