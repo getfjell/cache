@@ -124,7 +124,7 @@ export const set = async <
 
   // Emit event
   const event = CacheEventFactory.itemSet(key, v as V, previousItem);
-  context.eventEmitter.emit(event as any);
+  context.eventEmitter.emit(event);
 
   return [context, validatePK(v, pkType) as V];
 };
