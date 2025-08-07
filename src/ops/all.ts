@@ -75,8 +75,8 @@ export const all = async <
     logger.debug('Cached query result', { queryHash, itemKeyCount: itemKeys.length, ttl: queryTtl });
 
     // Emit query event
-    const event = CacheEventFactory.createQueryEvent(query, locations, ret);
-    context.eventEmitter.emit(event as any);
+    const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(query, locations, ret);
+    context.eventEmitter.emit(event);
 
   } catch (e: unknown) {
     if (e instanceof NotFoundError) {

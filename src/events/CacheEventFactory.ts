@@ -1,3 +1,4 @@
+/* eslint-disable no-undefined */
 import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/core";
 import {
   CacheClearedEvent,
@@ -11,6 +12,23 @@ import {
  * Factory functions for creating cache events
  */
 export class CacheEventFactory {
+  /**
+   * Extract affected locations from an item key
+   */
+  private static extractAffectedLocations<
+    S extends string,
+    L1 extends string = never,
+    L2 extends string = never,
+    L3 extends string = never,
+    L4 extends string = never,
+    L5 extends string = never
+  >(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): LocKeyArray<L1, L2, L3, L4, L5> | [] {
+    if ('loc' in key && key.loc) {
+      return key.loc;
+    }
+    return [];
+  }
+
   /**
    * Create an item-related event
    */
@@ -37,6 +55,11 @@ export class CacheEventFactory {
       };
     } = {}
   ): ItemEvent<V, S, L1, L2, L3, L4, L5> {
+    // Auto-calculate affected locations if not provided
+    const affectedLocations = options.affectedLocations !== undefined
+      ? options.affectedLocations
+      : this.extractAffectedLocations(key);
+
     return {
       type,
       timestamp: Date.now(),
@@ -45,7 +68,7 @@ export class CacheEventFactory {
       key,
       item,
       previousItem: options.previousItem,
-      affectedLocations: options.affectedLocations
+      affectedLocations
     };
   }
 
