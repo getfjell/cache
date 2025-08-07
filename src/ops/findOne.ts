@@ -3,8 +3,8 @@ import {
   LocKeyArray,
   validatePK
 } from "@fjell/core";
-import { ClientApi } from "@fjell/client-api";
-import { CacheMap } from "../CacheMap";
+import { CacheContext } from "../CacheContext";
+import { createFinderHash } from "../normalization";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('findOne');
@@ -18,15 +18,42 @@ export const findOne = async <
   L4 extends string = never,
   L5 extends string = never
 >(
-  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-  cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
-  pkType: S,
   finder: string,
   finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
-  locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
+  locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
+  const { api, cacheMap, pkType, queryTtl } = context;
   logger.default('findOne', { finder, finderParams, locations });
+
+  // Generate query hash for caching
+  const queryHash = createFinderHash(finder, finderParams, locations);
+  logger.debug('Generated query hash for findOne', { queryHash });
+
+  // Check if we have cached query results
+  const cachedItemKeys = cacheMap.getQueryResult(queryHash);
+  if (cachedItemKeys && cachedItemKeys.length > 0) {
+    logger.debug('Using cached query results', { cachedKeyCount: cachedItemKeys.length });
+
+    // Retrieve the first cached item - if missing, invalidate the query cache
+    const item = cacheMap.get(cachedItemKeys[0]);
+    if (item) {
+      return [context, validatePK(item, pkType) as V];
+    } else {
+      logger.debug('Cached item missing, invalidating query cache');
+      cacheMap.deleteQueryResult(queryHash);
+    }
+  }
+
+  // Fetch from API
   const ret = await api.findOne(finder, finderParams, locations);
+
+  // Store individual item in cache
   cacheMap.set(ret.key, ret);
-  return [cacheMap, validatePK(ret, pkType) as V];
+
+  // Store query result (single item key) in query cache
+  cacheMap.setQueryResult(queryHash, [ret.key], queryTtl);
+  logger.debug('Cached query result', { queryHash, itemKey: ret.key, ttl: queryTtl });
+
+  return [context, validatePK(ret, pkType) as V];
 };

@@ -3,9 +3,8 @@ import {
   LocKeyArray,
   validatePK
 } from "@fjell/core";
-import { ClientApi } from "@fjell/client-api";
 import { NotFoundError } from "@fjell/http-api";
-import { CacheMap } from "../CacheMap";
+import { CacheContext } from "../CacheContext";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('allAction');
@@ -19,17 +18,24 @@ export const allAction = async <
   L4 extends string = never,
   L5 extends string = never
 >(
-  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-  cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
-  pkType: S,
   action: string,
   body: any = {},
-  locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]> => {
+  locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[]]> => {
+  const { api, cacheMap, pkType } = context;
   logger.default('allAction', { action, body, locations });
+
+  // Invalidate all items in the specified locations before executing the action
+  logger.debug('Invalidating location before allAction', { locations });
+  cacheMap.invalidateLocation(locations);
+
   let ret: V[] = [];
   try {
     ret = await api.allAction(action, body, locations);
+
+    // Cache all results after the action
+    logger.debug('Caching allAction results', { resultCount: ret.length });
     ret.forEach((v) => {
       cacheMap.set(v.key, v);
     });
@@ -41,5 +47,5 @@ export const allAction = async <
       throw e;
     }
   }
-  return [cacheMap, validatePK(ret, pkType) as V[]];
+  return [context, validatePK(ret, pkType) as V[]];
 };

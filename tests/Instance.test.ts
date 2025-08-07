@@ -89,7 +89,7 @@ describe('Instance', () => {
     test('should create instance with api, coordinate, and registry', async () => {
       const instance = await createInstance(mockRegistry, mockCoordinate, mockApi);
 
-      expect(createCache).toHaveBeenCalledWith(mockApi, mockCoordinate, mockRegistry);
+      expect(createCache).toHaveBeenCalledWith(mockApi, mockCoordinate, mockRegistry, undefined);
       expect(instance).toBe(mockCacheInstance);
     });
 
@@ -108,7 +108,7 @@ describe('Instance', () => {
 
       await createInstance(mockRegistry, minimalCoordinate, mockApi);
 
-      expect(createCache).toHaveBeenCalledWith(mockApi, minimalCoordinate, mockRegistry);
+      expect(createCache).toHaveBeenCalledWith(mockApi, minimalCoordinate, mockRegistry, undefined);
     });
   });
 

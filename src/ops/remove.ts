@@ -4,8 +4,7 @@ import {
   Item,
   PriKey
 } from "@fjell/core";
-import { ClientApi } from "@fjell/client-api";
-import { CacheMap } from "../CacheMap";
+import { CacheContext } from "../CacheContext";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('remove');
@@ -19,10 +18,10 @@ export const remove = async <
   L4 extends string = never,
   L5 extends string = never
 >(
-  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-  cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
-  key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
-): Promise<CacheMap<V, S, L1, L2, L3, L4, L5>> => {
+  key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<CacheContext<V, S, L1, L2, L3, L4, L5>> => {
+  const { api, cacheMap } = context;
   logger.default('remove', { key });
 
   if (!isValidItemKey(key)) {
@@ -31,12 +30,15 @@ export const remove = async <
   }
 
   try {
+    // First remove from API, then from cache to maintain consistency
     await api.remove(key);
     cacheMap.delete(key);
+    logger.debug('Successfully removed item from API and cache', { key });
   } catch (e) {
     logger.error("Error deleting item", { error: e });
+    // Don't delete from cache if API deletion failed
     throw e;
   }
 
-  return cacheMap;
+  return context;
 };

@@ -1,5 +1,5 @@
 
-import { CacheMap } from "../src/CacheMap";
+import { MemoryCacheMap } from "../src/memory/MemoryCacheMap";
 import { ComKey, IQFactory, Item, ItemQuery, LocKeyArray, PriKey, UUID } from "@fjell/core";
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -75,28 +75,28 @@ describe('CacheMap', () => {
     }
   };
 
-  let cacheMap: CacheMap<Item<"test", "container">, "test", "container">;
+  let cacheMap: MemoryCacheMap<Item<"test", "container">, "test", "container">;
 
   beforeEach(() => {
-    cacheMap = new CacheMap<Item<"test", "container">, "test", "container">(["test", "container"]);
+    cacheMap = new MemoryCacheMap<Item<"test", "container">, "test", "container">(["test", "container"]);
     cacheMap.set(key1, items[0]);
     cacheMap.set(key2, items[1]);
   });
 
   describe('Constructor', () => {
     it('should create an empty cache map with just types', () => {
-      const emptyCacheMap = new CacheMap<Item<"test", "container">, "test", "container">(["test", "container"]);
+      const emptyCacheMap = new MemoryCacheMap<Item<"test", "container">, "test", "container">(["test", "container"]);
       expect(emptyCacheMap.values()).toHaveLength(0);
     });
 
-    it('should create cache map with initial data', () => {
-      const initialData = {
-        [JSON.stringify(key1)]: items[0]
-      };
-      const preloadedCacheMap = new CacheMap<Item<"test", "container">, "test", "container">(
-        ["test", "container"],
-        initialData
+    it('should create cache map and allow adding initial data', () => {
+      const preloadedCacheMap = new MemoryCacheMap<Item<"test", "container">, "test", "container">(
+        ["test", "container"]
       );
+
+      // Add initial data after construction
+      preloadedCacheMap.set(key1, items[0]);
+
       expect(preloadedCacheMap.values()).toHaveLength(1);
       expect(preloadedCacheMap.get(key1)).toEqual(items[0]);
     });
@@ -321,7 +321,7 @@ describe('CacheMap', () => {
 
     it('should return items matching the query with locations set to empty', () => {
       const query: ItemQuery = IQFactory.pk("banana", "0").toQuery();
-      const queriedItems = cacheMap.queryIn(query);
+      const queriedItems = cacheMap.queryIn(query, []);
       expect(queriedItems).toEqual([items[0]]);
     });
 
@@ -362,15 +362,15 @@ describe('CacheMap', () => {
       expect(clone.get(key2)).toEqual(items[1]);
     });
 
-    it('should create clones that share the same underlying map', () => {
+    it('should create clones that are independent copies', () => {
       const clone = cacheMap.clone();
 
       // Modify original
       cacheMap.set(key3, items[2]);
 
-      // Clone should have the new item since they share the same map
+      // Clone should not have the new item since they are independent
       expect(cacheMap.get(key3)).toEqual(items[2]);
-      expect(clone.get(key3)).toEqual(items[2]);
+      expect(clone.get(key3)).toBeNull();
     });
 
     it('should preserve types in cloned cache map', () => {
@@ -629,7 +629,7 @@ describe('CacheMap', () => {
 
   describe('Edge cases', () => {
     it('should handle empty cache operations', () => {
-      const emptyCacheMap = new CacheMap<Item<"test", "container">, "test", "container">(["test", "container"]);
+      const emptyCacheMap = new MemoryCacheMap<Item<"test", "container">, "test", "container">(["test", "container"]);
 
       expect(emptyCacheMap.values()).toEqual([]);
       expect(emptyCacheMap.keys()).toEqual([]);

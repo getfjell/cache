@@ -11,7 +11,9 @@ const logger = LibLogger.get("Instance");
  * The Cache Instance interface represents a cache model instance that extends the base Instance
  * from @fjell/registry and adds cache operations for interacting with cached data.
  *
- * This is an alias for the Cache interface since Cache now extends Instance directly.
+ * This is a type alias for the Cache interface. Both Cache and Instance refer to the same
+ * cache interface - Instance exists for backward compatibility and consistency with other
+ * Fjell packages that export Instance types.
  *
  * @template V - The type of the data model item, extending Item
  * @template S - The string literal type representing the model's key type
@@ -39,9 +41,10 @@ export const createInstance = <
     registry: Registry,
     coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
     api: ClientApi<V, S, L1, L2, L3, L4, L5>,
+    options?: Partial<import('./Options').Options<V, S, L1, L2, L3, L4, L5>>
   ): Instance<V, S, L1, L2, L3, L4, L5> => {
-  logger.debug("createInstance", { coordinate, api, registry });
-  return createCache(api, coordinate, registry);
+  logger.debug("createInstance", { coordinate, api, registry, options });
+  return createCache(api, coordinate, registry, options);
 }
 
 export const isInstance = (instance: any): instance is Instance<any, any, any, any, any, any, any> => {

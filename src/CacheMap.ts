@@ -1,134 +1,21 @@
 import {
   AllItemTypeArrays,
   ComKey,
-  Dictionary,
-  isComKey,
-  isQueryMatch,
   Item,
   ItemQuery,
   LocKeyArray,
   PriKey
 } from "@fjell/core";
-import LibLogger from "./logger";
 
-const logger = LibLogger.get("CacheMap");
-
-// Normalize a key value to string for consistent comparison and hashing
-const normalizeKeyValue = (value: string | number): string => {
-  return String(value);
-};
-
-// Normalized hash function for Dictionary that converts pk/lk values to strings
-const createNormalizedHashFunction = <T>() => {
-  return (key: T): string => {
-    if (typeof key === 'object' && key !== null) {
-      // Create a normalized version of the key with string values
-      const normalizedKey = JSON.parse(JSON.stringify(key));
-
-      // Normalize pk values
-      if ('pk' in normalizedKey && normalizedKey.pk !== null) {
-        normalizedKey.pk = normalizeKeyValue(normalizedKey.pk);
-      }
-
-      // Normalize lk values
-      if ('lk' in normalizedKey && normalizedKey.lk !== null) {
-        normalizedKey.lk = normalizeKeyValue(normalizedKey.lk);
-      }
-
-      // Normalize loc array lk values
-      if ('loc' in normalizedKey && Array.isArray(normalizedKey.loc)) {
-        normalizedKey.loc = normalizedKey.loc.map((locItem: any) => {
-          if (locItem && 'lk' in locItem && locItem.lk !== null) {
-            return { ...locItem, lk: normalizeKeyValue(locItem.lk) };
-          }
-          return locItem;
-        });
-      }
-
-      return JSON.stringify(normalizedKey);
-    }
-    return JSON.stringify(key);
-  };
-};
-
-// Helper function to normalize and compare location key arrays
-const isLocKeyArrayEqual = (a: any[], b: any[]): boolean => {
-  if (a.length !== b.length) {
-    return false;
-  }
-
-  for (let i = 0; i < a.length; i++) {
-    const normalizedA = normalizeLocKeyItem(a[i]);
-    const normalizedB = normalizeLocKeyItem(b[i]);
-
-    if (JSON.stringify(normalizedA) !== JSON.stringify(normalizedB)) {
-      return false;
-    }
-  }
-
-  return true;
-};
-
-// Helper function to normalize a location key item
-const normalizeLocKeyItem = (item: any): any => {
-  if (typeof item === 'object' && item !== null) {
-    const normalized = { ...item };
-
-    if ('lk' in normalized && normalized.lk !== null) {
-      normalized.lk = normalizeKeyValue(normalized.lk);
-    }
-
-    return normalized;
-  }
-
-  return item;
-};
-
-// const isObj = (x: any) => typeof x === "object" && x !== null;
-
-// const intersection = (a: object, b: object): object => {
-//   const result: { [key: string]: any } = {}
-
-//   if (([a, b]).every(isObj)) {
-//     Object.keys(a).forEach((key) => {
-//       // @ts-ignore
-//       const value = a[key]
-//       // @ts-ignore
-//       const other = b[key]
-
-//       if (isObj(value)) {
-//         result[key] = intersection(value, other)
-//       } else if (value === other) {
-//         result[key] = value
-//       }
-//     })
-//   }
-
-//   return result
-// }
-
-// const removeEmptyObjects = (obj: object): object => {
-//   const result: { [key: string]: any } = {}
-
-//   Object.keys(obj).forEach((key) => {
-//     // @ts-ignore
-//     const value = obj[key];
-
-//     if (isObj(value)) {
-//       const nested = removeEmptyObjects(value);
-
-//       if (Object.keys(nested).length > 0) {
-//         result[key] = nested
-//       }
-//     } else if (value !== null) {
-//       result[key] = value
-//     }
-//   });
-
-//   return result;
-// }
-
-export class CacheMap<
+/**
+ * Abstract base interface for cache map implementations.
+ * Defines the contract that all cache map implementations must follow.
+ *
+ * @template V - The type of the data model item, extending Item
+ * @template S - The string literal type representing the model's key type
+ * @template L1-L5 - Optional string literal types for location hierarchy levels
+ */
+export abstract class CacheMap<
   V extends Item<S, L1, L2, L3, L4, L5>,
   S extends string,
   L1 extends string = never,
@@ -136,91 +23,108 @@ export class CacheMap<
   L3 extends string = never,
   L4 extends string = never,
   L5 extends string = never
-> extends Dictionary<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, V> {
+> {
+  protected types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>;
 
-  private types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>;
-  private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
-
-  public constructor(
-    types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
-    map?: { [key: string]: V },
-  ) {
-    const hashFunc = createNormalizedHashFunction<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>>();
-    super(map, hashFunc);
+  public constructor(types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>) {
     this.types = types;
-    this.normalizedHashFunction = hashFunc;
   }
 
-  public get(
-    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-  ): V | null {
-    logger.trace('get', { key });
-    const hashedKey = this.normalizedHashFunction(key);
-    const entry = this.map[hashedKey];
-    // Check if entry exists AND the normalized keys match
-    return entry && this.normalizedHashFunction(entry.originalKey) === this.normalizedHashFunction(key) ? entry.value : null;
-  }
+  /**
+   * Retrieve an item by its key
+   */
+  public abstract get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): V | null;
 
-  public includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean {
-    const hashedKey = this.normalizedHashFunction(key);
-    const entry = this.map[hashedKey];
-    return entry ? this.normalizedHashFunction(entry.originalKey) === this.normalizedHashFunction(key) : false;
-  }
+  /**
+   * Retrieve an item by its key with TTL awareness
+   * Returns null if item doesn't exist or has expired based on the provided TTL
+   */
+  public abstract getWithTTL(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, ttl: number): V | null;
 
-  public delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
-    logger.trace('delete', { key });
-    const hashedKey = this.normalizedHashFunction(key);
-    delete this.map[hashedKey];
-  }
+  /**
+   * Store an item with its key
+   */
+  public abstract set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void;
 
-  public allIn(
-    locations: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): V[] {
-    if (locations.length === 0) {
-      logger.debug('Returning all items, LocKeys is empty');
-      return this.values();
-    } else {
-      const locKeys: LocKeyArray<L1, L2, L3, L4, L5> | [] = locations;
-      logger.debug('allIn', { locKeys, keys: this.keys().length });
-      return this.keys()
-        .filter((key) => key && isComKey(key))
-        .filter((key) => {
-          const ComKey = key as ComKey<S, L1, L2, L3, L4, L5>;
-          logger.debug('Comparing Location Keys', {
-            locKeys,
-            ComKey,
-          });
-          return isLocKeyArrayEqual(locKeys, ComKey.loc);
-        })
-        .map((key) => this.get(key) as V);
-    }
-  }
+  /**
+   * Check if a key exists in the cache
+   */
+  public abstract includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean;
 
-  // TODO: Can we do case insensitive matching?
-  public contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): boolean {
-    logger.debug('contains', { query, locations });
-    const items = this.allIn(locations);
+  /**
+   * Delete an item by its key
+   */
+  public abstract delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void;
 
-    return items.some((item) => isQueryMatch(item, query));
-  }
+  /**
+   * Get all items in the specified locations
+   */
+  public abstract allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): V[];
 
-  public queryIn(
-    query: ItemQuery,
-    locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): V[] {
-    logger.debug('queryIn', { query, locations });
-    const items = this.allIn(locations);
+  /**
+   * Check if any items match the query in the specified locations
+   */
+  public abstract contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): boolean;
 
-    return items.filter((item) => isQueryMatch(item, query));
-  }
+  /**
+   * Get all items that match the query in the specified locations
+   */
+  public abstract queryIn(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): V[];
 
-  public clone(): CacheMap<V, S, L1, L2, L3, L4, L5> {
-    const clone = new CacheMap<V, S, L1, L2, L3, L4, L5>(this.types);
-    // Share the same underlying map reference (not a copy)
-    clone.map = this.map;
-    // Ensure the clone uses the same normalized hash function
-    clone.normalizedHashFunction = this.normalizedHashFunction;
-    return clone;
-  }
+  /**
+   * Create a clone of this cache map
+   */
+  public abstract clone(): CacheMap<V, S, L1, L2, L3, L4, L5>;
 
-};
+  /**
+   * Get all keys in the cache
+   */
+  public abstract keys(): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[];
+
+  /**
+   * Get all values in the cache
+   */
+  public abstract values(): V[];
+
+  /**
+   * Clear all items from the cache
+   */
+  public abstract clear(): void;
+
+  // Query result caching methods
+
+  /**
+   * Set a query result as a collection of item keys
+   */
+  public abstract setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], ttl?: number): void;
+
+  /**
+   * Get a query result as a collection of item keys
+   */
+  public abstract getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null;
+
+  /**
+   * Check if a query result exists in cache
+   */
+  public abstract hasQueryResult(queryHash: string): boolean;
+
+  /**
+   * Delete a specific query result
+   */
+  public abstract deleteQueryResult(queryHash: string): void;
+
+  /**
+   * Invalidate all cached items by their keys
+   */
+  public abstract invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void;
+
+  /**
+   * Invalidate all items in specified locations and clear related query results
+   */
+  public abstract invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): void;
+
+  /**
+   * Clear all query result cache entries
+   */
+  public abstract clearQueryResults(): void;
+}

@@ -282,7 +282,7 @@ describe('Aggregator', () => {
 
     (eventCacheMock.operations.retrieve as any).mockReturnValue([null, otherItems[0]]);
 
-    expect(
+    await expect(
       aggregator.populate(itemWithEvent)
     ).rejects.toThrow('populateEvent with an Event that does not have by');
   });

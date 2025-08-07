@@ -3,6 +3,7 @@ import { Instance as BaseInstance, Coordinate, Registry } from "@fjell/registry"
 import { ClientApi } from "@fjell/client-api";
 import { CacheMap } from "./CacheMap";
 import { createOperations, Operations } from "./Operations";
+import { createCacheMap, createOptions, Options } from "./Options";
 import LibLogger from "./logger";
 
 const logger = LibLogger.get('Cache');
@@ -37,6 +38,9 @@ export interface Cache<
 
   /** All cache operations that work with both cache and API */
   operations: Operations<V, S, L1, L2, L3, L4, L5>;
+
+  /** Cache configuration options */
+  options?: Options<V, S, L1, L2, L3, L4, L5>;
 }
 
 export const createCache = <
@@ -50,25 +54,30 @@ export const createCache = <
 >(
     api: ClientApi<V, S, L1, L2, L3, L4, L5>,
     coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
-    registry: Registry
+    registry: Registry,
+    options?: Partial<Options<V, S, L1, L2, L3, L4, L5>>
   ): Cache<V, S, L1, L2, L3, L4, L5> => {
-  logger.debug('createCache', { coordinate, registry });
+  logger.debug('createCache', { coordinate, registry, options });
 
-  // Create the cache map using the coordinate's key type array
-  const cacheMap = new CacheMap<V, S, L1, L2, L3, L4, L5>(coordinate.kta);
+  // Create complete options with defaults
+  const completeOptions = createOptions(options);
+
+  // Create the cache map using the options
+  const cacheMap = createCacheMap<V, S, L1, L2, L3, L4, L5>(coordinate.kta, completeOptions);
 
   // Get the primary key type from the coordinate
   const pkType = coordinate.kta[0] as S;
 
   // Create operations
-  const operations = createOperations(api, coordinate, cacheMap, pkType);
+  const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions);
 
   return {
     coordinate,
     registry,
     api,
     cacheMap,
-    operations
+    operations,
+    options: completeOptions
   };
 };
 

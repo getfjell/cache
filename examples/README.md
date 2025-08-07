@@ -34,6 +34,28 @@ Shows how fjell-cache handles enterprise data relationship patterns.
 
 Perfect for understanding the underlying cache mechanisms and advanced use cases.
 
+### 4. `cache-configuration-example.ts` ⚙️ **Cache Configuration Options**
+**Configuration and customization!** Demonstrates the powerful Options system for cache configuration:
+- **Multiple cache types**: Memory, localStorage, sessionStorage, IndexedDB, and custom implementations
+- **Environment-based configuration**: Different cache strategies for development vs production
+- **Performance tuning**: TTL, item limits, compression, and retry logic
+- **Custom cache maps**: Build your own cache implementations
+- **Validation and debugging**: Built-in error checking and debug logging
+- **Browser compatibility**: Automatic fallback strategies for different environments
+
+Perfect for understanding how to optimize cache behavior for your specific use case.
+
+### 5. `cache-type-configurations-example.ts` 🎯 **Practical Cache Type Setup**
+**Real-world configuration examples!** Complete practical guide showing specific configurations for the most common cache types:
+- **Memory Cache Configuration**: Fast in-memory caching with TTL, item limits, and performance optimization
+- **IndexedDB Configuration**: Large-scale persistent storage with database settings and async operations
+- **localStorage Configuration**: Browser storage with compression, key namespacing, and space management
+- **Environment-Based Selection**: Automatic optimal cache type selection based on runtime environment
+- **Performance Comparison**: Detailed comparison table showing when to use each cache type
+- **Practical Examples**: Working code with real cache operations and best practices
+
+Perfect for implementing production-ready cache configurations tailored to your specific needs.
+
 ## Key Concepts Demonstrated
 
 ### Basic Caching Operations (basic-cache-example.ts)

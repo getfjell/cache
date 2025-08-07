@@ -3,8 +3,8 @@ import { ClientApi } from "@fjell/client-api";
 import { InstanceFactory as BaseInstanceFactory, Registry, RegistryHub } from "@fjell/registry";
 import { Instance } from "./Instance";
 import { Coordinate } from "@fjell/registry";
-import { CacheMap } from "./CacheMap";
 import { createOperations } from "./Operations";
+import { createCacheMap, createOptions, Options, validateOptions } from "./Options";
 import LibLogger from "./logger";
 
 const logger = LibLogger.get("InstanceFactory");
@@ -18,7 +18,8 @@ export type InstanceFactory<
   L4 extends string = never,
   L5 extends string = never
 > = (
-  api: ClientApi<V, S, L1, L2, L3, L4, L5>
+  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
+  options?: Partial<Options<V, S, L1, L2, L3, L4, L5>>
 ) => BaseInstanceFactory<S, L1, L2, L3, L4, L5>;
 
 /**
@@ -33,23 +34,38 @@ export const createInstanceFactory = <
   L4 extends string = never,
   L5 extends string = never
 >(
-    api: ClientApi<V, S, L1, L2, L3, L4, L5>
+    api: ClientApi<V, S, L1, L2, L3, L4, L5>,
+    options?: Partial<Options<V, S, L1, L2, L3, L4, L5>>
   ): BaseInstanceFactory<S, L1, L2, L3, L4, L5> => {
-  return (coordinate: Coordinate<S, L1, L2, L3, L4, L5>, context: { registry: Registry, registryHub?: RegistryHub }) => {
-    logger.debug("Creating cache instance", { coordinate, registry: context.registry, api });
 
-    // Since InstanceFactory must be synchronous but our createInstance is async,
-    // we need to create a special cache instance synchronously and defer the async initialization
-    const cacheMap = new CacheMap<V, S, L1, L2, L3, L4, L5>(coordinate.kta);
+  // Create and validate a template of options - this validates the provided options
+  const templateOptions = createOptions(options);
+  validateOptions(templateOptions);
+
+  return (coordinate: Coordinate<S, L1, L2, L3, L4, L5>, context: { registry: Registry, registryHub?: RegistryHub }) => {
+    // Create fresh options for each instance to ensure immutability
+    const instanceOptions = createOptions(options);
+
+    logger.debug("Creating cache instance", {
+      coordinate,
+      registry: context.registry,
+      api,
+      cacheType: instanceOptions.cacheType,
+      options: instanceOptions
+    });
+
+    // Create the appropriate cache map based on options
+    const cacheMap = createCacheMap<V, S, L1, L2, L3, L4, L5>(coordinate.kta, instanceOptions);
     const pkType = coordinate.kta[0] as S;
-    const operations = createOperations(api, coordinate, cacheMap, pkType);
+    const operations = createOperations(api, coordinate, cacheMap, pkType, instanceOptions);
 
     return {
       coordinate,
       registry: context.registry,
       api,
       cacheMap,
-      operations
+      operations,
+      options: instanceOptions
     } as Instance<V, S, L1, L2, L3, L4, L5>;
   };
 };
