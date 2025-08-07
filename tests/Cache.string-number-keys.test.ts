@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCache } from '../src/Cache';
-import { CacheMap } from '../src/CacheMap';
+import { MemoryCacheMap } from '../src/memory/MemoryCacheMap';
 import { ComKey, Item, PriKey } from '@fjell/core';
 import { createCoordinate, createRegistry } from '@fjell/registry';
 
@@ -91,7 +91,7 @@ describe('Cache String/Number Key Normalization', () => {
   });
 
   it('should normalize keys consistently in CacheMap operations', () => {
-    const cacheMap = new CacheMap<TestItem, 'test'>(['test']);
+    const cacheMap = new MemoryCacheMap<TestItem, 'test'>(['test']);
 
     // Test with string key
     const stringKey: PriKey<'test'> = { kt: 'test', pk: '123' };
@@ -115,7 +115,7 @@ describe('Cache String/Number Key Normalization', () => {
   });
 
   it('should handle location key arrays with mixed string/number keys', () => {
-    const cacheMap = new CacheMap<TestItem, 'test', 'location'>(['test', 'location']);
+    const cacheMap = new MemoryCacheMap<TestItem, 'test', 'location'>(['test', 'location']);
 
     // Create items with different key types
     const stringComKey: ComKey<'test', 'location'> = {

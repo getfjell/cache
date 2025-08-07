@@ -3,8 +3,8 @@ import {
   LocKeyArray,
   validatePK
 } from "@fjell/core";
-import { ClientApi } from "@fjell/client-api";
-import { CacheMap } from "../CacheMap";
+import { CacheContext } from "../CacheContext";
+import { createFinderHash } from "../normalization";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('find');
@@ -18,17 +18,57 @@ export const find = async <
   L4 extends string = never,
   L5 extends string = never
 >(
-  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-  cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
-  pkType: S,
   finder: string,
   params: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
-  locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]> => {
+  locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[]]> => {
+  const { api, cacheMap, pkType, queryTtl } = context;
   logger.default('find', { finder, params, locations });
+
+  // Generate query hash for caching
+  const queryHash = createFinderHash(finder, params, locations);
+  logger.debug('Generated query hash for find', { queryHash });
+
+  // Check if we have cached query results
+  const cachedItemKeys = cacheMap.getQueryResult(queryHash);
+  if (cachedItemKeys) {
+    logger.debug('Using cached query results', { cachedKeyCount: cachedItemKeys.length });
+
+    // Retrieve all cached items - if any are missing, invalidate the query cache
+    const cachedItems: V[] = [];
+    let allItemsAvailable = true;
+
+    for (const itemKey of cachedItemKeys) {
+      const item = cacheMap.get(itemKey);
+      if (item) {
+        cachedItems.push(item);
+      } else {
+        allItemsAvailable = false;
+        break;
+      }
+    }
+
+    if (allItemsAvailable) {
+      return [context, validatePK(cachedItems, pkType) as V[]];
+    } else {
+      logger.debug('Some cached items missing, invalidating query cache');
+      cacheMap.deleteQueryResult(queryHash);
+    }
+  }
+
+  // Fetch from API
   const ret: V[] = await api.find(finder, params, locations);
+
+  // Store individual items in cache
   ret.forEach((v) => {
     cacheMap.set(v.key, v);
   });
-  return [cacheMap, validatePK(ret, pkType) as V[]];
+
+  // Store query result (item keys) in query cache
+  const itemKeys = ret.map(item => item.key);
+  cacheMap.setQueryResult(queryHash, itemKeys, queryTtl);
+  logger.debug('Cached query result', { queryHash, itemKeyCount: itemKeys.length, ttl: queryTtl });
+
+  return [context, validatePK(ret, pkType) as V[]];
 };
