@@ -1,4 +1,4 @@
- 
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IndexDBCacheMap } from '../../src/browser/IndexDBCacheMap';
 import { AsyncIndexDBCacheMap } from '../../src/browser/AsyncIndexDBCacheMap';
@@ -81,15 +81,6 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
 
     it('should have correct implementationType', () => {
       expect(cacheMap.implementationType).toBe('browser/indexedDB');
-    });
-
-    it('should provide correct cache information', () => {
-      const cacheInfo = cacheMap.getCacheInfo();
-      expect(cacheInfo.implementationType).toBe('browser/indexedDB');
-      expect(cacheInfo.evictionPolicy).toBeUndefined();
-      expect(cacheInfo.defaultTTL).toBeUndefined();
-      expect(cacheInfo.supportsTTL).toBe(true);
-      expect(cacheInfo.supportsEviction).toBe(false);
     });
 
     it('should provide access to async cache instance', () => {
@@ -204,16 +195,6 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
         const items = cacheMap.allIn([]);
         expect(items).toHaveLength(2);
       });
-    });
-  });
-
-  describe('TTL Support', () => {
-    it('should support getWithTTL', () => {
-      cacheMap.set(priKey1, testItem1);
-
-      // Should get the item within TTL
-      const result = cacheMap.getWithTTL(priKey1, 1000);
-      expect(result).toEqual(testItem1);
     });
   });
 
@@ -884,22 +865,6 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       // Get non-existent key
       expect(cacheMap.get(priKey1)).toBeNull();
       expect(cacheMap.includesKey(priKey1)).toBe(false);
-    });
-
-    it('should handle TTL operations with edge cases', () => {
-      cacheMap.set(priKey1, testItem1);
-
-      // Very short TTL
-      const result1 = cacheMap.getWithTTL(priKey1, 1);
-      expect(result1).toEqual(testItem1);
-
-      // Zero TTL
-      const result2 = cacheMap.getWithTTL(priKey1, 0);
-      expect(result2).toBeNull();
-
-      // Negative TTL
-      const result3 = cacheMap.getWithTTL(priKey1, -1000);
-      expect(result3).toBeNull();
     });
 
     it('should handle null and undefined values appropriately', () => {

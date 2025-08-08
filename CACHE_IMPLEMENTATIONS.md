@@ -153,7 +153,7 @@ const cache = new MemoryCacheMap(keyTypeArray);
 
 ## Cache Information and Capabilities
 
-All cache implementations expose metadata about their configuration and capabilities through the `getCacheInfo()` method. This provides client applications with visibility into the cache's behavior and limitations.
+All cache instances expose metadata about their configuration and capabilities through the `getCacheInfo()` method at the Cache level. This provides client applications with visibility into the cache's behavior and limitations.
 
 ### CacheInfo Interface
 
@@ -177,10 +177,10 @@ interface CacheInfo {
 ```typescript
 import { MemoryCacheMap, EnhancedMemoryCacheMap } from '@fjell/cache';
 
-// Basic memory cache
-const basicCache = new MemoryCacheMap<YourItem, 'item'>(keyTypeArray);
-const basicInfo = basicCache.getCacheInfo();
-console.log(basicInfo);
+// Create cache instance
+const cache = createCache(api, createCoordinate('item'), registry);
+const cacheInfo = cache.getCacheInfo();
+console.log(cacheInfo);
 // Output: {
 //   implementationType: "memory/memory",
 //   supportsTTL: true,
@@ -188,9 +188,14 @@ console.log(basicInfo);
 // }
 
 // Enhanced memory cache with eviction
-const enhancedCache = new EnhancedMemoryCacheMap<YourItem, 'item'>(keyTypeArray, {
-  maxItems: 1000,
-  evictionPolicy: 'lru'
+const enhancedCache = createCache(api, createCoordinate('item'), registry, {
+  cacheType: 'memory',
+  memoryConfig: {
+    size: {
+      maxItems: 1000,
+      evictionPolicy: 'lru'
+    }
+  }
 });
 const enhancedInfo = enhancedCache.getCacheInfo();
 console.log(enhancedInfo);
@@ -218,7 +223,7 @@ Use the capability flags to adapt your application behavior:
 
 ```typescript
 function configureCache<V extends Item<S>, S extends string>(
-  cache: CacheMap<V, S>
+  cache: Cache<V, S>
 ) {
   const info = cache.getCacheInfo();
 
@@ -244,7 +249,7 @@ The cache info is particularly useful for debugging and monitoring:
 ```typescript
 function debugCacheStatus<V extends Item<S>, S extends string>(
   cacheName: string,
-  cache: CacheMap<V, S>
+  cache: Cache<V, S>
 ) {
   const info = cache.getCacheInfo();
 

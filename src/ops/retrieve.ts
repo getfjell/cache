@@ -34,16 +34,19 @@ export const retrieve = async <
   const containsItemKey = cacheMap.includesKey(key);
 
   let retrieved: V | null;
+  let contextToReturn: CacheContext<V, S, L1, L2, L3, L4, L5> | null;
+
   if (containsItemKey) {
     logger.default('Looking for Object in Cache', key);
     retrieved = cacheMap.get(key);
+    contextToReturn = null;
   } else {
     logger.default('Object Not Found in Cache, Retrieving from Server API', { key });
-    [, retrieved] = await get(key, context);
+    [contextToReturn, retrieved] = await get(key, context);
   }
 
   const retValue: [CacheContext<V, S, L1, L2, L3, L4, L5> | null, V | null] = [
-    containsItemKey ? null : context,
+    contextToReturn,
     retrieved ?
       validatePK(retrieved, pkType) as V :
       null

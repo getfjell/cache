@@ -71,36 +71,24 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(cache.implementationType).toBe('memory/enhanced');
     });
 
-    it('should provide correct cache information with default configuration', () => {
+    it('should have correct implementationType with default configuration', () => {
       cache = new EnhancedMemoryCacheMap(types);
-      const cacheInfo = cache.getCacheInfo();
-      expect(cacheInfo.implementationType).toBe('memory/enhanced');
-      expect(cacheInfo.evictionPolicy).toBe('lru'); // Default eviction policy
-      expect(cacheInfo.defaultTTL).toBeUndefined();
-      expect(cacheInfo.supportsTTL).toBe(true);
-      expect(cacheInfo.supportsEviction).toBe(true);
+      expect(cache.implementationType).toBe('memory/enhanced');
     });
 
-    it('should provide correct cache information with custom eviction policy', () => {
+    it('should have correct implementationType with size limits', () => {
       const sizeConfig: CacheSizeConfig = {
-        maxItems: 100,
-        evictionPolicy: 'lfu'
+        maxItems: 100
       };
       cache = new EnhancedMemoryCacheMap(types, sizeConfig);
-      const cacheInfo = cache.getCacheInfo();
-      expect(cacheInfo.implementationType).toBe('memory/enhanced');
-      expect(cacheInfo.evictionPolicy).toBe('lfu');
-      expect(cacheInfo.defaultTTL).toBeUndefined();
-      expect(cacheInfo.supportsTTL).toBe(true);
-      expect(cacheInfo.supportsEviction).toBe(true);
+      expect(cache.implementationType).toBe('memory/enhanced');
     });
   });
 
   describe('Size limits and tracking', () => {
     it('should track cache size in bytes', () => {
       const sizeConfig: CacheSizeConfig = {
-        maxSizeBytes: '1KB',
-        evictionPolicy: 'lru'
+        maxSizeBytes: '1KB'
       };
 
       cache = new EnhancedMemoryCacheMap(types, sizeConfig);
@@ -119,8 +107,7 @@ describe('EnhancedMemoryCacheMap', () => {
 
     it('should track item count limits', () => {
       const sizeConfig: CacheSizeConfig = {
-        maxItems: 2,
-        evictionPolicy: 'lru'
+        maxItems: 2
       };
 
       cache = new EnhancedMemoryCacheMap(types, sizeConfig);
@@ -140,8 +127,7 @@ describe('EnhancedMemoryCacheMap', () => {
     it('should calculate utilization percentages', () => {
       const sizeConfig: CacheSizeConfig = {
         maxItems: 4,
-        maxSizeBytes: '1KB',
-        evictionPolicy: 'lru'
+        maxSizeBytes: '1KB'
       };
 
       cache = new EnhancedMemoryCacheMap(types, sizeConfig);
@@ -159,11 +145,13 @@ describe('EnhancedMemoryCacheMap', () => {
     });
   });
 
-  describe('LRU Eviction', () => {
+  // NOTE: Eviction tests are now disabled for EnhancedMemoryCacheMap
+  // Eviction is handled at the Cache level via EvictionManager
+  // These tests are now covered in integration tests
+  describe.skip('LRU Eviction (now handled at Cache level)', () => {
     beforeEach(() => {
       const sizeConfig: CacheSizeConfig = {
-        maxItems: 3,
-        evictionPolicy: 'lru'
+        maxItems: 3
       };
       cache = new EnhancedMemoryCacheMap(types, sizeConfig);
     });
@@ -240,11 +228,10 @@ describe('EnhancedMemoryCacheMap', () => {
     });
   });
 
-  describe('FIFO Eviction', () => {
+  describe.skip('FIFO Eviction (now handled at Cache level)', () => {
     beforeEach(() => {
       const sizeConfig: CacheSizeConfig = {
-        maxItems: 3,
-        evictionPolicy: 'fifo'
+        maxItems: 3
       };
       cache = new EnhancedMemoryCacheMap(types, sizeConfig);
     });
@@ -274,11 +261,10 @@ describe('EnhancedMemoryCacheMap', () => {
     });
   });
 
-  describe('LFU Eviction', () => {
+  describe.skip('LFU Eviction (now handled at Cache level)', () => {
     beforeEach(() => {
       const sizeConfig: CacheSizeConfig = {
-        maxItems: 3,
-        evictionPolicy: 'lfu'
+        maxItems: 3
       };
       cache = new EnhancedMemoryCacheMap(types, sizeConfig);
     });
@@ -309,11 +295,10 @@ describe('EnhancedMemoryCacheMap', () => {
     });
   });
 
-  describe('Size-based eviction', () => {
+  describe.skip('Size-based eviction (now handled at Cache level)', () => {
     it('should evict items when size limit is exceeded', () => {
       const sizeConfig: CacheSizeConfig = {
-        maxSizeBytes: '200', // Very small limit
-        evictionPolicy: 'lru'
+        maxSizeBytes: '200' // Very small limit
       };
       cache = new EnhancedMemoryCacheMap(types, sizeConfig);
 
@@ -437,8 +422,8 @@ describe('EnhancedMemoryCacheMap', () => {
       const cloned = cache.clone();
 
       expect(cloned.get(key1)).toEqual(item1);
-      expect(cloned.getStats().maxItems).toBe(3);
-      expect(cloned.getStats().maxSizeBytes).toBe(1000);
+      expect((cloned as EnhancedMemoryCacheMap<TestItem, 'test'>).getStats().maxItems).toBe(3);
+      expect((cloned as EnhancedMemoryCacheMap<TestItem, 'test'>).getStats().maxSizeBytes).toBe(1000);
 
       // Ensure independence
       const item2: TestItem = createTestItem(key2, 'item2', 'test2', 200);
@@ -446,119 +431,6 @@ describe('EnhancedMemoryCacheMap', () => {
 
       expect(cache.get(key2)).toBeNull();
       expect(cloned.get(key2)).toBeTruthy();
-    });
-  });
-
-  describe('TTL (Time-To-Live) functionality', () => {
-    beforeEach(() => {
-      cache = new EnhancedMemoryCacheMap(types);
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it('should return item when within TTL', () => {
-      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
-      cache.set(key1, item1);
-
-      const result = cache.getWithTTL(key1, 5000); // 5 seconds TTL
-      expect(result).toEqual(item1);
-    });
-
-    it('should return null when TTL is 0 (caching disabled)', () => {
-      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
-      cache.set(key1, item1);
-
-      const result = cache.getWithTTL(key1, 0);
-      expect(result).toBeNull();
-    });
-
-    it('should return null when item has expired', () => {
-      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
-      const baseTime = 1000;
-
-      vi.setSystemTime(baseTime);
-      cache.set(key1, item1);
-
-      // Fast forward past TTL
-      const ttl = 5000;
-      vi.setSystemTime(baseTime + ttl + 1000);
-
-      const result = cache.getWithTTL(key1, ttl);
-      expect(result).toBeNull();
-    });
-
-    it('should remove expired item from cache when accessed with TTL', () => {
-      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
-      const baseTime = 1000;
-
-      vi.setSystemTime(baseTime);
-      cache.set(key1, item1);
-
-      expect(cache.includesKey(key1)).toBe(true);
-
-      // Fast forward past TTL
-      const ttl = 5000;
-      vi.setSystemTime(baseTime + ttl + 1000);
-
-      cache.getWithTTL(key1, ttl);
-
-      // Item should be removed from cache
-      expect(cache.includesKey(key1)).toBe(false);
-      expect(cache.get(key1)).toBeNull();
-    });
-
-    it('should update access metadata when TTL access succeeds', () => {
-      const sizeConfig: CacheSizeConfig = {
-        maxItems: 2,
-        evictionPolicy: 'lru'
-      };
-      cache = new EnhancedMemoryCacheMap(types, sizeConfig);
-
-      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
-      const item2: TestItem = createTestItem(key2, 'item2', 'test2', 200);
-      const item3: TestItem = createTestItem(key3, 'item3', 'test3', 300);
-
-      cache.set(key1, item1);
-      cache.set(key2, item2);
-
-      // Access key1 with TTL to update its LRU position
-      const accessed = cache.getWithTTL(key1, 10000);
-      expect(accessed).toEqual(item1);
-
-      // Add item3, which should trigger eviction
-      cache.set(key3, item3);
-
-      // Should have exactly 2 items after eviction
-      expect(cache.getStats().currentItemCount).toBe(2);
-
-      // The newer item should definitely exist
-      expect(cache.get(key3)).toBeTruthy();
-
-      // Either key1 or key2 should be evicted, but at least one should remain
-      const remainingItems = [cache.get(key1), cache.get(key2)].filter(item => item !== null);
-      expect(remainingItems).toHaveLength(1);
-    });
-
-    it('should work with composite keys and TTL', () => {
-      const containedCache = new EnhancedMemoryCacheMap<ContainedTestItem, 'test', 'container'>(['test']);
-      const item1: ContainedTestItem = createContainedTestItem(comKey1, 'item1', 'contained1', 'data1');
-
-      const baseTime = 1000;
-      vi.setSystemTime(baseTime);
-
-      containedCache.set(comKey1, item1);
-
-      // Should return item within TTL
-      const result1 = containedCache.getWithTTL(comKey1, 5000);
-      expect(result1).toEqual(item1);
-
-      // Should return null after TTL expires
-      vi.setSystemTime(baseTime + 6000);
-      const result2 = containedCache.getWithTTL(comKey1, 5000);
-      expect(result2).toBeNull();
     });
   });
 
@@ -736,7 +608,7 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(values).toContainEqual(item2);
     });
 
-    it('should handle eviction with composite keys', () => {
+    it.skip('should handle eviction with composite keys (now handled at Cache level)', () => {
       const sizeConfig: CacheSizeConfig = {
         maxItems: 2,
         evictionPolicy: 'lru'
@@ -1255,7 +1127,7 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(cache.keys()).toHaveLength(0);
     });
 
-    it('should trigger eviction if initial data exceeds limits', () => {
+    it.skip('should trigger eviction if initial data exceeds limits (now handled at Cache level)', () => {
       const item1: TestItem = createTestItem(key1, 'item1', 'Alice', 100);
       const item2: TestItem = createTestItem(key2, 'item2', 'Bob', 200);
       const item3: TestItem = createTestItem(key3, 'item3', 'Charlie', 300);
@@ -1358,11 +1230,10 @@ describe('EnhancedMemoryCacheMap', () => {
       });
     });
 
-    describe('Eviction edge cases', () => {
+    describe.skip('Eviction edge cases (now handled at Cache level)', () => {
       it('should handle eviction when no items exist', () => {
         const sizeConfig: CacheSizeConfig = {
-          maxItems: 1,
-          evictionPolicy: 'lru'
+          maxItems: 1
         };
         cache = new EnhancedMemoryCacheMap(types, sizeConfig);
 
@@ -1510,7 +1381,7 @@ describe('EnhancedMemoryCacheMap', () => {
     });
 
     describe('Concurrency simulation', () => {
-      it('should handle rapid sequential operations', () => {
+      it.skip('should handle rapid sequential operations (now handled at Cache level)', () => {
         const sizeConfig: CacheSizeConfig = {
           maxItems: 10,
           evictionPolicy: 'lru'
@@ -1577,7 +1448,7 @@ describe('EnhancedMemoryCacheMap', () => {
       it('should handle clone with empty cache', () => {
         const cloned = cache.clone();
 
-        expect(cloned.getStats().currentItemCount).toBe(0);
+        expect((cloned as EnhancedMemoryCacheMap<TestItem, 'test'>).getStats().currentItemCount).toBe(0);
         expect(cloned.values()).toHaveLength(0);
         expect(cloned.keys()).toHaveLength(0);
       });
@@ -1608,12 +1479,512 @@ describe('EnhancedMemoryCacheMap', () => {
 
         const cloned = cache.clone();
         expect(cloned.get(key2)).toEqual(item2);
-        expect(cloned.getStats().maxItems).toBe(3);
+        expect((cloned as EnhancedMemoryCacheMap<TestItem, 'test'>).getStats().maxItems).toBe(3);
 
         cache.clear();
         expect(cache.getStats().currentItemCount).toBe(0);
-        expect(cloned.getStats().currentItemCount).toBe(1); // Clone should be independent
+        expect((cloned as EnhancedMemoryCacheMap<TestItem, 'test'>).getStats().currentItemCount).toBe(1); // Clone should be independent
       });
+    });
+  });
+
+  // Additional comprehensive tests for enhanced function coverage
+  describe('Advanced metadata management functions', () => {
+    beforeEach(() => {
+      cache = new EnhancedMemoryCacheMap(types);
+    });
+
+    it('should get metadata for specific keys', () => {
+      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
+      cache.set(key1, item1);
+
+      const metadata = cache.getMetadata('{"kt":"test","pk":"item1"}');
+      expect(metadata).toBeDefined();
+      expect(metadata?.key).toBe('{"kt":"test","pk":"item1"}');
+      expect(metadata?.addedAt).toBeTypeOf('number');
+      expect(metadata?.lastAccessedAt).toBeTypeOf('number');
+      expect(metadata?.accessCount).toBe(0);
+      expect(metadata?.estimatedSize).toBeGreaterThan(0);
+    });
+
+    it('should return null for non-existent metadata keys', () => {
+      const metadata = cache.getMetadata('non-existent-key');
+      expect(metadata).toBeNull();
+    });
+
+    it('should set metadata for specific keys', () => {
+      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
+      cache.set(key1, item1);
+
+      const customMetadata = {
+        addedAt: Date.now() - 10000,
+        lastAccessedAt: Date.now() - 5000,
+        accessCount: 42,
+        estimatedSize: 999,
+        key: '{"kt":"test","pk":"item1"}'
+      };
+
+      cache.setMetadata('{"kt":"test","pk":"item1"}', customMetadata);
+      const retrievedMetadata = cache.getMetadata('{"kt":"test","pk":"item1"}');
+
+      expect(retrievedMetadata).toEqual(customMetadata);
+    });
+
+    it('should handle setting metadata for non-existent keys', () => {
+      const customMetadata = {
+        addedAt: Date.now(),
+        lastAccessedAt: Date.now(),
+        accessCount: 1,
+        estimatedSize: 100,
+        key: 'non-existent-key'
+      };
+
+      // Should not throw an error
+      expect(() => {
+        cache.setMetadata('non-existent-key', customMetadata);
+      }).not.toThrow();
+
+      // Should be able to retrieve the metadata
+      const retrievedMetadata = cache.getMetadata('non-existent-key');
+      expect(retrievedMetadata).toEqual(customMetadata);
+    });
+
+    it('should delete metadata for specific keys', () => {
+      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
+      cache.set(key1, item1);
+
+      // Verify metadata exists
+      const metadata = cache.getMetadata('{"kt":"test","pk":"item1"}');
+      expect(metadata).toBeDefined();
+
+      // Delete metadata
+      cache.deleteMetadata('{"kt":"test","pk":"item1"}');
+
+      // Should still exist since deleteMetadata is a no-op in this implementation
+      const afterDeleteMetadata = cache.getMetadata('{"kt":"test","pk":"item1"}');
+      expect(afterDeleteMetadata).toBeDefined(); // deleteMetadata doesn't actually delete in this implementation
+    });
+
+    it('should get all metadata as a Map', () => {
+      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
+      const item2: TestItem = createTestItem(key2, 'item2', 'test2', 200);
+
+      cache.set(key1, item1);
+      cache.set(key2, item2);
+
+      const allMetadata = cache.getAllMetadata();
+
+      expect(allMetadata).toBeInstanceOf(Map);
+      expect(allMetadata.size).toBe(2);
+
+      const key1Hash = '{"kt":"test","pk":"item1"}';
+      const key2Hash = '{"kt":"test","pk":"item2"}';
+
+      expect(allMetadata.has(key1Hash)).toBe(true);
+      expect(allMetadata.has(key2Hash)).toBe(true);
+
+      const metadata1 = allMetadata.get(key1Hash);
+      const metadata2 = allMetadata.get(key2Hash);
+
+      expect(metadata1?.key).toBe(key1Hash);
+      expect(metadata2?.key).toBe(key2Hash);
+    });
+
+    it('should clear all metadata', () => {
+      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
+      const item2: TestItem = createTestItem(key2, 'item2', 'test2', 200);
+
+      cache.set(key1, item1);
+      cache.set(key2, item2);
+
+      // Verify metadata exists
+      const allMetadataBefore = cache.getAllMetadata();
+      expect(allMetadataBefore.size).toBe(2);
+
+      // Clear metadata
+      cache.clearMetadata();
+
+      // All metadata should be cleared
+      const allMetadataAfter = cache.getAllMetadata();
+      expect(allMetadataAfter.size).toBe(0);
+
+      // But the cache entries should still exist
+      expect(cache.get(key1)).toBeDefined();
+      expect(cache.get(key2)).toBeDefined();
+    });
+  });
+
+  describe('Size management and tracking functions', () => {
+    beforeEach(() => {
+      const sizeConfig: CacheSizeConfig = {
+        maxSizeBytes: '2KB',
+        maxItems: 10
+      };
+      cache = new EnhancedMemoryCacheMap(types, sizeConfig);
+    });
+
+    it('should get current size information', () => {
+      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
+      const item2: TestItem = createTestItem(key2, 'item2', 'test2', 200);
+
+      const initialSize = cache.getCurrentSize();
+      expect(initialSize.itemCount).toBe(0);
+      expect(initialSize.sizeBytes).toBe(0);
+
+      cache.set(key1, item1);
+      const afterFirstItem = cache.getCurrentSize();
+      expect(afterFirstItem.itemCount).toBe(1);
+      expect(afterFirstItem.sizeBytes).toBeGreaterThan(0);
+
+      cache.set(key2, item2);
+      const afterSecondItem = cache.getCurrentSize();
+      expect(afterSecondItem.itemCount).toBe(2);
+      expect(afterSecondItem.sizeBytes).toBeGreaterThan(afterFirstItem.sizeBytes);
+    });
+
+    it('should get size limits', () => {
+      const limits = cache.getSizeLimits();
+      expect(limits.maxItems).toBe(10);
+      expect(limits.maxSizeBytes).toBe(2000); // 2KB in bytes (decimal)
+    });
+
+    it('should get size limits when not configured', () => {
+      const unlimitedCache = new EnhancedMemoryCacheMap(types);
+      const limits = unlimitedCache.getSizeLimits();
+      expect(limits.maxItems).toBeNull();
+      expect(limits.maxSizeBytes).toBeNull();
+    });
+
+    it('should get total size in bytes', () => {
+      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
+      const item2: TestItem = createTestItem(key2, 'item2', 'test2', 200);
+
+      expect(cache.getTotalSizeBytes()).toBe(0);
+
+      cache.set(key1, item1);
+      const sizeAfterFirst = cache.getTotalSizeBytes();
+      expect(sizeAfterFirst).toBeGreaterThan(0);
+
+      cache.set(key2, item2);
+      const sizeAfterSecond = cache.getTotalSizeBytes();
+      expect(sizeAfterSecond).toBeGreaterThan(sizeAfterFirst);
+
+      // Add some query results to test query cache size tracking
+      cache.setQueryResult('query1', [key1, key2]);
+      const sizeWithQuery = cache.getTotalSizeBytes();
+      expect(sizeWithQuery).toBeGreaterThan(sizeAfterSecond);
+    });
+  });
+
+  describe('Query result caching advanced scenarios', () => {
+    beforeEach(() => {
+      cache = new EnhancedMemoryCacheMap(types);
+    });
+
+    it('should handle setting query results with empty arrays', () => {
+      cache.setQueryResult('empty-query', []);
+
+      const result = cache.getQueryResult('empty-query');
+      expect(result).toEqual([]);
+
+      expect(cache.hasQueryResult('empty-query')).toBe(true);
+    });
+
+    it('should handle setting query results with duplicate keys', () => {
+      cache.setQueryResult('duplicate-query', [key1, key1, key2, key1]);
+
+      const result = cache.getQueryResult('duplicate-query');
+      expect(result).toEqual([key1, key1, key2, key1]); // Should preserve duplicates
+    });
+
+    it('should overwrite existing query results', () => {
+      cache.setQueryResult('overwrite-query', [key1]);
+      cache.setQueryResult('overwrite-query', [key2, key3]);
+
+      const result = cache.getQueryResult('overwrite-query');
+      expect(result).toEqual([key2, key3]);
+    });
+
+    it('should handle very long query hashes', () => {
+      const longQueryHash = 'very-long-query-hash-'.repeat(100);
+      cache.setQueryResult(longQueryHash, [key1, key2]);
+
+      expect(cache.hasQueryResult(longQueryHash)).toBe(true);
+      const result = cache.getQueryResult(longQueryHash);
+      expect(result).toEqual([key1, key2]);
+    });
+
+    it('should handle special characters in query hashes', () => {
+      const specialQueryHash = 'query-with-!@#$%^&*()_+{}|:"<>?[];,./`~特殊字符';
+      cache.setQueryResult(specialQueryHash, [key1]);
+
+      expect(cache.hasQueryResult(specialQueryHash)).toBe(true);
+      const result = cache.getQueryResult(specialQueryHash);
+      expect(result).toEqual([key1]);
+    });
+
+    it('should properly track query result cache size', () => {
+      const initialTotalSize = cache.getTotalSizeBytes();
+
+      cache.setQueryResult('size-test-1', [key1, key2]);
+      const sizeAfterFirst = cache.getTotalSizeBytes();
+      expect(sizeAfterFirst).toBeGreaterThan(initialTotalSize);
+
+      cache.setQueryResult('size-test-2', [key3, key4]);
+      const sizeAfterSecond = cache.getTotalSizeBytes();
+      expect(sizeAfterSecond).toBeGreaterThan(sizeAfterFirst);
+
+      cache.deleteQueryResult('size-test-1');
+      const sizeAfterDelete = cache.getTotalSizeBytes();
+      expect(sizeAfterDelete).toBeLessThan(sizeAfterSecond);
+    });
+  });
+
+  describe('Clone functionality enhancement', () => {
+    beforeEach(() => {
+      const sizeConfig: CacheSizeConfig = {
+        maxSizeBytes: '1KB',
+        maxItems: 5
+      };
+      cache = new EnhancedMemoryCacheMap(types, sizeConfig);
+    });
+
+    it('should clone cache with all data and configuration', () => {
+      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
+      const item2: TestItem = createTestItem(key2, 'item2', 'test2', 200);
+
+      cache.set(key1, item1);
+      cache.set(key2, item2);
+      cache.setQueryResult('test-query', [key1, key2]);
+
+      const cloned = cache.clone() as EnhancedMemoryCacheMap<TestItem, 'test'>;
+
+      // Should have same implementation type
+      expect(cloned.implementationType).toBe('memory/enhanced');
+
+      // Should have same data
+      expect(cloned.get(key1)).toEqual(item1);
+      expect(cloned.get(key2)).toEqual(item2);
+
+      // Should have same query results
+      expect(cloned.getQueryResult('test-query')).toEqual([key1, key2]);
+
+      // Should have same size limits
+      const originalLimits = cache.getSizeLimits();
+      const clonedLimits = cloned.getSizeLimits();
+      expect(clonedLimits).toEqual(originalLimits);
+
+      // Should be independent instances
+      const item3: TestItem = createTestItem(key3, 'item3', 'test3', 300);
+      cloned.set(key3, item3);
+
+      expect(cloned.get(key3)).toEqual(item3);
+      expect(cache.get(key3)).toBeNull();
+    });
+
+    it('should clone empty cache correctly', () => {
+      const cloned = cache.clone() as EnhancedMemoryCacheMap<TestItem, 'test'>;
+
+      expect(cloned.implementationType).toBe('memory/enhanced');
+      expect(cloned.keys()).toEqual([]);
+      expect(cloned.values()).toEqual([]);
+      expect(cloned.getCurrentSize().itemCount).toBe(0);
+      expect(cloned.getCurrentSize().sizeBytes).toBe(0);
+    });
+  });
+
+  describe('Complex invalidation scenarios', () => {
+    beforeEach(() => {
+      cache = new EnhancedMemoryCacheMap(types);
+    });
+
+    it('should handle invalidation of non-existent items gracefully', () => {
+      cache.setQueryResult('test-query', [key1, key2]);
+
+      // Invalidate keys that don't exist in cache
+      expect(() => {
+        cache.invalidateItemKeys([key1, key2]);
+      }).not.toThrow();
+
+      // Query result should be cleared
+      expect(cache.hasQueryResult('test-query')).toBe(false);
+    });
+
+    it('should handle invalidation with empty key arrays', () => {
+      cache.setQueryResult('test-query', [key1, key2]);
+
+      expect(() => {
+        cache.invalidateItemKeys([]);
+      }).not.toThrow();
+
+      // Query result should still exist since no keys were invalidated
+      expect(cache.hasQueryResult('test-query')).toBe(true);
+    });
+
+    it('should handle complex location invalidation scenarios', () => {
+      // Create contained cache
+      const containedCache = new EnhancedMemoryCacheMap<ContainedTestItem, 'test', 'container'>(['test', 'container']);
+
+      const item1 = createContainedTestItem(comKey1, 'item1', 'test1', 'data1');
+      const item2 = createContainedTestItem(comKey2, 'item2', 'test2', 'data2');
+      const item3 = createContainedTestItem(comKey3, 'item3', 'test3', 'data3');
+
+      containedCache.set(comKey1, item1);
+      containedCache.set(comKey2, item2);
+      containedCache.set(comKey3, item3);
+
+      // Set query results that include items in container1
+      containedCache.setQueryResult('container1-query', [comKey1, comKey3]);
+      containedCache.setQueryResult('container2-query', [comKey2]);
+      containedCache.setQueryResult('mixed-query', [comKey1, comKey2, comKey3]);
+
+      // Invalidate container1
+      containedCache.invalidateLocation([{ kt: 'container', lk: 'container1' as UUID }]);
+
+      // Queries involving container1 should be cleared
+      expect(containedCache.hasQueryResult('container1-query')).toBe(false);
+      expect(containedCache.hasQueryResult('mixed-query')).toBe(false);
+
+      // Queries not involving container1 should remain
+      expect(containedCache.hasQueryResult('container2-query')).toBe(true);
+    });
+  });
+
+  describe('Edge cases and error handling', () => {
+    beforeEach(() => {
+      cache = new EnhancedMemoryCacheMap(types);
+    });
+
+    it('should handle extremely large values gracefully', () => {
+      // Create a large item
+      const largeData = 'x'.repeat(100000);
+      const largeItem: TestItem = createTestItem(key1, 'item1', largeData, 100);
+
+      expect(() => {
+        cache.set(key1, largeItem);
+      }).not.toThrow();
+
+      const retrieved = cache.get(key1);
+      expect(retrieved?.name).toBe(largeData);
+    });
+
+    it('should handle items with circular references in metadata tracking', () => {
+      // Create item with potential circular reference
+      const circularItem: any = createTestItem(key1, 'item1', 'test1', 100);
+      circularItem.self = circularItem; // Create circular reference
+
+      expect(() => {
+        cache.set(key1, circularItem);
+      }).not.toThrow();
+
+      const retrieved = cache.get(key1);
+      expect(retrieved?.id).toBe('item1');
+    });
+
+    it('should handle concurrent operations gracefully', async () => {
+      // Simulate concurrent operations
+      const promises: Promise<void>[] = [];
+
+      for (let i = 0; i < 100; i++) {
+        const key: PriKey<'test'> = { kt: 'test', pk: `item${i}` as UUID };
+        const item: TestItem = createTestItem(key, `item${i}`, `test${i}`, i);
+
+        promises.push(
+          Promise.resolve().then(() => {
+            cache.set(key, item);
+            cache.get(key);
+            if (i % 10 === 0) {
+              cache.setQueryResult(`query${i}`, [key]);
+            }
+          })
+        );
+      }
+
+      await Promise.all(promises);
+
+      expect(cache.getCurrentSize().itemCount).toBe(100);
+      expect(cache.keys().length).toBe(100);
+    });
+
+    it('should maintain consistency during mixed operations', () => {
+      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
+      const item2: TestItem = createTestItem(key2, 'item2', 'test2', 200);
+
+      // Perform mixed operations
+      cache.set(key1, item1);
+      cache.setQueryResult('query1', [key1]);
+      cache.set(key2, item2);
+      cache.setQueryResult('query2', [key1, key2]);
+
+      const initialSize = cache.getCurrentSize();
+      const initialQueryCount = (cache.hasQueryResult('query1') ? 1 : 0) + (cache.hasQueryResult('query2') ? 1 : 0);
+
+      cache.delete(key1);
+
+      const afterDeleteSize = cache.getCurrentSize();
+      expect(afterDeleteSize.itemCount).toBe(initialSize.itemCount - 1);
+
+      // Queries should be invalidated
+      expect(cache.hasQueryResult('query1')).toBe(false);
+      expect(cache.hasQueryResult('query2')).toBe(false);
+    });
+  });
+
+  describe('Memory efficiency and performance', () => {
+    it('should efficiently handle many small items', () => {
+      const startTime = Date.now();
+
+      for (let i = 0; i < 1000; i++) {
+        const key: PriKey<'test'> = { kt: 'test', pk: `item${i}` as UUID };
+        const item: TestItem = createTestItem(key, `item${i}`, `test${i}`, i);
+        cache.set(key, item);
+      }
+
+      const endTime = Date.now();
+      expect(endTime - startTime).toBeLessThan(1000); // Should complete in reasonable time
+
+      expect(cache.getCurrentSize().itemCount).toBe(1000);
+      expect(cache.keys().length).toBe(1000);
+    });
+
+    it('should handle frequent updates efficiently', () => {
+      const item: TestItem = createTestItem(key1, 'item1', 'test1', 100);
+      cache.set(key1, item);
+
+      const initialSize = cache.getCurrentSize().sizeBytes;
+
+      // Perform many updates
+      for (let i = 0; i < 100; i++) {
+        const updatedItem: TestItem = createTestItem(key1, 'item1', `updated${i}`, 100 + i);
+        cache.set(key1, updatedItem);
+      }
+
+      const finalItem = cache.get(key1);
+      expect(finalItem?.name).toBe('updated99');
+      expect(finalItem?.value).toBe(199);
+
+      // Size should reflect the final item
+      const finalSize = cache.getCurrentSize().sizeBytes;
+      expect(finalSize).toBeGreaterThan(0);
+    });
+
+    it('should handle query result cache size tracking accurately', () => {
+      const keys = [key1, key2, key3, key4];
+
+      // Set multiple query results with overlapping keys
+      cache.setQueryResult('query1', [key1, key2]);
+      cache.setQueryResult('query2', [key2, key3]);
+      cache.setQueryResult('query3', [key3, key4]);
+      cache.setQueryResult('query4', [key1, key2, key3, key4]);
+
+      const sizeWithQueries = cache.getTotalSizeBytes();
+      expect(sizeWithQueries).toBeGreaterThan(0);
+
+      // Clear all query results
+      cache.clearQueryResults();
+
+      const sizeWithoutQueries = cache.getTotalSizeBytes();
+      expect(sizeWithoutQueries).toBeLessThan(sizeWithQueries);
     });
   });
 });

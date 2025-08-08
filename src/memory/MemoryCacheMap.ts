@@ -19,7 +19,6 @@ const logger = LibLogger.get("MemoryCacheMap");
 interface DictionaryEntry<K, V> {
   originalKey: K;
   value: V;
-  timestamp: number; // Added for TTL tracking
 }
 
 /**
@@ -41,7 +40,7 @@ export class MemoryCacheMap<
   private map: { [key: string]: DictionaryEntry<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, V> } = {};
   private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
 
-  // Query result cache: maps query hash to cache entry with expiration
+  // Query result cache: maps query hash to cache entry
   private queryResultCache: { [queryHash: string]: QueryCacheEntry } = {};
 
   // Metadata storage for eviction strategies
@@ -78,42 +77,10 @@ export class MemoryCacheMap<
     return entry && this.normalizedHashFunction(entry.originalKey) === hashedKey ? entry.value : null;
   }
 
-  public getWithTTL(
-    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    ttl: number
-  ): V | null {
-    logger.trace('getWithTTL', { key, ttl });
-
-    // If TTL is 0, don't check cache - this disables caching
-    if (ttl === 0) {
-      return null;
-    }
-
-    const hashedKey = this.normalizedHashFunction(key);
-    const entry = this.map[hashedKey];
-
-    if (!entry || this.normalizedHashFunction(entry.originalKey) !== hashedKey) {
-      return null;
-    }
-
-    // Check if the item has expired
-    const now = Date.now();
-    const age = now - entry.timestamp;
-
-    if (age >= ttl) {
-      // Item has expired, remove it from cache
-      logger.trace('Item expired, removing from cache', { key, age, ttl });
-      delete this.map[hashedKey];
-      return null;
-    }
-
-    return entry.value;
-  }
-
   public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
     logger.trace('set', { key, value });
     const hashedKey = this.normalizedHashFunction(key);
-    this.map[hashedKey] = { originalKey: key, value: value, timestamp: Date.now() };
+    this.map[hashedKey] = { originalKey: key, value: value };
   }
 
   public includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean {
@@ -192,8 +159,7 @@ export class MemoryCacheMap<
     // Copy query result cache
     for (const [queryHash, entry] of Object.entries(this.queryResultCache)) {
       clone.queryResultCache[queryHash] = {
-        itemKeys: [...entry.itemKeys], // Shallow copy of the array
-        expiresAt: entry.expiresAt
+        itemKeys: [...entry.itemKeys] // Shallow copy of the array
       };
     }
 
@@ -202,16 +168,12 @@ export class MemoryCacheMap<
 
   // Query result caching methods implementation
 
-  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], ttl?: number): void {
-    logger.trace('setQueryResult', { queryHash, itemKeys, ttl });
+  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+    logger.trace('setQueryResult', { queryHash, itemKeys });
 
     const entry: QueryCacheEntry = {
       itemKeys: [...itemKeys] // Create a copy to avoid external mutations
     };
-
-    if (ttl) {
-      entry.expiresAt = Date.now() + ttl;
-    }
 
     this.queryResultCache[queryHash] = entry;
   }
@@ -224,31 +186,12 @@ export class MemoryCacheMap<
       return null;
     }
 
-    // Check if entry has expired
-    if (entry.expiresAt && Date.now() > entry.expiresAt) {
-      logger.trace('Query result expired, removing', { queryHash, expiresAt: entry.expiresAt });
-      delete this.queryResultCache[queryHash];
-      return null;
-    }
-
     return [...entry.itemKeys]; // Return a copy to avoid external mutations
   }
 
   public hasQueryResult(queryHash: string): boolean {
     const entry = this.queryResultCache[queryHash];
-
-    if (!entry) {
-      return false;
-    }
-
-    // Check if entry has expired
-    if (entry.expiresAt && Date.now() > entry.expiresAt) {
-      logger.trace('Query result expired, removing', { queryHash, expiresAt: entry.expiresAt });
-      delete this.queryResultCache[queryHash];
-      return false;
-    }
-
-    return true;
+    return !!entry;
   }
 
   public deleteQueryResult(queryHash: string): void {

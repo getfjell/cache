@@ -201,10 +201,6 @@ export class IndexDBCacheMap<
     return this.memoryCache.get(key);
   }
 
-  public getWithTTL(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, ttl: number): V | null {
-    return this.memoryCache.getWithTTL(key, ttl);
-  }
-
   public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
     // Update memory cache immediately
     this.memoryCache.set(key, value);
@@ -259,8 +255,8 @@ export class IndexDBCacheMap<
 
   // Query result caching methods implementation
 
-  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], ttl?: number): void {
-    return this.memoryCache.setQueryResult(queryHash, itemKeys, ttl);
+  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+    return this.memoryCache.setQueryResult(queryHash, itemKeys);
   }
 
   public getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null {

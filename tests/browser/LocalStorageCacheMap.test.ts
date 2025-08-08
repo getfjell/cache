@@ -119,74 +119,6 @@ describe('LocalStorageCacheMap', () => {
     });
   });
 
-  describe('TTL functionality', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it('should return null for TTL of 0', () => {
-      const testItem = new TestItem('1', 'Test Item');
-      cache.set({ kt: 'test', pk: '1' }, testItem);
-      const retrieved = cache.getWithTTL({ kt: 'test', pk: '1' }, 0);
-      expect(retrieved).toBeNull();
-    });
-
-    it('should return item within TTL period', () => {
-      const testItem = new TestItem('1', 'Test Item');
-      cache.set({ kt: 'test', pk: '1' }, testItem);
-      const retrieved = cache.getWithTTL({ kt: 'test', pk: '1' }, 5000); // 5 seconds TTL
-      expect(retrieved).toEqual(testItem);
-    });
-
-    it('should return null after TTL expires', () => {
-      const testItem = new TestItem('1', 'Test Item');
-      cache.set({ kt: 'test', pk: '1' }, testItem);
-
-      // Initial retrieval should work
-      const initialRetrieved = cache.getWithTTL({ kt: 'test', pk: '1' }, 5000);
-      expect(initialRetrieved).toEqual(testItem);
-
-      // Advance time by 6 seconds (beyond TTL)
-      vi.advanceTimersByTime(6000);
-
-      // Item should now be expired
-      const expiredRetrieved = cache.getWithTTL({ kt: 'test', pk: '1' }, 5000);
-      expect(expiredRetrieved).toBeNull();
-    });
-
-    it('should handle missing timestamp gracefully', () => {
-      const testItem = new TestItem('1', 'Test Item');
-      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
-
-      // Manually set item without timestamp
-      const storageKey = `fjell-cache:${key.kt}:${key.pk}`;
-      localStorage.setItem(storageKey, JSON.stringify({
-        originalKey: key,
-        value: testItem
-      }));
-
-      // Should still return item since no timestamp means no expiration
-      const retrieved = cache.getWithTTL(key, 5000);
-      expect(retrieved).toEqual(testItem);
-    });
-
-    it('should handle invalid stored data gracefully', () => {
-      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
-      const storageKey = `fjell-cache:${key.kt}:${key.pk}`;
-
-      // Set invalid JSON data
-      localStorage.setItem(storageKey, 'invalid json');
-
-      // Should return null for invalid data
-      const retrieved = cache.getWithTTL(key, 5000);
-      expect(retrieved).toBeNull();
-    });
-  });
-
   describe('Query result caching', () => {
     beforeEach(() => {
       vi.useFakeTimers();
@@ -206,26 +138,6 @@ describe('LocalStorageCacheMap', () => {
       cache.setQueryResult(queryHash, itemKeys);
       const retrieved = cache.getQueryResult(queryHash);
       expect(retrieved).toEqual(itemKeys);
-    });
-
-    it('should handle query result expiration', () => {
-      const queryHash = 'test-query-1';
-      const itemKeys: PriKey<'test'>[] = [
-        { kt: 'test', pk: '1' },
-        { kt: 'test', pk: '2' }
-      ];
-      const ttl = 5000; // 5 seconds
-
-      cache.setQueryResult(queryHash, itemKeys, ttl);
-
-      // Initial retrieval should work
-      expect(cache.getQueryResult(queryHash)).toEqual(itemKeys);
-
-      // Advance time beyond TTL
-      vi.advanceTimersByTime(6000);
-
-      // Should return null after expiration
-      expect(cache.getQueryResult(queryHash)).toBeNull();
     });
 
     it('should check if query result exists', () => {

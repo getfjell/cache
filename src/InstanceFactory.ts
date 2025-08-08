@@ -62,12 +62,23 @@ export const createInstanceFactory = <
     const mockEventEmitter = {
       subscribe: () => ({ id: 'mock', unsubscribe: () => false, isActive: () => false, getOptions: () => ({}) }),
       unsubscribe: () => false,
-      emit: () => {},
+      emit: () => { },
       getSubscriptionCount: () => 0,
       getSubscriptions: () => [],
-      destroy: () => {}
+      destroy: () => { }
     } as any;
-    const operations = createOperations(api, coordinate, cacheMap, pkType, instanceOptions, mockEventEmitter);
+    const mockTTLManager = {
+      getDefaultTTL: () => 1000,
+      isTTLEnabled: () => true,
+      validateItem: () => true,
+      getTTL: () => 1000,
+      setTTL: () => { }
+    } as any;
+    const mockEvictionManager = {
+      isEvictionSupported: () => false,
+      getEvictionStrategyName: () => null
+    } as any;
+    const operations = createOperations(api, coordinate, cacheMap, pkType, instanceOptions, mockEventEmitter, mockTTLManager, mockEvictionManager);
 
     return {
       coordinate,

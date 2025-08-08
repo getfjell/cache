@@ -125,59 +125,6 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public getWithTTL(
-    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    ttl: number
-  ): V | null {
-    logger.trace('getWithTTL', { key, ttl });
-
-    // If TTL is 0, don't check cache - this disables caching
-    if (ttl === 0) {
-      return null;
-    }
-
-    try {
-      const currentHash = this.normalizedHashFunction(key);
-      if (this.hasCollisionForHash(currentHash)) {
-        return null;
-      }
-      const storageKey = this.getStorageKey(key);
-      const stored = sessionStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Verify with stable hash and original key
-        const storedVerificationHash: string | undefined = parsed.originalVerificationHash;
-        const currentVerificationHash = this.verificationHashFunction(key);
-        const isSameOriginalKey = this.verificationHashFunction(parsed.originalKey) === currentVerificationHash;
-        if (!storedVerificationHash || storedVerificationHash !== currentVerificationHash || !isSameOriginalKey) return null;
-
-        // Check if the item has expired
-        if (typeof parsed.timestamp === 'number' && !isNaN(parsed.timestamp)) {
-          const now = Date.now();
-          const age = now - parsed.timestamp;
-
-          if (age >= ttl) {
-            // Item has expired, remove it from cache
-            logger.trace('Item expired, removing from sessionStorage', { key, age, ttl });
-            sessionStorage.removeItem(storageKey);
-            return null;
-          }
-        } else {
-          // If no valid timestamp, treat as expired and remove
-          logger.trace('Item has no valid timestamp, treating as expired', { key });
-          sessionStorage.removeItem(storageKey);
-          return null;
-        }
-
-        return parsed.value as V;
-      }
-      return null;
-    } catch (error) {
-      logger.error('Error retrieving with TTL from sessionStorage', { key, ttl, error });
-      return null;
-    }
-  }
-
   public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
     try {
       const storageKey = this.getStorageKey(key);
@@ -338,17 +285,13 @@ export class SessionStorageCacheMap<
 
   // Query result caching methods implementation
 
-  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], ttl?: number): void {
-    logger.trace('setQueryResult', { queryHash, itemKeys, ttl });
+  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+    logger.trace('setQueryResult', { queryHash, itemKeys });
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
 
     const entry: any = {
       itemKeys
     };
-
-    if (ttl) {
-      entry.expiresAt = Date.now() + ttl;
-    }
 
     try {
       const jsonString = safeStringify(entry);
@@ -369,18 +312,13 @@ export class SessionStorageCacheMap<
 
       const entry = JSON.parse(data);
 
-      // Handle both old format (just array) and new format (with expiration)
+      // Handle both old format (just array) and new format
       if (Array.isArray(entry)) {
-        // Old format without expiration - return as is
+        // Old format - return as is
         return entry;
       }
 
-      // New format with expiration
-      if (entry.expiresAt && Date.now() > entry.expiresAt) {
-        logger.trace('Query result expired, removing', { queryHash, expiresAt: entry.expiresAt });
-        sessionStorage.removeItem(queryKey);
-        return null;
-      }
+      // New format
 
       return entry.itemKeys || null;
     } catch (error) {
@@ -390,7 +328,7 @@ export class SessionStorageCacheMap<
   }
 
   public hasQueryResult(queryHash: string): boolean {
-    // Use getQueryResult which handles expiration checking
+    // Use getQueryResult to check if result exists
     return this.getQueryResult(queryHash) !== null;
   }
 

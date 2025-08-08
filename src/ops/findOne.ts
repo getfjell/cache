@@ -23,7 +23,7 @@ export const findOne = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
-  const { api, cacheMap, pkType, queryTtl } = context;
+  const { api, cacheMap, pkType, ttlManager } = context;
   logger.default('findOne', { finder, finderParams, locations });
 
   // Generate query hash for caching
@@ -51,9 +51,21 @@ export const findOne = async <
   // Store individual item in cache
   cacheMap.set(ret.key, ret);
 
+  // Set TTL metadata for the newly cached item
+  const keyStr = JSON.stringify(ret.key);
+  ttlManager.onItemAdded(keyStr, cacheMap);
+
+  // Handle eviction for the newly cached item
+  const evictedKeys = context.evictionManager.onItemAdded(keyStr, ret, cacheMap);
+  // Remove evicted items from cache
+  evictedKeys.forEach(evictedKey => {
+    const parsedKey = JSON.parse(evictedKey);
+    cacheMap.delete(parsedKey);
+  });
+
   // Store query result (single item key) in query cache
-  cacheMap.setQueryResult(queryHash, [ret.key], queryTtl);
-  logger.debug('Cached query result', { queryHash, itemKey: ret.key, ttl: queryTtl });
+  cacheMap.setQueryResult(queryHash, [ret.key]);
+  logger.debug('Cached query result', { queryHash, itemKey: ret.key });
 
   return [context, validatePK(ret, pkType) as V];
 };

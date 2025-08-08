@@ -30,6 +30,9 @@ describe('Find Operations', () => {
 
   let cacheMap: MemoryCacheMap<TestItem, 'test', 'container'>;
   let mockApi: any;
+  let mockEventEmitter: any;
+  let mockTtlManager: any;
+  let mockEvictionManager: any;
   let context: CacheContext<TestItem, 'test', 'container'>;
 
   beforeEach(() => {
@@ -46,7 +49,37 @@ describe('Find Operations', () => {
       ttl: 300000
     };
 
-    context = createCacheContext(mockApi, cacheMap, 'test', options);
+    // Mock EventEmitter
+    mockEventEmitter = {
+      emit: vi.fn(),
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+      getSubscriptionCount: vi.fn(),
+      getSubscriptions: vi.fn(),
+      destroy: vi.fn()
+    } as any;
+
+    // Mock TTLManager
+    mockTtlManager = {
+      isTTLEnabled: vi.fn().mockReturnValue(true),
+      getDefaultTTL: vi.fn().mockReturnValue(300000),
+      validateItem: vi.fn().mockReturnValue(true),
+      onItemAdded: vi.fn(),
+      onItemAccessed: vi.fn(),
+      removeExpiredItems: vi.fn()
+    } as any;
+
+    // Mock EvictionManager
+    mockEvictionManager = {
+      onItemAdded: vi.fn().mockReturnValue([]),
+      onItemAccessed: vi.fn(),
+      onItemRemoved: vi.fn(),
+      getEvictionStrategyName: vi.fn().mockReturnValue(null),
+      isEvictionSupported: vi.fn().mockReturnValue(false),
+      performEviction: vi.fn().mockReturnValue([])
+    } as any;
+
+    context = createCacheContext(mockApi, cacheMap, 'test', options, mockEventEmitter, mockTtlManager, mockEvictionManager);
   });
 
   describe('find operation', () => {

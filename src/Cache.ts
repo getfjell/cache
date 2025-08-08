@@ -127,25 +127,36 @@ export const createCache = <
 
   // Create eviction manager
   const evictionManager = new EvictionManager();
-  if (completeOptions.evictionConfig) {
-    // Set eviction strategy from options
+
+  // Determine eviction configuration - prioritize top-level evictionConfig
+  const evictionConfig = completeOptions.evictionConfig;
+  if (!evictionConfig &&
+    completeOptions.memoryConfig?.size?.evictionPolicy &&
+    (completeOptions.memoryConfig.size.maxItems || completeOptions.memoryConfig.size.maxSizeBytes)) {
+  }
+
+  if (evictionConfig) {
+    // Set eviction strategy from unified config
     const strategy = createEvictionStrategy(
-      completeOptions.evictionConfig.type || 'lru',
+      evictionConfig.type || 'lru',
       completeOptions.memoryConfig?.maxItems,
-      completeOptions.evictionConfig
+      evictionConfig
     );
     evictionManager.setEvictionStrategy(strategy);
   }
 
-  // Create TTL manager
+  // Create TTL manager with proper configuration priority: memoryConfig.ttl || ttl
   const ttlManager = new TTLManager({
     defaultTTL: completeOptions.ttl,
     autoCleanup: true,
     validateOnAccess: true
   });
 
-  // Create operations with event emitter
-  const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions, eventEmitter);
+  // Note: EvictionManager operates independently of CacheMap implementations
+  // and is passed through CacheContext to operations for external eviction management
+
+  // Create operations with event emitter and eviction manager
+  const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions, eventEmitter, ttlManager, evictionManager);
 
   const cache: Cache<V, S, L1, L2, L3, L4, L5> = {
     coordinate,
@@ -162,7 +173,8 @@ export const createCache = <
       const cacheInfo: CacheInfo = {
         implementationType: cacheMap.implementationType,
         defaultTTL: ttlManager.getDefaultTTL(),
-        supportsTTL: ttlManager.isTTLEnabled(),
+        // Cache supports TTL if the CacheMap supports it OR if TTL is configured
+        supportsTTL: (cacheMap as any).supportsTTL?.() || !!ttlManager.getDefaultTTL(),
         supportsEviction: evictionManager.isEvictionSupported()
       };
 

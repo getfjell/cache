@@ -60,5 +60,28 @@ describe('Cache', () => {
       expect(cacheInfo.supportsTTL).toBe(true);
       expect(cacheInfo.supportsEviction).toBe(false);
     });
+
+    it('should provide accurate cache information with enhanced memory cache and eviction', () => {
+      const options = createOptions({
+        cacheType: 'memory',
+        memoryConfig: {
+          size: {
+            maxItems: 100,
+            maxSizeBytes: '1MB'
+          }
+        },
+        evictionConfig: { type: 'lru' }
+      });
+
+      cache = createCache(mockApi, mockCoordinate, mockRegistry, options);
+      const cacheInfo = cache.getCacheInfo();
+
+      expect(cacheInfo.implementationType).toBe('memory/enhanced');
+      expect(cacheInfo.evictionPolicy).toBe('lru');
+      expect(cacheInfo.defaultTTL).toBeUndefined();
+      expect(cacheInfo.supportsTTL).toBe(false);
+      expect(cacheInfo.supportsEviction).toBe(true);
+    });
+
   });
 });

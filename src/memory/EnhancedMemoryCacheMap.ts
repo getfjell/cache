@@ -12,9 +12,7 @@ import { CacheMap } from "../CacheMap";
 import { createNormalizedHashFunction, isLocKeyArrayEqual, QueryCacheEntry } from "../normalization";
 import { CacheSizeConfig } from "../Options";
 import {
-  CacheItemMetadata,
-  createEvictionStrategy,
-  EvictionStrategy
+  CacheItemMetadata
 } from "../eviction";
 import { estimateValueSize, parseSizeString } from "../utils/CacheSize";
 import LibLogger from "../logger";
@@ -25,6 +23,7 @@ interface EnhancedDictionaryEntry<K, V> {
   originalKey: K;
   value: V;
   metadata: CacheItemMetadata;
+  metadataCleared?: boolean;
 }
 
 /**
@@ -46,10 +45,8 @@ export class EnhancedMemoryCacheMap<
   private map: { [key: string]: EnhancedDictionaryEntry<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, V> } = {};
   private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
 
-  // Query result cache: maps query hash to cache entry with expiration
+  // Query result cache: maps query hash to cache entry
   private queryResultCache: { [queryHash: string]: QueryCacheEntry } = {};
-  // Mutex-like tracking for TTL operations to prevent race conditions
-  private ttlOperationsInProgress: Set<string> = new Set();
 
   // Size tracking
   private currentSizeBytes: number = 0;
@@ -59,10 +56,6 @@ export class EnhancedMemoryCacheMap<
   // Size limits
   private readonly maxSizeBytes?: number;
   private readonly maxItems?: number;
-
-  // Eviction strategy
-  private readonly evictionStrategy: EvictionStrategy;
-  private readonly evictionPolicy: string;
 
   public constructor(
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
@@ -83,12 +76,7 @@ export class EnhancedMemoryCacheMap<
       logger.debug('Cache item limit set', { maxItems: this.maxItems });
     }
 
-    // Initialize eviction strategy
-    const policy = sizeConfig?.evictionPolicy || 'lru';
-    this.evictionPolicy = policy;
-    const maxCacheSize = this.maxItems || 1000; // Default for strategies that need it
-    this.evictionStrategy = createEvictionStrategy(policy, maxCacheSize);
-    logger.debug('Eviction strategy initialized', { policy });
+    // Note: Eviction is handled externally - this cache map only provides metadata access
 
     // Initialize with data if provided
     if (initialData) {
@@ -110,45 +98,8 @@ export class EnhancedMemoryCacheMap<
     const hashedKey = this.normalizedHashFunction(key);
     const entry = this.map[hashedKey];
 
-    // Check if entry exists AND the normalized keys match
-    if (entry && this.normalizedHashFunction(entry.originalKey) === hashedKey) {
-      // Update access metadata
-      this.evictionStrategy.onItemAccessed(hashedKey, this);
-      return entry.value;
-    }
-
-    return null;
-  }
-
-  public getWithTTL(
-    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    ttl: number
-  ): V | null {
-    logger.trace('getWithTTL', { key, ttl });
-
-    // If TTL is 0, don't check cache - this disables caching
-    if (ttl === 0) {
-      return null;
-    }
-
-    const hashedKey = this.normalizedHashFunction(key);
-    const entry = this.map[hashedKey];
-
-    // Check if entry exists AND the normalized keys match
-    if (entry && this.normalizedHashFunction(entry.originalKey) === hashedKey) {
-      // Check if the item has expired
-      const now = Date.now();
-      const age = now - entry.metadata.addedAt;
-
-      if (age >= ttl) {
-        // Item has expired, remove it from cache
-        logger.trace('Item expired, removing from enhanced cache', { key, age, ttl });
-        this.delete(key);
-        return null;
-      }
-
-      // Update access metadata
-      this.evictionStrategy.onItemAccessed(hashedKey, this);
+    // Check if entry exists AND the normalized keys match AND has a real value
+    if (entry && this.normalizedHashFunction(entry.originalKey) === hashedKey && entry.value !== null) {
       return entry.value;
     }
 
@@ -173,11 +124,6 @@ export class EnhancedMemoryCacheMap<
       existingEntry.value = value;
       existingEntry.metadata.estimatedSize = estimatedSize;
 
-      // For updates, we need to notify eviction strategy properly
-      // Since the value changed, this is effectively a remove + add
-      this.evictionStrategy.onItemRemoved(hashedKey, this);
-      this.evictionStrategy.onItemAdded(hashedKey, existingEntry.metadata.estimatedSize, this);
-
       logger.trace('Updated existing cache entry', {
         key: hashedKey,
         sizeDiff,
@@ -185,9 +131,6 @@ export class EnhancedMemoryCacheMap<
         oldValue: oldValue !== value
       });
     } else {
-      // New entry - check if we need to evict first
-      this.ensureSpaceAvailable(estimatedSize);
-
       // Create new entry
       const metadata: CacheItemMetadata = {
         addedAt: Date.now(),
@@ -206,8 +149,6 @@ export class EnhancedMemoryCacheMap<
       this.currentSizeBytes += estimatedSize;
       this.currentItemCount++;
 
-      this.evictionStrategy.onItemAdded(hashedKey, metadata.estimatedSize, this);
-
       logger.trace('Added new cache entry', {
         key: hashedKey,
         size: estimatedSize,
@@ -220,10 +161,14 @@ export class EnhancedMemoryCacheMap<
   public includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean {
     const hashedKey = this.normalizedHashFunction(key);
     const entry = this.map[hashedKey];
-    return !!entry && this.normalizedHashFunction(entry.originalKey) === hashedKey;
+    return !!entry && this.normalizedHashFunction(entry.originalKey) === hashedKey && entry.value !== null;
   }
 
   public delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
+    this.deleteInternal(key, true);
+  }
+
+  private deleteInternal(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, invalidateQueries: boolean = false): void {
     logger.trace('delete', { key });
     const hashedKey = this.normalizedHashFunction(key);
     const entry = this.map[hashedKey];
@@ -231,7 +176,6 @@ export class EnhancedMemoryCacheMap<
     if (entry && this.normalizedHashFunction(entry.originalKey) === hashedKey) {
       this.currentSizeBytes -= entry.metadata.estimatedSize;
       this.currentItemCount--;
-      this.evictionStrategy.onItemRemoved(hashedKey, this);
       delete this.map[hashedKey];
 
       logger.trace('Deleted cache entry', {
@@ -240,15 +184,24 @@ export class EnhancedMemoryCacheMap<
         currentSize: this.currentSizeBytes,
         currentCount: this.currentItemCount
       });
+
+      // Invalidate queries that reference this key only if requested
+      if (invalidateQueries) {
+        this.invalidateQueriesReferencingKeys([key]);
+      }
     }
   }
 
   public keys(): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] {
-    return Object.values(this.map).map(entry => entry.originalKey);
+    return Object.values(this.map)
+      .filter(entry => entry.value !== null)
+      .map(entry => entry.originalKey);
   }
 
   public values(): V[] {
-    return Object.values(this.map).map(entry => entry.value);
+    return Object.values(this.map)
+      .filter(entry => entry.value !== null)
+      .map(entry => entry.value);
   }
 
   public clear(): void {
@@ -256,11 +209,6 @@ export class EnhancedMemoryCacheMap<
       itemsCleared: this.currentItemCount,
       bytesFreed: this.currentSizeBytes
     });
-
-    // Notify eviction strategy of all removals
-    for (const hashedKey of Object.keys(this.map)) {
-      this.evictionStrategy.onItemRemoved(hashedKey, this);
-    }
 
     this.map = {};
     this.currentSizeBytes = 0;
@@ -320,6 +268,11 @@ export class EnhancedMemoryCacheMap<
       }
     }
 
+    // Copy query results
+    for (const [queryHash, entry] of Object.entries(this.queryResultCache)) {
+      clone.setQueryResult(queryHash, entry.itemKeys);
+    }
+
     return clone;
   }
 
@@ -335,7 +288,7 @@ export class EnhancedMemoryCacheMap<
       bytes?: number;
       items?: number;
     };
-    } {
+  } {
     const stats = {
       currentSizeBytes: this.currentSizeBytes,
       currentItemCount: this.currentItemCount,
@@ -355,104 +308,9 @@ export class EnhancedMemoryCacheMap<
     return stats;
   }
 
-  /**
-   * Ensure there's space available for a new item of the given size
-   * Evicts items if necessary based on the configured eviction policy
-   */
-  private ensureSpaceAvailable(newItemSize: number): void {
-    // Get current metadata for all items
-    const itemMetadata = new Map<string, CacheItemMetadata>();
-    for (const [hashedKey, entry] of Object.entries(this.map)) {
-      itemMetadata.set(hashedKey, entry.metadata);
-    }
-
-    // Check if we need to evict based on item count
-    while (this.maxItems && this.currentItemCount >= this.maxItems) {
-      const context = {
-        currentSize: {
-          itemCount: this.currentItemCount,
-          sizeBytes: this.currentSizeBytes
-        },
-        limits: {
-          maxItems: this.maxItems ?? null,
-          maxSizeBytes: this.maxSizeBytes ?? null
-        },
-        newItemSize
-      };
-      const keysToEvict = this.evictionStrategy.selectForEviction(this, context);
-      if (keysToEvict.length === 0) {
-        logger.debug('No item selected for eviction despite being over item limit');
-        break;
-      }
-
-      for (const keyToEvict of keysToEvict) {
-        this.evictItem(keyToEvict, itemMetadata);
-        logger.debug('Evicted item due to count limit', {
-          evictedKey: keyToEvict,
-          currentCount: this.currentItemCount,
-          maxItems: this.maxItems
-        });
-
-        // Break if we're no longer over the limit
-        if (!this.maxItems || this.currentItemCount < this.maxItems) {
-          break;
-        }
-      }
-    }
-
-    // Check if we need to evict based on size (including query results cache)
-    while (this.maxSizeBytes && (this.getTotalSizeBytes() + newItemSize) > this.maxSizeBytes) {
-      const context = {
-        currentSize: {
-          itemCount: this.currentItemCount,
-          sizeBytes: this.currentSizeBytes
-        },
-        limits: {
-          maxItems: this.maxItems ?? null,
-          maxSizeBytes: this.maxSizeBytes ?? null
-        },
-        newItemSize
-      };
-      const keysToEvict = this.evictionStrategy.selectForEviction(this, context);
-      if (keysToEvict.length === 0) {
-        logger.debug('No item selected for eviction despite being over size limit');
-        break;
-      }
-
-      for (const keyToEvict of keysToEvict) {
-        this.evictItem(keyToEvict, itemMetadata);
-        logger.debug('Evicted item due to size limit', {
-          evictedKey: keyToEvict,
-          currentItemsSize: this.currentSizeBytes,
-          queryResultsSize: this.queryResultsCacheSize,
-          totalSize: this.getTotalSizeBytes(),
-          newItemSize,
-          maxSizeBytes: this.maxSizeBytes
-        });
-
-        // Break if we're no longer over the limit
-        if (!this.maxSizeBytes || (this.getTotalSizeBytes() + newItemSize) <= this.maxSizeBytes) {
-          break;
-        }
-      }
-    }
-  }
-
-  /**
-   * Evict a specific item and update metadata tracking
-   */
-  private evictItem(hashedKey: string, itemMetadata: Map<string, CacheItemMetadata>): void {
-    const entry = this.map[hashedKey];
-    if (entry) {
-      const originalKey = entry.originalKey;
-      this.delete(originalKey); // This will handle size tracking and eviction strategy notification
-      itemMetadata.delete(hashedKey);
-    }
-  }
-
   // Query result caching methods
-  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], ttl?: number): void {
-    logger.trace('setQueryResult', { queryHash, itemKeys, ttl });
+  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+    logger.trace('setQueryResult', { queryHash, itemKeys });
 
     // Remove existing entry to get accurate size tracking
     if (queryHash in this.queryResultCache) {
@@ -463,10 +321,6 @@ export class EnhancedMemoryCacheMap<
       itemKeys: [...itemKeys] // Create a copy to avoid external mutations
     };
 
-    if (ttl) {
-      entry.expiresAt = Date.now() + ttl;
-    }
-
     this.queryResultCache[queryHash] = entry;
     this.addQueryResultToSizeTracking(queryHash, entry);
   }
@@ -474,72 +328,18 @@ export class EnhancedMemoryCacheMap<
   public getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null {
     logger.trace('getQueryResult', { queryHash });
 
-    // Check if TTL operation is already in progress for this query
-    if (this.ttlOperationsInProgress.has(queryHash)) {
-      // Another thread is handling TTL, return current value or null
-      const entry = this.queryResultCache[queryHash];
-      return entry ? [...entry.itemKeys] : null;
-    }
-
     const entry = this.queryResultCache[queryHash];
 
     if (!entry) {
       return null;
     }
 
-    // Check if entry has expired - use atomic operation
-    if (entry.expiresAt && Date.now() > entry.expiresAt) {
-      // Mark TTL operation in progress
-      this.ttlOperationsInProgress.add(queryHash);
-
-      try {
-        // Double-check expiry inside the critical section
-        if (entry.expiresAt && Date.now() > entry.expiresAt) {
-          logger.trace('Query result expired, removing', { queryHash, expiresAt: entry.expiresAt });
-          this.removeQueryResultFromSizeTracking(queryHash);
-          delete this.queryResultCache[queryHash];
-          return null;
-        }
-      } finally {
-        // Always release the lock
-        this.ttlOperationsInProgress.delete(queryHash);
-      }
-    }
-
     return [...entry.itemKeys]; // Return a copy to avoid external mutations
   }
 
   public hasQueryResult(queryHash: string): boolean {
-    // Check if TTL operation is already in progress for this query
-    if (this.ttlOperationsInProgress.has(queryHash)) {
-      // Another thread is handling TTL, return current state
-      return queryHash in this.queryResultCache;
-    }
-
     const entry = this.queryResultCache[queryHash];
-    if (!entry) {
-      return false;
-    }
-
-    // Check if entry has expired - use atomic operation
-    if (entry.expiresAt && Date.now() > entry.expiresAt) {
-      // Mark TTL operation in progress
-      this.ttlOperationsInProgress.add(queryHash);
-
-      try {
-        // Double-check expiry inside the critical section
-        if (entry.expiresAt && Date.now() > entry.expiresAt) {
-          this.removeQueryResultFromSizeTracking(queryHash);
-          delete this.queryResultCache[queryHash];
-          return false;
-        }
-      } finally {
-        // Always release the lock
-        this.ttlOperationsInProgress.delete(queryHash);
-      }
-    }
-
-    return true;
+    return !!entry;
   }
 
   public deleteQueryResult(queryHash: string): void {
@@ -556,41 +356,76 @@ export class EnhancedMemoryCacheMap<
 
   public invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
     logger.debug('invalidateItemKeys', { keys });
+
+    if (keys.length === 0) {
+      // No keys to invalidate, so no queries should be affected
+      return;
+    }
+
+    // Delete the actual cache entries without triggering individual query invalidations
     keys.forEach(key => {
-      this.delete(key);
+      this.deleteInternal(key, false);
+    });
+
+    // Invalidate queries that reference any of the deleted keys (do this once at the end)
+    this.invalidateQueriesReferencingKeys(keys);
+  }
+
+  private invalidateQueriesReferencingKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+    if (keys.length === 0) {
+      return;
+    }
+
+    // Convert keys to their hashed form for comparison
+    const hashedKeysToInvalidate = new Set(keys.map(key => this.normalizedHashFunction(key)));
+
+    // Clear query results that reference any of the invalidated keys
+    const queriesToRemove: string[] = [];
+    for (const [queryHash, entry] of Object.entries(this.queryResultCache)) {
+      const queryReferencesInvalidatedKey = entry.itemKeys.some(itemKey => {
+        const hashedItemKey = this.normalizedHashFunction(itemKey);
+        return hashedKeysToInvalidate.has(hashedItemKey);
+      });
+
+      if (queryReferencesInvalidatedKey) {
+        queriesToRemove.push(queryHash);
+      }
+    }
+
+    // Remove the affected queries
+    queriesToRemove.forEach(queryHash => {
+      this.deleteQueryResult(queryHash);
     });
   }
 
   public invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): void {
     logger.debug('invalidateLocation', { locations });
 
+    let keysToInvalidate: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] = [];
+
     if (locations.length === 0) {
       // For primary items (no location), clear all primary keys
       const allKeys = this.keys();
       const primaryKeys = allKeys.filter(key => !isComKey(key));
-      this.invalidateItemKeys(primaryKeys);
+      keysToInvalidate = primaryKeys;
     } else {
       // For contained items, get all items in the location and invalidate them
       const itemsInLocation = this.allIn(locations);
-      const keysToInvalidate = itemsInLocation.map(item => item.key);
-      this.invalidateItemKeys(keysToInvalidate);
+      keysToInvalidate = itemsInLocation.map(item => item.key);
     }
 
-    // Clear all query results that might be affected
-    // For now, we'll clear all query results to be safe
-    // A more sophisticated approach would be to track which queries are location-specific
-    this.clearQueryResults();
+    // Use invalidateItemKeys which will selectively clear only affected queries
+    this.invalidateItemKeys(keysToInvalidate);
   }
 
   /**
    * Add query result to size tracking
    */
   private addQueryResultToSizeTracking(queryHash: string, entry: QueryCacheEntry): void {
-    // Estimate size: queryHash + itemKeys array + metadata
+    // Estimate size: queryHash + itemKeys array
     const hashSize = estimateValueSize(queryHash);
     const itemKeysSize = estimateValueSize(entry.itemKeys);
-    const metadataSize = entry.expiresAt ? 8 : 0; // 8 bytes for timestamp
-    const totalSize = hashSize + itemKeysSize + metadataSize;
+    const totalSize = hashSize + itemKeysSize;
 
     this.queryResultsCacheSize += totalSize;
     logger.trace('Added query result to size tracking', {
@@ -608,8 +443,7 @@ export class EnhancedMemoryCacheMap<
     if (entry) {
       const hashSize = estimateValueSize(queryHash);
       const itemKeysSize = estimateValueSize(entry.itemKeys);
-      const metadataSize = entry.expiresAt ? 8 : 0;
-      const totalSize = hashSize + itemKeysSize + metadataSize;
+      const totalSize = hashSize + itemKeysSize;
 
       this.queryResultsCacheSize = Math.max(0, this.queryResultsCacheSize - totalSize);
       logger.trace('Removed query result from size tracking', {
@@ -630,16 +464,39 @@ export class EnhancedMemoryCacheMap<
   // CacheMapMetadataProvider implementation
   public getMetadata(key: string): CacheItemMetadata | null {
     const entry = this.map[key];
-    return entry ? entry.metadata : null;
+    if (entry && !entry.metadataCleared) {
+      return entry.metadata;
+    }
+    return null;
   }
 
   public setMetadata(key: string, metadata: CacheItemMetadata): void {
     const entry = this.map[key];
     if (entry) {
       entry.metadata = metadata;
+      entry.metadataCleared = false; // Unclear metadata when setting new metadata
+    } else {
+      // Create a synthetic entry for metadata-only storage
+      // This allows setting metadata for keys that don't exist in the cache yet
+      let originalKey: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>;
+
+      try {
+        // Try to parse as JSON (for real cache keys)
+        originalKey = JSON.parse(key) as ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>;
+      } catch {
+        // If not JSON, create a synthetic primary key
+        originalKey = { kt: 'metadata-only' as S, pk: key } as PriKey<S>;
+      }
+
+      this.map[key] = {
+        originalKey,
+        value: null as any, // Placeholder value
+        metadata,
+        metadataCleared: false
+      };
     }
   }
-   
+
   public deleteMetadata(_key: string): void {
     // Metadata is deleted when the item is deleted
     // This is a no-op since metadata is part of the item entry
@@ -648,14 +505,32 @@ export class EnhancedMemoryCacheMap<
   public getAllMetadata(): Map<string, CacheItemMetadata> {
     const metadata = new Map<string, CacheItemMetadata>();
     for (const [hashedKey, entry] of Object.entries(this.map)) {
-      metadata.set(hashedKey, entry.metadata);
+      // Only include metadata if it hasn't been cleared
+      if (!entry.metadataCleared) {
+        metadata.set(hashedKey, entry.metadata);
+      }
     }
     return metadata;
   }
 
   public clearMetadata(): void {
-    // Metadata is cleared when items are cleared
-    // This is a no-op since metadata is part of the item entries
+    // Mark all entries as having cleared metadata
+    const keysToRemove: string[] = [];
+
+    for (const [hashedKey, entry] of Object.entries(this.map)) {
+      if (entry.value === null) {
+        // This is a metadata-only entry, remove it completely
+        keysToRemove.push(hashedKey);
+      } else {
+        // This is a real cache entry, mark metadata as cleared
+        entry.metadataCleared = true;
+      }
+    }
+
+    // Remove metadata-only entries
+    for (const key of keysToRemove) {
+      delete this.map[key];
+    }
   }
 
   public getCurrentSize(): { itemCount: number; sizeBytes: number } {
@@ -672,15 +547,4 @@ export class EnhancedMemoryCacheMap<
     };
   }
 
-  protected supportsEviction(): boolean {
-    return true; // Enhanced memory cache supports eviction
-  }
-
-  public getCacheInfo() {
-    const baseInfo = super.getCacheInfo();
-    return {
-      ...baseInfo,
-      evictionPolicy: this.evictionPolicy || 'lru' // Default eviction policy
-    };
-  }
 }

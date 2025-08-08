@@ -22,6 +22,10 @@ describe('EvictionStrategyFactory', () => {
 
   afterEach(() => {
     consoleWarnSpy.mockRestore();
+    vi.doUnmock('../../src/eviction/strategies/LFUEvictionStrategy');
+    vi.doUnmock('../../src/eviction/strategies/ARCEvictionStrategy');
+    vi.doUnmock('../../src/eviction/strategies/TwoQueueEvictionStrategy');
+    vi.resetModules();
   });
 
   describe('createEvictionStrategy', () => {
@@ -35,7 +39,7 @@ describe('EvictionStrategyFactory', () => {
       it('should create LFU strategy with default config', () => {
         const strategy = createEvictionStrategy('lfu');
         expect(strategy).toBeInstanceOf(LFUEvictionStrategy);
-        expect(strategy.getStrategyName()).toBe('LFU');
+        expect(strategy.getStrategyName()).toBe('lfu');
       });
 
       it('should create FIFO strategy', () => {
@@ -112,7 +116,7 @@ describe('EvictionStrategyFactory', () => {
 
         const strategy = createEvictionStrategy('lfu', 1000, config);
         expect(strategy).toBeInstanceOf(LFUEvictionStrategy);
-        expect(strategy.getStrategyName()).toBe('LFU');
+        expect(strategy.getStrategyName()).toBe('lfu');
       });
 
       it('should create ARC strategy with custom config', () => {
@@ -160,19 +164,127 @@ describe('EvictionStrategyFactory', () => {
 
         const strategy = createEvictionStrategy('lfu', 1000, config);
         expect(strategy).toBeInstanceOf(LFUEvictionStrategy);
-        expect(strategy.getStrategyName()).toBe('LFU');
+        expect(strategy.getStrategyName()).toBe('lfu');
       });
     });
 
     describe('Error handling and fallback behavior', () => {
-      // Note: These error handling tests are challenging to test with the current factory implementation
-      // since the strategies are imported directly. The factory does have error handling but it's hard to trigger
-      // in the test environment without more complex mocking that would interfere with other tests.
-
       it('should throw error for unsupported eviction policy', () => {
         expect(() => {
           createEvictionStrategy('unsupported' as EvictionPolicy);
         }).toThrow('Unsupported eviction policy: unsupported');
+      });
+
+      it('should fallback to LRU when LFU strategy creation fails', async () => {
+        // Mock the LFUEvictionStrategy module to throw an error
+        vi.doMock('../../src/eviction/strategies/LFUEvictionStrategy', () => ({
+          LFUEvictionStrategy: vi.fn().mockImplementation(() => {
+            throw new Error('LFU creation failed');
+          })
+        }));
+
+        // Re-import the factory to get the mocked version
+        vi.resetModules();
+        const { createEvictionStrategy } = await import('../../src/eviction/EvictionStrategyFactory');
+        const { LRUEvictionStrategy } = await import('../../src/eviction/strategies/LRUEvictionStrategy');
+
+        const strategy = createEvictionStrategy('lfu', 1000);
+
+        // Should fall back to LRU strategy
+        expect(strategy).toBeInstanceOf(LRUEvictionStrategy);
+        expect(strategy.getStrategyName()).toBe('lru');
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Failed to create lfu strategy'),
+          'LFU creation failed'
+        );
+
+        // Restore mocks
+        vi.doUnmock('../../src/eviction/strategies/LFUEvictionStrategy');
+        vi.resetModules();
+      });
+
+      it('should fallback to LRU when ARC strategy creation fails', async () => {
+        // Mock the ARCEvictionStrategy module to throw an error
+        vi.doMock('../../src/eviction/strategies/ARCEvictionStrategy', () => ({
+          ARCEvictionStrategy: vi.fn().mockImplementation(() => {
+            throw new Error('ARC creation failed');
+          })
+        }));
+
+        // Re-import the factory to get the mocked version
+        vi.resetModules();
+        const { createEvictionStrategy } = await import('../../src/eviction/EvictionStrategyFactory');
+        const { LRUEvictionStrategy } = await import('../../src/eviction/strategies/LRUEvictionStrategy');
+
+        const strategy = createEvictionStrategy('arc', 1000);
+
+        // Should fall back to LRU strategy
+        expect(strategy).toBeInstanceOf(LRUEvictionStrategy);
+        expect(strategy.getStrategyName()).toBe('lru');
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Failed to create arc strategy'),
+          'ARC creation failed'
+        );
+
+        // Restore mocks
+        vi.doUnmock('../../src/eviction/strategies/ARCEvictionStrategy');
+        vi.resetModules();
+      });
+
+      it('should fallback to LRU when 2Q strategy creation fails', async () => {
+        // Mock the TwoQueueEvictionStrategy module to throw an error
+        vi.doMock('../../src/eviction/strategies/TwoQueueEvictionStrategy', () => ({
+          TwoQueueEvictionStrategy: vi.fn().mockImplementation(() => {
+            throw new Error('2Q creation failed');
+          })
+        }));
+
+        // Re-import the factory to get the mocked version
+        vi.resetModules();
+        const { createEvictionStrategy } = await import('../../src/eviction/EvictionStrategyFactory');
+        const { LRUEvictionStrategy } = await import('../../src/eviction/strategies/LRUEvictionStrategy');
+
+        const strategy = createEvictionStrategy('2q', 1000);
+
+        // Should fall back to LRU strategy
+        expect(strategy).toBeInstanceOf(LRUEvictionStrategy);
+        expect(strategy.getStrategyName()).toBe('lru');
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Failed to create 2q strategy'),
+          '2Q creation failed'
+        );
+
+        // Restore mocks
+        vi.doUnmock('../../src/eviction/strategies/TwoQueueEvictionStrategy');
+        vi.resetModules();
+      });
+
+      it('should handle non-Error objects thrown during strategy creation', async () => {
+        // Mock the LFUEvictionStrategy module to throw a string
+        vi.doMock('../../src/eviction/strategies/LFUEvictionStrategy', () => ({
+          LFUEvictionStrategy: vi.fn().mockImplementation(() => {
+            throw 'String error';
+          })
+        }));
+
+        // Re-import the factory to get the mocked version
+        vi.resetModules();
+        const { createEvictionStrategy } = await import('../../src/eviction/EvictionStrategyFactory');
+        const { LRUEvictionStrategy } = await import('../../src/eviction/strategies/LRUEvictionStrategy');
+
+        const strategy = createEvictionStrategy('lfu', 1000);
+
+        // Should fall back to LRU strategy
+        expect(strategy).toBeInstanceOf(LRUEvictionStrategy);
+        expect(strategy.getStrategyName()).toBe('lru');
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Failed to create lfu strategy'),
+          'String error'
+        );
+
+        // Restore mocks
+        vi.doUnmock('../../src/eviction/strategies/LFUEvictionStrategy');
+        vi.resetModules();
       });
     });
 
@@ -192,7 +304,7 @@ describe('EvictionStrategyFactory', () => {
       it('should handle undefined config', () => {
         const strategy = createEvictionStrategy('lfu', 1000);
         expect(strategy).toBeInstanceOf(LFUEvictionStrategy);
-        expect(strategy.getStrategyName()).toBe('LFU');
+        expect(strategy.getStrategyName()).toBe('lfu');
       });
 
       it('should handle ARC config with invalid maxCacheSize', () => {
@@ -263,7 +375,7 @@ describe('EvictionStrategyFactory', () => {
     it('should use correct default LFU config when no config provided', () => {
       const strategy = createEvictionStrategy('lfu', 800);
       expect(strategy).toBeInstanceOf(LFUEvictionStrategy);
-      expect(strategy.getStrategyName()).toBe('LFU');
+      expect(strategy.getStrategyName()).toBe('lfu');
     });
   });
 });
