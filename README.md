@@ -60,7 +60,7 @@ memoryCache.set(userKey, user);
 const cachedUser = memoryCache.get(userKey);
 
 // Get cache information for debugging or monitoring
-const cacheInfo = memoryCache.getCacheInfo();
+const cacheInfo = userCache.getCacheInfo();
 console.log(`Using ${cacheInfo.implementationType} cache`);
 console.log(`TTL support: ${cacheInfo.supportsTTL}`);
 console.log(`Eviction support: ${cacheInfo.supportsEviction}`);

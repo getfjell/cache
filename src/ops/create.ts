@@ -22,10 +22,22 @@ export const create = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
-  const { api, cacheMap, pkType, eventEmitter } = context;
+  const { api, cacheMap, pkType, eventEmitter, ttlManager, evictionManager } = context;
   logger.default('create', { v, locations });
   const created = await api.create(v, locations);
   cacheMap.set(created.key, created);
+
+  // Set TTL metadata for the newly cached item
+  const keyStr = JSON.stringify(created.key);
+  ttlManager.onItemAdded(keyStr, cacheMap);
+
+  // Handle eviction for the newly cached item
+  const evictedKeys = evictionManager.onItemAdded(keyStr, created, cacheMap);
+  // Remove evicted items from cache
+  evictedKeys.forEach(evictedKey => {
+    const parsedKey = JSON.parse(evictedKey);
+    cacheMap.delete(parsedKey);
+  });
 
   // Emit event
   const event = CacheEventFactory.itemCreated(created.key, created as V, 'api');

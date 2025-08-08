@@ -24,7 +24,7 @@ export const one = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V | null]> => {
-  const { api, cacheMap, pkType, queryTtl } = context;
+  const { api, cacheMap, pkType, ttlManager } = context;
   logger.default('one', { query, locations });
 
   // Generate query hash for caching
@@ -58,18 +58,30 @@ export const one = async <
       // Store individual item in cache
       cacheMap.set(retItem.key, retItem);
 
+      // Set TTL metadata for the newly cached item
+      const keyStr = JSON.stringify(retItem.key);
+      ttlManager.onItemAdded(keyStr, cacheMap);
+
+      // Handle eviction for the newly cached item
+      const evictedKeys = context.evictionManager.onItemAdded(keyStr, retItem, cacheMap);
+      // Remove evicted items from cache
+      evictedKeys.forEach(evictedKey => {
+        const parsedKey = JSON.parse(evictedKey);
+        cacheMap.delete(parsedKey);
+      });
+
       // Store query result (single item key) in query cache
-      cacheMap.setQueryResult(queryHash, [retItem.key], queryTtl);
-      logger.debug('Cached query result', { queryHash, itemKey: retItem.key, ttl: queryTtl });
+      cacheMap.setQueryResult(queryHash, [retItem.key]);
+      logger.debug('Cached query result', { queryHash, itemKey: retItem.key });
     } else {
       // Store empty result in query cache
-      cacheMap.setQueryResult(queryHash, [], queryTtl);
-      logger.debug('Cached empty query result', { queryHash, ttl: queryTtl });
+      cacheMap.setQueryResult(queryHash, []);
+      logger.debug('Cached empty query result', { queryHash });
     }
   } catch (e: unknown) {
     if (e instanceof NotFoundError) {
       // Handle not found gracefully - cache empty result
-      cacheMap.setQueryResult(queryHash, [], queryTtl);
+      cacheMap.setQueryResult(queryHash, []);
       logger.debug('Cached empty query result for not found', { queryHash });
     } else {
       throw e;

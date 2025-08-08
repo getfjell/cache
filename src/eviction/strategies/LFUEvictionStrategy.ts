@@ -115,7 +115,7 @@ class CountMinSketch {
  */
 export class LFUEvictionStrategy extends EvictionStrategy {
   getStrategyName(): string {
-    return 'LFU';
+    return 'lfu';
   }
   private readonly config: LFUConfig;
   private readonly sketch: CountMinSketch | null;

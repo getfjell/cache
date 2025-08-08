@@ -181,55 +181,6 @@ export class LocalStorageCacheMap<
     }
   }
 
-  public getWithTTL(
-    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    ttl: number
-  ): V | null {
-    logger.trace('getWithTTL', { key, ttl });
-
-    // If TTL is 0, don't check cache - this disables caching
-    if (ttl === 0) {
-      return null;
-    }
-
-    try {
-      const storageKey = this.getStorageKey(key);
-      let stored = localStorage.getItem(storageKey);
-      // Fallback: attempt legacy key without hashing (for tests that set raw key)
-      if (!stored && typeof (key as any)?.kt === 'string' && (key as any)?.pk) {
-        const legacyKey = `${this.keyPrefix}:${(key as any).kt}:${(key as any).pk}`;
-        stored = localStorage.getItem(legacyKey);
-      }
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Verify the original key matches (for collision detection)
-        if (this.normalizedHashFunction(parsed.originalKey) !== this.normalizedHashFunction(key)) {
-          return null;
-        }
-
-        // Check if the item has expired (only if timestamp exists)
-        if (typeof parsed.timestamp === 'number' && !isNaN(parsed.timestamp)) {
-          const now = Date.now();
-          const age = now - parsed.timestamp;
-
-          if (age >= ttl) {
-            // Item has expired, remove it from cache
-            logger.trace('Item expired, removing from localStorage', { key, age, ttl });
-            localStorage.removeItem(storageKey);
-            return null;
-          }
-        }
-        // If no valid timestamp, treat as non-expiring and return the item
-
-        return parsed.value as V;
-      }
-      return null;
-    } catch (error) {
-      logger.error('Error retrieving with TTL from localStorage', { key, ttl, error });
-      return null;
-    }
-  }
-
   public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
     logger.trace('set', { key, value });
 
@@ -410,17 +361,13 @@ export class LocalStorageCacheMap<
 
   // Query result caching methods implementation
 
-  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], ttl?: number): void {
-    logger.trace('setQueryResult', { queryHash, itemKeys, ttl });
+  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+    logger.trace('setQueryResult', { queryHash, itemKeys });
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
 
     const entry: any = {
       itemKeys
     };
-
-    if (ttl) {
-      entry.expiresAt = Date.now() + ttl;
-    }
 
     try {
       localStorage.setItem(queryKey, JSON.stringify(entry));
@@ -440,19 +387,13 @@ export class LocalStorageCacheMap<
 
       const entry = JSON.parse(data);
 
-      // Handle both old format (just array) and new format (with expiration)
+      // Handle both old format (just array) and new format
       if (Array.isArray(entry)) {
-        // Old format without expiration - return as is
+        // Old format - return as is
         return entry;
       }
 
-      // New format with expiration
-      if (entry.expiresAt && Date.now() > entry.expiresAt) {
-        logger.trace('Query result expired, removing', { queryHash, expiresAt: entry.expiresAt });
-        localStorage.removeItem(queryKey);
-        return null;
-      }
-
+      // New format
       return entry.itemKeys || null;
     } catch (error) {
       logger.error('Failed to retrieve query result from localStorage', { queryHash, error });
@@ -461,7 +402,7 @@ export class LocalStorageCacheMap<
   }
 
   public hasQueryResult(queryHash: string): boolean {
-    // Use getQueryResult which handles expiration checking
+    // Use getQueryResult to check if result exists
     return this.getQueryResult(queryHash) !== null;
   }
 

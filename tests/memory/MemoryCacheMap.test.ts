@@ -1,4 +1,4 @@
- 
+
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
 import { ComKey, IQFactory, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/core';
@@ -54,15 +54,6 @@ describe('MemoryCacheMap', () => {
 
     it('should have correct implementationType', () => {
       expect(cacheMap.implementationType).toBe('memory/memory');
-    });
-
-    it('should provide correct cache information', () => {
-      const cacheInfo = cacheMap.getCacheInfo();
-      expect(cacheInfo.implementationType).toBe('memory/memory');
-      expect(cacheInfo.evictionPolicy).toBeUndefined();
-      expect(cacheInfo.defaultTTL).toBeUndefined();
-      expect(cacheInfo.supportsTTL).toBe(true);
-      expect(cacheInfo.supportsEviction).toBe(false);
     });
   });
 
@@ -371,77 +362,6 @@ describe('MemoryCacheMap', () => {
     });
   });
 
-  describe('TTL Operations', () => {
-    beforeEach(() => {
-      testItems.forEach(item => cacheMap.set(item.key, item));
-    });
-
-    describe('getWithTTL()', () => {
-      it('should return item when within TTL', () => {
-        const result = cacheMap.getWithTTL(priKey1, 60000); // 60 seconds
-        expect(result).toEqual(testItems[0]);
-      });
-
-      it('should return null for non-existent key', () => {
-        const nonExistentKey: PriKey<'test'> = { kt: 'test', pk: 'missing' as UUID };
-        const result = cacheMap.getWithTTL(nonExistentKey, 60000);
-        expect(result).toBeNull();
-      });
-
-      it('should return null when TTL is 0 (caching disabled)', () => {
-        const result = cacheMap.getWithTTL(priKey1, 0);
-        expect(result).toBeNull();
-      });
-
-      it('should return null when item has expired', () => {
-        // Set an item fresh, then test with short TTL after a delay
-        const shortTTL = 10; // 10ms - more reliable for testing
-
-        // Set the item fresh to ensure timing is controlled
-        cacheMap.set(priKey1, testItems[0]);
-
-        // First call should return the item
-        const immediate = cacheMap.getWithTTL(priKey1, shortTTL);
-        expect(immediate).toEqual(testItems[0]);
-
-        // Wait for TTL to expire and try again - should be expired
-        return new Promise(resolve => {
-          setTimeout(() => {
-            const expired = cacheMap.getWithTTL(priKey1, shortTTL);
-            expect(expired).toBeNull();
-            // Verify item was actually removed from cache
-            expect(cacheMap.includesKey(priKey1)).toBe(false);
-            resolve(undefined);
-          }, 15); // Wait longer than TTL
-        });
-      });
-
-      it('should work with composite keys', () => {
-        const result = cacheMap.getWithTTL(comKey1, 60000);
-        expect(result).toEqual(testItems[2]);
-      });
-
-      it('should handle different TTL values for same key', () => {
-        // Short TTL should work
-        const shortResult = cacheMap.getWithTTL(priKey1, 1000);
-        expect(shortResult).toEqual(testItems[0]);
-
-        // Long TTL should also work
-        const longResult = cacheMap.getWithTTL(priKey1, 86400000); // 24 hours
-        expect(longResult).toEqual(testItems[0]);
-      });
-    });
-
-    it('should update timestamp when setting items', () => {
-      const newItem: TestItem = { key: priKey1, id: '1', name: 'New Item', value: 999 } as TestItem;
-      cacheMap.set(priKey1, newItem);
-
-      // Item should be fresh
-      const result = cacheMap.getWithTTL(priKey1, 1000);
-      expect(result).toEqual(newItem);
-    });
-  });
-
   describe('Query Result Caching', () => {
     const queryHash1 = 'query_hash_1';
     const queryHash2 = 'query_hash_2';
@@ -459,8 +379,7 @@ describe('MemoryCacheMap', () => {
       });
 
       it('should store and retrieve query results with TTL', () => {
-        const ttl = 60000; // 60 seconds
-        cacheMap.setQueryResult(queryHash1, itemKeys, ttl);
+        cacheMap.setQueryResult(queryHash1, itemKeys);
         const result = cacheMap.getQueryResult(queryHash1);
         expect(result).toEqual(itemKeys);
       });
@@ -489,24 +408,6 @@ describe('MemoryCacheMap', () => {
         expect(result).not.toBe(emptyKeys);
       });
 
-      it('should handle query result expiration', () => {
-        const shortTTL = 1; // 1ms
-        cacheMap.setQueryResult(queryHash1, itemKeys, shortTTL);
-
-        // Should be available immediately
-        const immediate = cacheMap.getQueryResult(queryHash1);
-        expect(immediate).toEqual(itemKeys);
-
-        // Should expire after delay
-        return new Promise(resolve => {
-          setTimeout(() => {
-            const expired = cacheMap.getQueryResult(queryHash1);
-            expect(expired).toBeNull();
-            resolve(undefined);
-          }, 5);
-        });
-      });
-
       it('should overwrite existing query results', () => {
         const newKeys = [comKey1, comKey2];
 
@@ -528,34 +429,6 @@ describe('MemoryCacheMap', () => {
         expect(cacheMap.hasQueryResult('non_existent')).toBe(false);
       });
 
-      it('should return false for expired query results', () => {
-        const shortTTL = 1; // 1ms
-        cacheMap.setQueryResult(queryHash1, itemKeys, shortTTL);
-
-        expect(cacheMap.hasQueryResult(queryHash1)).toBe(true);
-
-        return new Promise(resolve => {
-          setTimeout(() => {
-            expect(cacheMap.hasQueryResult(queryHash1)).toBe(false);
-            resolve(undefined);
-          }, 5);
-        });
-      });
-
-      it('should clean up expired entries when checked', () => {
-        const shortTTL = 1;
-        cacheMap.setQueryResult(queryHash1, itemKeys, shortTTL);
-
-        return new Promise(resolve => {
-          setTimeout(() => {
-            // hasQueryResult should remove expired entry
-            expect(cacheMap.hasQueryResult(queryHash1)).toBe(false);
-            // Subsequent getQueryResult should also return null
-            expect(cacheMap.getQueryResult(queryHash1)).toBeNull();
-            resolve(undefined);
-          }, 5);
-        });
-      });
     });
 
     describe('deleteQueryResult()', () => {
@@ -817,12 +690,11 @@ describe('MemoryCacheMap', () => {
       expect(cacheMap.hasQueryResult(queryHash2)).toBe(true);
     });
 
-    it('should copy query results with TTL correctly', () => {
-      const queryHash = 'ttl_query';
+    it('should copy query results correctly', () => {
+      const queryHash = 'query_to_copy';
       const itemKeys = [priKey1];
-      const ttl = 60000; // 60 seconds
 
-      cacheMap.setQueryResult(queryHash, itemKeys, ttl);
+      cacheMap.setQueryResult(queryHash, itemKeys);
       const cloned = cacheMap.clone();
 
       expect(cloned.hasQueryResult(queryHash)).toBe(true);

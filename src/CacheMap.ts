@@ -44,12 +44,6 @@ export abstract class CacheMap<
   public abstract get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): V | null;
 
   /**
-   * Retrieve an item by its key with TTL awareness
-   * Returns null if item doesn't exist or has expired based on the provided TTL
-   */
-  public abstract getWithTTL(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, ttl: number): V | null;
-
-  /**
    * Store an item with its key
    */
   public abstract set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void;
@@ -104,7 +98,7 @@ export abstract class CacheMap<
   /**
    * Set a query result as a collection of item keys
    */
-  public abstract setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], ttl?: number): void;
+  public abstract setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void;
 
   /**
    * Get a query result as a collection of item keys
@@ -187,30 +181,4 @@ export abstract class CacheMap<
     maxItems: number | null;
     maxSizeBytes: number | null;
   };
-
-  /**
-   * Get basic cache information for this cache map implementation
-   * @returns Cache information object
-   */
-  public getCacheInfo(): CacheInfo {
-    return {
-      implementationType: this.implementationType,
-      supportsTTL: this.supportsTTL(),
-      supportsEviction: this.supportsEviction()
-    };
-  }
-
-  /**
-   * Whether this cache map implementation supports TTL operations
-   */
-  protected supportsTTL(): boolean {
-    return true; // Most implementations support TTL
-  }
-
-  /**
-   * Whether this cache map implementation supports eviction policies
-   */
-  protected supportsEviction(): boolean {
-    return false; // Basic implementations don't support eviction
-  }
 }

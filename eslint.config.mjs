@@ -7,6 +7,7 @@ export default [
       "max-depth": "off",
       "no-undefined": "off",
       "@typescript-eslint/no-unused-vars": "off",
+      'max-params': 'off',
     },
   },
 ];

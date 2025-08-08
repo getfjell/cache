@@ -35,6 +35,8 @@ describe('all operation', () => {
   let mockApi: ClientApi<TestItem, 'test', 'container'>;
   let mockCacheMap: CacheMap<TestItem, 'test', 'container'>;
   let mockEventEmitter: any;
+  let mockTtlManager: any;
+  let mockEvictionManager: any;
   let context: CacheContext<TestItem, 'test', 'container'>;
 
   beforeEach(() => {
@@ -71,15 +73,38 @@ describe('all operation', () => {
       destroy: vi.fn()
     } as any;
 
+    // Mock TTLManager
+    mockTtlManager = {
+      isTTLEnabled: vi.fn().mockReturnValue(false),
+      getDefaultTTL: vi.fn().mockReturnValue(undefined),
+      validateItem: vi.fn().mockReturnValue(true),
+      onItemAdded: vi.fn().mockReturnValue(undefined),
+      onItemAccessed: vi.fn().mockReturnValue(undefined),
+      removeExpiredItems: vi.fn().mockReturnValue([])
+    } as any;
+
+    // Mock EvictionManager
+    mockEvictionManager = {
+      onItemAdded: vi.fn().mockReturnValue([]),
+      onItemAccessed: vi.fn(),
+      onItemRemoved: vi.fn(),
+      getEvictionStrategyName: vi.fn().mockReturnValue(null),
+      isEvictionSupported: vi.fn().mockReturnValue(false),
+      performEviction: vi.fn().mockReturnValue([])
+    } as any;
+
     // Create context
     context = {
       api: mockApi,
       cacheMap: mockCacheMap,
       pkType: 'test',
-      options: {} as any,
+      options: {
+        ttl: undefined,
+        queryTtl: 30000 // 30 seconds
+      } as any,
       eventEmitter: mockEventEmitter,
-      itemTtl: undefined,
-      queryTtl: 30000 // 30 seconds
+      ttlManager: mockTtlManager,
+      evictionManager: mockEvictionManager
     };
   });
 
@@ -151,8 +176,7 @@ describe('all operation', () => {
 
       expect(mockCacheMap.setQueryResult).toHaveBeenCalledWith(
         expectedQueryHash,
-        expectedItemKeys,
-        context.queryTtl
+        expectedItemKeys
       );
     });
 
@@ -196,8 +220,7 @@ describe('all operation', () => {
       const expectedQueryHash = createQueryHash('test', query, testLocations);
       expect(mockCacheMap.setQueryResult).toHaveBeenCalledWith(
         expectedQueryHash,
-        [],
-        context.queryTtl
+        []
       );
     });
 
@@ -228,8 +251,8 @@ describe('all operation', () => {
       const hash2 = createQueryHash('test', query2, testLocations);
 
       expect(hash1).not.toBe(hash2);
-      expect(mockCacheMap.setQueryResult).toHaveBeenCalledWith(hash1, [testItem1.key], context.queryTtl);
-      expect(mockCacheMap.setQueryResult).toHaveBeenCalledWith(hash2, [testItem1.key], context.queryTtl);
+      expect(mockCacheMap.setQueryResult).toHaveBeenCalledWith(hash1, [testItem1.key]);
+      expect(mockCacheMap.setQueryResult).toHaveBeenCalledWith(hash2, [testItem1.key]);
     });
 
     it('should generate different hashes for different locations', async () => {
@@ -313,47 +336,6 @@ describe('all operation', () => {
 
       expect(mockCacheMap.deleteQueryResult).toHaveBeenCalled();
       expect(mockApi.all).toHaveBeenCalled();
-    });
-  });
-
-  describe('TTL handling', () => {
-    it('should use context queryTtl when caching query results', async () => {
-      const query = { limit: 10 };
-      const items = [testItem1];
-      const customTtl = 60000; // 60 seconds
-
-      const contextWithTtl = { ...context, queryTtl: customTtl };
-
-      vi.mocked(mockApi.all).mockResolvedValue(items);
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(null);
-
-      await all(query, testLocations, contextWithTtl);
-
-      const expectedQueryHash = createQueryHash('test', query, testLocations);
-      expect(mockCacheMap.setQueryResult).toHaveBeenCalledWith(
-        expectedQueryHash,
-        [testItem1.key],
-        customTtl
-      );
-    });
-
-    it('should handle undefined queryTtl', async () => {
-      const query = { limit: 10 };
-      const items = [testItem1];
-
-      const contextWithoutTtl = { ...context, queryTtl: undefined };
-
-      vi.mocked(mockApi.all).mockResolvedValue(items);
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(null);
-
-      await all(query, testLocations, contextWithoutTtl);
-
-      const expectedQueryHash = createQueryHash('test', query, testLocations);
-      expect(mockCacheMap.setQueryResult).toHaveBeenCalledWith(
-        expectedQueryHash,
-        [testItem1.key],
-        undefined
-      );
     });
   });
 
