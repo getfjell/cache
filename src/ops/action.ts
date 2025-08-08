@@ -50,8 +50,16 @@ export const action = async <
   const evictedKeys = context.evictionManager.onItemAdded(keyStr, updated, cacheMap);
   // Remove evicted items from cache
   evictedKeys.forEach(evictedKey => {
-    const parsedKey = JSON.parse(evictedKey);
-    cacheMap.delete(parsedKey);
+    try {
+      const parsedKey = JSON.parse(evictedKey);
+      cacheMap.delete(parsedKey);
+    } catch (error) {
+      logger.error('Failed to parse evicted key during deletion', {
+        evictedKey,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      // Continue processing other keys rather than failing completely
+    }
   });
 
   return [context, validatePK(updated, pkType) as V];

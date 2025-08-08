@@ -288,7 +288,7 @@ export class EnhancedMemoryCacheMap<
       bytes?: number;
       items?: number;
     };
-  } {
+    } {
     const stats = {
       currentSizeBytes: this.currentSizeBytes,
       currentItemCount: this.currentItemCount,

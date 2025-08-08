@@ -8,6 +8,7 @@ export default [
       "no-undefined": "off",
       "@typescript-eslint/no-unused-vars": "off",
       'max-params': 'off',
+      'max-len': 'off',
     },
   },
 ];

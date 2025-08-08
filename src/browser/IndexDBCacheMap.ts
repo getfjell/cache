@@ -38,7 +38,7 @@ export class IndexDBCacheMap<
   private memoryCache: MemoryCacheMap<V, S, L1, L2, L3, L4, L5>;
   private syncInterval: NodeJS.Timeout | null = null;
   private readonly SYNC_INTERVAL_MS = 5000; // Sync every 5 seconds
-  private pendingSyncOperations: Map<string, { type: 'set' | 'delete'; key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>; value?: V; sequenceId: number }> = new Map();
+  private pendingSyncOperations: Map<string, { type: 'set' | 'delete'; key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>; value?: V; sequenceId: number; promise: Promise<void>; cancelled: boolean }> = new Map();
   private initializationPromise: Promise<void> | null = null;
   private isInitialized = false;
   private readonly MAX_RETRY_ATTEMPTS = 3;
@@ -118,18 +118,34 @@ export class IndexDBCacheMap<
     const pendingOps = Array.from(this.pendingSyncOperations.entries());
 
     for (const [keyStr, operation] of pendingOps) {
-      try {
-        if (operation.type === 'set' && operation.value) {
-          await this.asyncCache.set(operation.key, operation.value);
-        } else if (operation.type === 'delete') {
-          await this.asyncCache.delete(operation.key);
-        }
-
-        // Remove from pending operations on success
+      // Skip cancelled operations
+      if (operation.cancelled) {
         this.pendingSyncOperations.delete(keyStr);
+        continue;
+      }
+
+      try {
+        // Wait for the operation's promise to complete
+        await operation.promise;
+
+        // The promise completion should have already handled cleanup,
+        // but ensure cleanup in case of any edge cases
+        const currentOp = this.pendingSyncOperations.get(keyStr);
+        if (currentOp && currentOp.sequenceId === operation.sequenceId) {
+          this.pendingSyncOperations.delete(keyStr);
+        }
       } catch (error) {
         console.warn(`Failed to process pending ${operation.type} operation:`, error);
-        // Keep in pending operations for retry
+
+        // Check if operation was superseded or cancelled
+        const currentOp = this.pendingSyncOperations.get(keyStr);
+        if (!currentOp || currentOp.sequenceId !== operation.sequenceId || currentOp.cancelled) {
+          // Operation was superseded, remove it
+          if (currentOp && currentOp.sequenceId === operation.sequenceId) {
+            this.pendingSyncOperations.delete(keyStr);
+          }
+        }
+        // Keep in pending operations for retry only if it's still the current operation
       }
     }
   }
@@ -138,21 +154,45 @@ export class IndexDBCacheMap<
     // Convert key to string for tracking
     const keyStr = JSON.stringify(key);
     const sequenceId = ++this.operationSequence;
-    this.pendingSyncOperations.set(keyStr, { type: 'set', key, value, sequenceId });
 
-    // Use Promise.resolve() to ensure proper async execution order
-    Promise.resolve().then(async () => {
+    // Cancel any existing operation for this key
+    const existingOp = this.pendingSyncOperations.get(keyStr);
+    if (existingOp) {
+      existingOp.cancelled = true;
+    }
+
+    // Create the sync operation promise
+    const syncPromise = (async () => {
       try {
         await this.asyncCache.set(key, value);
-        // Only remove if this exact operation is still pending and has the same sequence ID
-        const pending = this.pendingSyncOperations.get(keyStr);
-        if (pending && pending.type === 'set' && pending.sequenceId === sequenceId) {
+
+        // Use atomic check-and-delete to avoid race condition
+        const currentOp = this.pendingSyncOperations.get(keyStr);
+        if (currentOp && currentOp.sequenceId === sequenceId && !currentOp.cancelled) {
           this.pendingSyncOperations.delete(keyStr);
         }
       } catch (error) {
         console.warn('Failed to sync single operation to IndexedDB:', error);
-        // Keep in pending operations for retry
+
+        // Only keep in pending operations if not cancelled and operation is still current
+        const currentOp = this.pendingSyncOperations.get(keyStr);
+        if (!currentOp || currentOp.sequenceId !== sequenceId || currentOp.cancelled) {
+          // This operation was superseded or cancelled, remove it
+          if (currentOp && currentOp.sequenceId === sequenceId) {
+            this.pendingSyncOperations.delete(keyStr);
+          }
+        }
       }
+    })();
+
+    // Store the operation with its promise and cancellation flag
+    this.pendingSyncOperations.set(keyStr, {
+      type: 'set',
+      key,
+      value,
+      sequenceId,
+      promise: syncPromise,
+      cancelled: false
     });
   }
 
@@ -160,25 +200,53 @@ export class IndexDBCacheMap<
     // Convert key to string for tracking
     const keyStr = JSON.stringify(key);
     const sequenceId = ++this.operationSequence;
-    this.pendingSyncOperations.set(keyStr, { type: 'delete', key, sequenceId });
 
-    // Use Promise.resolve() to ensure proper async execution order
-    Promise.resolve().then(async () => {
+    // Cancel any existing operation for this key
+    const existingOp = this.pendingSyncOperations.get(keyStr);
+    if (existingOp) {
+      existingOp.cancelled = true;
+    }
+
+    // Create the sync operation promise
+    const syncPromise = (async () => {
       try {
         await this.asyncCache.delete(key);
-        // Only remove if this exact operation is still pending and has the same sequence ID
-        const pending = this.pendingSyncOperations.get(keyStr);
-        if (pending && pending.type === 'delete' && pending.sequenceId === sequenceId) {
+
+        // Use atomic check-and-delete to avoid race condition
+        const currentOp = this.pendingSyncOperations.get(keyStr);
+        if (currentOp && currentOp.sequenceId === sequenceId && !currentOp.cancelled) {
           this.pendingSyncOperations.delete(keyStr);
         }
       } catch (error) {
         console.warn('Failed to sync delete operation to IndexedDB:', error);
-        // Keep in pending operations for retry
+
+        // Only keep in pending operations if not cancelled and operation is still current
+        const currentOp = this.pendingSyncOperations.get(keyStr);
+        if (!currentOp || currentOp.sequenceId !== sequenceId || currentOp.cancelled) {
+          // This operation was superseded or cancelled, remove it
+          if (currentOp && currentOp.sequenceId === sequenceId) {
+            this.pendingSyncOperations.delete(keyStr);
+          }
+        }
       }
+    })();
+
+    // Store the operation with its promise and cancellation flag
+    this.pendingSyncOperations.set(keyStr, {
+      type: 'delete',
+      key,
+      sequenceId,
+      promise: syncPromise,
+      cancelled: false
     });
   }
 
   private queueClearForSync(): void {
+    // Cancel all existing operations since we're clearing everything
+    for (const operation of this.pendingSyncOperations.values()) {
+      operation.cancelled = true;
+    }
+
     // Clear all pending operations since we're clearing everything
     this.pendingSyncOperations.clear();
 

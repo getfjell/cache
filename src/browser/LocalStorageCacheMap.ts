@@ -38,6 +38,8 @@ export class LocalStorageCacheMap<
 
   private keyPrefix: string;
   private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
+  private readonly MAX_RETRY_ATTEMPTS = 3;
+  private readonly AGGRESSIVE_CLEANUP_PERCENTAGE = 0.5; // Remove 50% of entries when quota exceeded
   public constructor(
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
     keyPrefix: string = 'fjell-cache'
@@ -77,14 +79,14 @@ export class LocalStorageCacheMap<
     }
   }
 
-  private tryCleanupOldEntries(): boolean {
+  private tryCleanupOldEntries(aggressive: boolean = false): boolean {
     try {
       const allEntries = this.collectCacheEntries();
       if (allEntries.length === 0) {
         logger.debug('No entries to clean up');
         return false;
       }
-      return this.removeOldestEntries(allEntries);
+      return this.removeOldestEntries(allEntries, aggressive);
     } catch (error) {
       logger.error('Failed to cleanup old localStorage entries', { error });
       return false;
@@ -123,10 +125,13 @@ export class LocalStorageCacheMap<
     return allEntries;
   }
 
-  private removeOldestEntries(allEntries: { key: string; timestamp: number; size: number }[]): boolean {
-    // Sort by timestamp (oldest first) and remove the oldest 25% of entries
+  private removeOldestEntries(allEntries: { key: string; timestamp: number; size: number }[], aggressive: boolean = false): boolean {
+    // Sort by timestamp (oldest first)
     allEntries.sort((a, b) => a.timestamp - b.timestamp);
-    const toRemove = Math.max(1, Math.ceil(allEntries.length * 0.25)); // Remove at least one entry
+
+    // Use aggressive cleanup percentage when quota exceeded, otherwise use normal 25%
+    const cleanupPercentage = aggressive ? this.AGGRESSIVE_CLEANUP_PERCENTAGE : 0.25;
+    const toRemove = Math.max(1, Math.ceil(allEntries.length * cleanupPercentage));
     let removedCount = 0;
     let removedSize = 0;
 
@@ -142,7 +147,8 @@ export class LocalStorageCacheMap<
     }
 
     if (removedCount > 0) {
-      logger.info(`Cleaned up ${removedCount} old localStorage entries (${removedSize} bytes) to free space`);
+      const cleanupType = aggressive ? 'aggressive' : 'normal';
+      logger.info(`Cleaned up ${removedCount} old localStorage entries (${removedSize} bytes) using ${cleanupType} cleanup to free space`);
     }
     return removedCount > 0;
   }
@@ -184,41 +190,46 @@ export class LocalStorageCacheMap<
   public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
     logger.trace('set', { key, value });
 
-    try {
-      const storageKey = this.getStorageKey(key);
-      const toStore = {
-        originalKey: key,
-        value: value,
-        timestamp: Date.now()
-      };
-      localStorage.setItem(storageKey, JSON.stringify(toStore));
-    } catch (error) {
-      logger.error('Error storing to localStorage', { key, value, error });
+    for (let attempt = 0; attempt < this.MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const storageKey = this.getStorageKey(key);
+        const toStore = {
+          originalKey: key,
+          value: value,
+          timestamp: Date.now()
+        };
+        localStorage.setItem(storageKey, JSON.stringify(toStore));
 
-      if (this.isQuotaExceededError(error)) {
-        // Try to clean up old entries first (best-effort)
-        const cleanupSucceeded = this.tryCleanupOldEntries();
-
-        // Try once more regardless of cleanup result
-        try {
-          const retryKey = this.getStorageKey(key);
-          const toStore = {
-            originalKey: key,
-            value: value,
-            timestamp: Date.now()
-          };
-          localStorage.setItem(retryKey, JSON.stringify(toStore));
-          logger.info('Successfully stored item after cleanup');
-          return;
-        } catch (retryError) {
-          if (this.isQuotaExceededError(retryError)) {
-            throw new Error('Failed to store item in localStorage: storage quota exceeded even after cleanup');
-          }
-          throw retryError;
+        if (attempt > 0) {
+          logger.info(`Successfully stored item after ${attempt} retries`);
         }
+        return; // Success, exit the retry loop
+      } catch (error) {
+        const isLastAttempt = attempt === this.MAX_RETRY_ATTEMPTS - 1;
+        logger.error(`Error storing to localStorage (attempt ${attempt + 1}/${this.MAX_RETRY_ATTEMPTS})`, {
+          key,
+          value,
+          error,
+          isLastAttempt
+        });
+
+        if (this.isQuotaExceededError(error)) {
+          // Use increasingly aggressive cleanup on each retry attempt
+          const useAggressiveCleanup = attempt > 0;
+          this.tryCleanupOldEntries(useAggressiveCleanup);
+
+          if (isLastAttempt) {
+            // Final attempt failed
+            throw new Error('Failed to store item in localStorage: storage quota exceeded even after multiple cleanup attempts');
+          }
+
+          // Continue to next retry attempt (no delay needed for localStorage)
+          continue;
+        }
+
+        // For non-quota errors, throw immediately without retry
+        throw new Error(`Failed to store item in localStorage: ${error instanceof Error ? error.message : String(error)}`);
       }
-      // For non-quota errors, throw with original error details
-      throw new Error(`Failed to store item in localStorage: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -494,23 +505,40 @@ export class LocalStorageCacheMap<
   }
 
   public setMetadata(key: string, metadata: CacheItemMetadata): void {
-    try {
-      const metadataKey = `${this.keyPrefix}:metadata:${key}`;
-      localStorage.setItem(metadataKey, JSON.stringify(metadata));
-    } catch (error) {
-      if (this.isQuotaExceededError(error)) {
-        logger.warning('LocalStorage quota exceeded when setting metadata, attempting cleanup...');
-        this.tryCleanupOldEntries();
-        try {
-          const retryKey = `${this.keyPrefix}:metadata:${key}`;
-          localStorage.setItem(retryKey, JSON.stringify(metadata));
-          logger.info('Successfully stored metadata after cleanup');
-          return;
-        } catch (retryError) {
-          throw new Error(`LocalStorage quota exceeded even after cleanup: ${retryError}`);
+    for (let attempt = 0; attempt < this.MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const metadataKey = `${this.keyPrefix}:metadata:${key}`;
+        localStorage.setItem(metadataKey, JSON.stringify(metadata));
+
+        if (attempt > 0) {
+          logger.info(`Successfully stored metadata after ${attempt} retries`);
         }
+        return; // Success, exit the retry loop
+      } catch (error) {
+        const isLastAttempt = attempt === this.MAX_RETRY_ATTEMPTS - 1;
+        logger.error(`Error storing metadata to localStorage (attempt ${attempt + 1}/${this.MAX_RETRY_ATTEMPTS})`, {
+          key,
+          error,
+          isLastAttempt
+        });
+
+        if (this.isQuotaExceededError(error)) {
+          // Use increasingly aggressive cleanup on each retry attempt
+          const useAggressiveCleanup = attempt > 0;
+          this.tryCleanupOldEntries(useAggressiveCleanup);
+
+          if (isLastAttempt) {
+            // Final attempt failed
+            throw new Error('Failed to store metadata in localStorage: storage quota exceeded even after multiple cleanup attempts');
+          }
+
+          // Continue to next retry attempt
+          continue;
+        }
+
+        // For non-quota errors, throw immediately without retry
+        throw new Error(`Failed to store metadata in localStorage: ${error instanceof Error ? error.message : String(error)}`);
       }
-      throw new Error(`Failed to store metadata in localStorage: ${error}`);
     }
   }
 

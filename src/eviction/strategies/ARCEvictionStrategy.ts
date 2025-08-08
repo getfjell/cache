@@ -55,9 +55,12 @@ export class ARCEvictionStrategy extends EvictionStrategy {
     }
 
     const keysToEvict: string[] = [];
+    const totalItems = recentItems.size + frequentItems.size;
+    const maxIterations = Math.min(evictionCount, totalItems);
 
-    for (let i = 0; i < evictionCount && (recentItems.size > 0 || frequentItems.size > 0); i++) {
+    for (let i = 0; i < maxIterations; i++) {
       let keyToEvict: string | null = null;
+      let sourceList: Map<string, CacheItemMetadata> | null = null;
 
       // Decide which list to evict from based on target sizes and adaptive algorithm
       if (recentItems.size > this.targetRecentSize && recentItems.size > 0) {
@@ -65,19 +68,32 @@ export class ARCEvictionStrategy extends EvictionStrategy {
         keyToEvict = this.config.useFrequencyWeightedSelection
           ? this.selectFrequencyWeightedFromItems(recentItems, 'recent')
           : this.selectLRUFromItems(recentItems);
-        if (keyToEvict) recentItems.delete(keyToEvict);
+        sourceList = recentItems;
       } else if (frequentItems.size > 0) {
         // Evict from frequent list (T2)
         keyToEvict = this.config.useFrequencyWeightedSelection
           ? this.selectFrequencyWeightedFromItems(frequentItems, 'frequent')
           : this.selectLRUFromItems(frequentItems);
-        if (keyToEvict) frequentItems.delete(keyToEvict);
+        sourceList = frequentItems;
+      } else if (recentItems.size > 0) {
+        // Fallback: evict from recent if it's the only list with items
+        keyToEvict = this.config.useFrequencyWeightedSelection
+          ? this.selectFrequencyWeightedFromItems(recentItems, 'recent')
+          : this.selectLRUFromItems(recentItems);
+        sourceList = recentItems;
       }
 
-      if (keyToEvict) {
+      if (keyToEvict && sourceList) {
         keysToEvict.push(keyToEvict);
+        sourceList.delete(keyToEvict);
       } else {
-        break; // No more items to evict
+        // No valid key found or no more items available
+        break;
+      }
+
+      // Safety check: if we've evicted all items, stop
+      if (recentItems.size === 0 && frequentItems.size === 0) {
+        break;
       }
     }
 
@@ -85,17 +101,38 @@ export class ARCEvictionStrategy extends EvictionStrategy {
   }
 
   private selectLRUFromItems(items: Map<string, CacheItemMetadata>): string | null {
+    if (items.size === 0) {
+      return null;
+    }
+
     let oldestKey: string | null = null;
     let oldestTime = Infinity;
+    const now = Date.now();
 
     for (const [key, metadata] of items) {
+      // Validate metadata to prevent corruption
+      if (!metadata || typeof metadata.lastAccessedAt !== 'number' || metadata.lastAccessedAt > now) {
+        continue;
+      }
+
       if (metadata.lastAccessedAt < oldestTime) {
         oldestTime = metadata.lastAccessedAt;
         oldestKey = key;
       }
     }
 
-    return oldestKey;
+    // If no valid key found through LRU logic, fall back to first available key
+    if (oldestKey !== null) {
+      return oldestKey;
+    }
+
+    // Fallback to first available key if items exist
+    if (items.size > 0) {
+      const firstKey = items.keys().next().value;
+      return firstKey ?? null;
+    }
+
+    return null;
   }
 
   onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): void {
@@ -103,34 +140,56 @@ export class ARCEvictionStrategy extends EvictionStrategy {
     if (!metadata) return;
 
     const now = Date.now();
-    metadata.lastAccessedAt = now;
-    metadata.accessCount++;
+
+    // Create a copy of metadata to avoid direct mutation of shared state
+    const updatedMetadata: CacheItemMetadata = {
+      ...metadata,
+      lastAccessedAt: now,
+      accessCount: metadata.accessCount + 1
+    };
 
     // Update frequency tracking
-    metadata.rawFrequency = metadata.accessCount;
+    updatedMetadata.rawFrequency = updatedMetadata.accessCount;
 
     // Update frequency score with decay if enabled
     if (this.config.useEnhancedFrequency && (this.config.frequencyDecayFactor ?? 0) > 0) {
-      metadata.frequencyScore = this.calculateFrequencyScore(metadata, now);
-      metadata.lastFrequencyUpdate = now;
+      updatedMetadata.frequencyScore = this.calculateFrequencyScore(updatedMetadata, now);
+      updatedMetadata.lastFrequencyUpdate = now;
     }
 
     // Adjust target size based on ghost list hits with adaptive learning
     const learningRate = this.config.adaptiveLearningRate ?? 1.0;
+    let targetAdjusted = false;
 
-    if (this.recentGhosts.has(key)) {
-      // Hit in recent ghost list - increase target for recent items
-      const adjustment = Math.ceil(learningRate);
-      this.targetRecentSize = Math.min(this.targetRecentSize + adjustment, this.maxGhostSize);
-      this.recentGhosts.delete(key);
-    } else if (this.frequentGhosts.has(key)) {
-      // Hit in frequent ghost list - decrease target for recent items
-      const adjustment = Math.ceil(learningRate);
-      this.targetRecentSize = Math.max(this.targetRecentSize - adjustment, 0);
-      this.frequentGhosts.delete(key);
+    if (learningRate > 0) {
+      if (this.recentGhosts.has(key)) {
+        // Hit in recent ghost list - increase target for recent items
+        const adjustment = Math.max(1, Math.ceil(learningRate));
+        this.targetRecentSize = Math.min(this.targetRecentSize + adjustment, this.maxGhostSize);
+        this.recentGhosts.delete(key);
+        targetAdjusted = true;
+      } else if (this.frequentGhosts.has(key)) {
+        // Hit in frequent ghost list - decrease target for recent items
+        const adjustment = Math.max(1, Math.ceil(learningRate));
+        this.targetRecentSize = Math.max(this.targetRecentSize - adjustment, 0);
+        this.frequentGhosts.delete(key);
+        targetAdjusted = true;
+      }
+    } else {
+      // Even with zero learning rate, remove from ghost lists to prevent memory leaks
+      if (this.recentGhosts.has(key)) {
+        this.recentGhosts.delete(key);
+      } else if (this.frequentGhosts.has(key)) {
+        this.frequentGhosts.delete(key);
+      }
     }
 
-    metadataProvider.setMetadata(key, metadata);
+    // Clean up ghost lists if they were modified
+    if (targetAdjusted) {
+      this.cleanupGhostLists();
+    }
+
+    metadataProvider.setMetadata(key, updatedMetadata);
   }
 
   onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): void {
@@ -154,15 +213,20 @@ export class ARCEvictionStrategy extends EvictionStrategy {
   }
 
   onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): void {
+    const metadata = metadataProvider.getMetadata(key);
+
     // Determine which ghost list to add to based on item characteristics
-    // For now, add to recent ghost list by default
-    this.addToRecentGhosts(key);
+    if (metadata && this.isFrequentItem(metadata)) {
+      this.addToFrequentGhosts(key);
+    } else {
+      this.addToRecentGhosts(key);
+    }
 
-    // Ensure both ghost lists stay within bounds
-    this.cleanupGhostLists();
-
-    // Clean up metadata
+    // Clean up metadata first to avoid accessing stale data
     metadataProvider.deleteMetadata(key);
+
+    // Ensure both ghost lists stay within bounds after modifications
+    this.cleanupGhostLists();
   }
 
   /**
@@ -176,12 +240,7 @@ export class ARCEvictionStrategy extends EvictionStrategy {
     this.recentGhosts.add(key);
 
     // Maintain size limit by removing oldest entries
-    while (this.recentGhosts.size > this.maxGhostSize) {
-      const firstKey = this.recentGhosts.values().next().value;
-      if (firstKey) {
-        this.recentGhosts.delete(firstKey);
-      }
-    }
+    this.enforceGhostListSizeLimit(this.recentGhosts, this.maxGhostSize);
   }
 
   /**
@@ -195,36 +254,34 @@ export class ARCEvictionStrategy extends EvictionStrategy {
     this.frequentGhosts.add(key);
 
     // Maintain size limit by removing oldest entries
-    while (this.frequentGhosts.size > this.maxGhostSize) {
-      const firstKey = this.frequentGhosts.values().next().value;
-      if (firstKey) {
-        this.frequentGhosts.delete(firstKey);
-      }
-    }
+    this.enforceGhostListSizeLimit(this.frequentGhosts, this.maxGhostSize);
   }
 
   /**
    * Cleanup ghost lists to prevent memory leaks
    */
   private cleanupGhostLists(): void {
-    // Clean up recent ghosts
-    while (this.recentGhosts.size > this.maxGhostSize) {
-      const firstKey = this.recentGhosts.values().next().value;
-      if (firstKey) {
-        this.recentGhosts.delete(firstKey);
-      } else {
-        break; // Safety check
-      }
+    this.enforceGhostListSizeLimit(this.recentGhosts, this.maxGhostSize);
+    this.enforceGhostListSizeLimit(this.frequentGhosts, this.maxGhostSize);
+  }
+
+  /**
+   * Enforce size limit on a ghost list by removing oldest entries
+   */
+  private enforceGhostListSizeLimit(ghostList: Set<string>, maxSize: number): void {
+    if (maxSize <= 0) {
+      ghostList.clear();
+      return;
     }
 
-    // Clean up frequent ghosts
-    while (this.frequentGhosts.size > this.maxGhostSize) {
-      const firstKey = this.frequentGhosts.values().next().value;
-      if (firstKey) {
-        this.frequentGhosts.delete(firstKey);
-      } else {
-        break; // Safety check
+    // Remove excess entries from the beginning (oldest)
+    const iterator = ghostList.values();
+    while (ghostList.size > maxSize) {
+      const next = iterator.next();
+      if (next.done) {
+        break; // Safety check - no more items
       }
+      ghostList.delete(next.value);
     }
   }
 
@@ -255,8 +312,15 @@ export class ARCEvictionStrategy extends EvictionStrategy {
     // If we have a frequency score with decay tracking
     if (typeof metadata.frequencyScore === 'number' && typeof metadata.lastFrequencyUpdate === 'number') {
       const timeSinceUpdate = now - metadata.lastFrequencyUpdate;
-      const decayAmount = (timeSinceUpdate / (this.config.frequencyDecayInterval ?? 600000)) * (this.config.frequencyDecayFactor ?? 0.05);
-      return Math.max(1, metadata.frequencyScore * (1 - decayAmount));
+      const decayInterval = this.config.frequencyDecayInterval ?? 600000;
+
+      // Only apply decay if significant time has passed
+      if (timeSinceUpdate > decayInterval / 10) { // Apply decay after 10% of interval
+        const decayAmount = Math.min(0.9, (timeSinceUpdate / decayInterval) * (this.config.frequencyDecayFactor ?? 0.05));
+        return Math.max(1, metadata.frequencyScore * (1 - decayAmount));
+      }
+
+      return metadata.frequencyScore;
     }
 
     // Fallback to raw frequency
@@ -269,16 +333,21 @@ export class ARCEvictionStrategy extends EvictionStrategy {
   private calculateFrequencyScore(metadata: CacheItemMetadata, currentTime: number): number {
     const rawFreq = metadata.rawFrequency || metadata.accessCount;
 
+    // If no previous frequency tracking, start with raw frequency
     if (typeof metadata.lastFrequencyUpdate !== 'number') {
       return rawFreq;
     }
 
     const timeSinceUpdate = currentTime - metadata.lastFrequencyUpdate;
-    const decayAmount = (timeSinceUpdate / (this.config.frequencyDecayInterval ?? 600000)) * (this.config.frequencyDecayFactor ?? 0.05);
+    const decayInterval = this.config.frequencyDecayInterval ?? 600000;
+    const decayFactor = this.config.frequencyDecayFactor ?? 0.05;
+
+    // Calculate decay amount, but cap it to prevent over-decay
+    const decayAmount = Math.min(0.9, (timeSinceUpdate / decayInterval) * decayFactor);
     const previousScore = metadata.frequencyScore || rawFreq;
 
     // Apply decay to previous score and add new frequency contribution
-    const decayedScore = previousScore * (1 - decayAmount);
+    const decayedScore = Math.max(1, previousScore * (1 - decayAmount));
     return Math.max(1, decayedScore + 1);
   }
 
@@ -286,13 +355,23 @@ export class ARCEvictionStrategy extends EvictionStrategy {
    * Select eviction candidate using frequency-weighted approach
    */
   private selectFrequencyWeightedFromItems(items: Map<string, CacheItemMetadata>, context: 'recent' | 'frequent' | 'fallback'): string | null {
+    if (items.size === 0) {
+      return null;
+    }
+
     let bestKey: string | null = null;
     let bestScore = Infinity;
+    const now = Date.now();
 
     for (const [key, metadata] of items) {
+      // Validate metadata to prevent corruption
+      if (!metadata || typeof metadata.lastAccessedAt !== 'number' || metadata.lastAccessedAt > now) {
+        continue;
+      }
+
       // Calculate weighted score based on context
       const frequency = this.getEffectiveFrequency(metadata);
-      const timeFactor = Date.now() - metadata.lastAccessedAt;
+      const timeFactor = Math.max(0, now - metadata.lastAccessedAt);
 
       let score: number;
       if (context === 'recent') {
@@ -312,7 +391,18 @@ export class ARCEvictionStrategy extends EvictionStrategy {
       }
     }
 
-    return bestKey || (items.size > 0 ? (items.keys().next().value ?? null) : null);
+    // If no valid key found through scoring, fall back to first available key
+    if (bestKey !== null) {
+      return bestKey;
+    }
+
+    // Fallback to first available key if items exist
+    if (items.size > 0) {
+      const firstKey = items.keys().next().value;
+      return firstKey ?? null;
+    }
+
+    return null;
   }
 
   /**
@@ -323,19 +413,24 @@ export class ARCEvictionStrategy extends EvictionStrategy {
 
     const now = Date.now();
     const timeSinceDecay = now - this.lastDecayTime;
+    const decayInterval = this.config.frequencyDecayInterval ?? 600000;
 
-    if (timeSinceDecay >= (this.config.frequencyDecayInterval ?? 600000)) {
-      // Only update lastDecayTime if we actually have items to decay
-      if (items.size > 0) {
-        // Apply decay to all items
-        for (const metadata of items.values()) {
-          if (typeof metadata.frequencyScore === 'number') {
-            const decayAmount = (this.config.frequencyDecayFactor ?? 0.05);
-            metadata.frequencyScore = Math.max(1, metadata.frequencyScore * (1 - decayAmount));
-          }
+    if (timeSinceDecay >= decayInterval && items.size > 0) {
+      const decayFactor = this.config.frequencyDecayFactor ?? 0.05;
+
+      // Apply decay to all items that have frequency scores
+      for (const metadata of items.values()) {
+        if (typeof metadata.frequencyScore === 'number') {
+          // Calculate time-based decay to handle cases where multiple intervals passed
+          const intervalsPassed = timeSinceDecay / decayInterval;
+          const totalDecay = Math.min(0.9, decayFactor * intervalsPassed); // Cap decay to prevent over-decay
+          const newScore = metadata.frequencyScore * (1 - totalDecay);
+          metadata.frequencyScore = Math.max(1, newScore);
+          metadata.lastFrequencyUpdate = now;
         }
-        this.lastDecayTime = now;
       }
+
+      this.lastDecayTime = now;
     }
   }
 
