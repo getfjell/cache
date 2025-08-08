@@ -17,7 +17,10 @@ beforeAll(async () => {
       reason.message.includes('Not found:') ||
       reason.message.includes('API failure') ||
       reason.message.includes('Network error') ||
-      reason.message.includes('Detailed API error')
+      reason.message.includes('Detailed API error') ||
+      reason.message.includes('Null error test') ||
+      reason.message.includes('Undefined error test') ||
+      reason.message.includes('Edge case item not found:')
     )) {
       // These are expected test errors that are handled by test assertions
       return;
