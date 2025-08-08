@@ -1,4 +1,4 @@
-/* eslint-disable no-undefined */
+ 
 import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/core";
 import {
   CacheClearedEvent,

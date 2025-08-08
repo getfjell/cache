@@ -1,39 +1,59 @@
-import { CacheItemMetadata, EvictionStrategy } from '../EvictionStrategy';
+import { CacheItemMetadata, CacheMapMetadataProvider, EvictionContext, EvictionStrategy } from '../EvictionStrategy';
 
 /**
  * MRU (Most Recently Used) eviction strategy
  * Removes the most recently accessed item
  */
 export class MRUEvictionStrategy extends EvictionStrategy {
-  selectForEviction(items: Map<string, CacheItemMetadata>): string | null {
-    if (items.size === 0) return null;
+  getStrategyName(): string {
+    return 'MRU';
+  }
+  selectForEviction(
+    metadataProvider: CacheMapMetadataProvider,
+    context: EvictionContext
+  ): string[] {
+    const allMetadata = metadataProvider.getAllMetadata();
+    if (allMetadata.size === 0) return [];
 
-    let newestKey: string | null = null;
-    let newestTime = -1;
-
-    for (const [key, metadata] of items) {
-      if (metadata.lastAccessedAt > newestTime) {
-        newestTime = metadata.lastAccessedAt;
-        newestKey = key;
-      }
+    if (!this.isEvictionNeeded(context)) {
+      return [];
     }
 
-    return newestKey;
+    const evictionCount = this.calculateEvictionCount(context);
+    if (evictionCount <= 0) return [];
+
+    // Sort items by access time (newest first)
+    const sortedEntries = Array.from(allMetadata.entries()).sort((a, b) => {
+      return b[1].lastAccessedAt - a[1].lastAccessedAt; // Newer first
+    });
+
+    return sortedEntries.slice(0, evictionCount).map(([key]) => key);
   }
 
-  onItemAccessed(_key: string, metadata: CacheItemMetadata): void {
+  onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): void {
+    const metadata = metadataProvider.getMetadata(key);
+    if (!metadata) return;
+
     metadata.lastAccessedAt = Date.now();
     metadata.accessCount++;
+
+    metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemAdded(_key: string, metadata: CacheItemMetadata): void {
+  onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): void {
     const now = Date.now();
-    metadata.addedAt = now;
-    metadata.lastAccessedAt = now;
-    metadata.accessCount = 1;
+    const metadata: CacheItemMetadata = {
+      key,
+      addedAt: now,
+      lastAccessedAt: now,
+      accessCount: 1,
+      estimatedSize
+    };
+
+    metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemRemoved(): void {
-    // No cleanup needed for MRU
+  onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): void {
+    metadataProvider.deleteMetadata(key);
   }
 }

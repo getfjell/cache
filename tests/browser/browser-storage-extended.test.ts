@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalStorageCacheMap } from '../../src/browser/LocalStorageCacheMap';
 import { SessionStorageCacheMap } from '../../src/browser/SessionStorageCacheMap';
 import { IndexDBCacheMap } from '../../src/browser/IndexDBCacheMap';
@@ -58,7 +58,7 @@ describe('Browser Storage Extended Coverage Tests', () => {
       window.localStorage.clear();
     });
 
-    it('should handle quota exceeded errors during set by falling back to memory cache', () => {
+    it('should throw when quota is exceeded during set', () => {
       // Mock localStorage.setItem to throw quota exceeded error
       window.localStorage.setItem = vi.fn().mockImplementation(() => {
         const error = new Error('QuotaExceededError');
@@ -66,14 +66,14 @@ describe('Browser Storage Extended Coverage Tests', () => {
         throw error;
       });
 
-      // Should not throw, should fall back to memory cache
+      // Should throw when quota is exceeded
       expect(() => {
         localStorage.set(priKey1, testItems[0]);
-      }).not.toThrow();
+      }).toThrow('Failed to store item in localStorage');
 
-      // Verify the item was stored in memory fallback
+      // Verify the item was not stored
       const result = localStorage.get(priKey1);
-      expect(result).toEqual(testItems[0]);
+      expect(result).toBeNull();
     });
 
     it('should handle non-quota localStorage errors by throwing', () => {
@@ -284,8 +284,8 @@ describe('Browser Storage Extended Coverage Tests', () => {
 
       // Invalidate specific location
       sessionStorage.setQueryResult('location-query', [comKey1]);
-      const location = [{ kt: 'container', lk: 'container1' as UUID }];
-      sessionStorage.invalidateLocation(location);
+      const location = [{ kt: 'container' as const, lk: 'container1' as UUID }];
+      sessionStorage.invalidateLocation(location as [{ kt: 'container', lk: UUID }]);
       expect(sessionStorage.hasQueryResult('location-query')).toBe(false);
     });
 
@@ -360,7 +360,7 @@ describe('Browser Storage Extended Coverage Tests', () => {
     it('should work synchronously for contains operation using memory cache', () => {
       indexDB.set(priKey1, testItems[0]);
 
-      const result = indexDB.contains({ value: 100 }, []);
+      const result = indexDB.contains({}, []);
       expect(typeof result).toBe('boolean');
     });
 
@@ -368,7 +368,7 @@ describe('Browser Storage Extended Coverage Tests', () => {
       indexDB.set(priKey1, testItems[0]);
       indexDB.set(priKey2, testItems[1]);
 
-      const result = indexDB.queryIn({ value: 100 }, []);
+      const result = indexDB.queryIn({}, []);
       expect(Array.isArray(result)).toBe(true);
     });
 

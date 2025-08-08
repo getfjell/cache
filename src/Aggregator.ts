@@ -1,4 +1,4 @@
-/* eslint-disable no-undefined */
+ 
 import {
   ComKey,
   Item,
@@ -176,7 +176,7 @@ export const createAggregator = async <
     const cacheConfig = toCacheConfig(aggregates[key]);
     if (item.refs === undefined) {
       if (cacheConfig.optional === false) {
-        logger.error('Item does not have refs an is not optional ' + JSON.stringify(item));
+        logger.error('Item does not have refs an is not optional ', { item });
         throw new Error('Item does not have refs an is not optional ' + JSON.stringify(item));
       } else {
         if (item.events && Object.prototype.hasOwnProperty.call(item.events, key)) {
@@ -185,8 +185,7 @@ export const createAggregator = async <
       }
     } else if (item.refs[key] === undefined) {
       if (cacheConfig.optional === false) {
-        logger.error('Item does not have mandatory ref with key, not optional ' +
-          key + ' ' + JSON.stringify(item));
+        logger.error('Item does not have mandatory ref with key, not optional ', { key, item });
         throw new Error('Item does not have mandatory ref with key, not optional ' +
           key + ' ' + JSON.stringify(item));
       } else {
@@ -221,7 +220,7 @@ export const createAggregator = async <
       throw new Error('Item does not have events ' + JSON.stringify(item));
     } else if (item.events[key] === undefined) {
       if (cacheConfig.optional === false) {
-        logger.error('Item does not have mandatory event with key ' + key + ' ' + JSON.stringify(item));
+        logger.error('Item does not have mandatory event with key', { key, item });
         throw new Error('Item does not have mandatory event with key ' + key + ' ' + JSON.stringify(item));
       }
     } else {
@@ -230,7 +229,7 @@ export const createAggregator = async <
       if (event.by === undefined) {
         logger.error(
           'populateEvent with an Event that does not have by', { event, ik: item.key, eventKey: key });
-        throw new Error('populateEvent with an Event that does not have by: ' + JSON.stringify({ key, event }));
+        throw new Error('populateEvent with an Event that does not have by: ' + JSON.stringify({ key }));
       }
 
       logger.default('EVENT Retrieving Item in Populate', { key: event.by });
@@ -406,6 +405,9 @@ export const createAggregator = async <
     api: cache.api,
     cacheMap: cache.cacheMap,
     operations: cache.operations,
+    evictionManager: cache.evictionManager,
+    ttlManager: cache.ttlManager,
+    getCacheInfo: cache.getCacheInfo.bind(cache),
     // Cache operations exposed directly
     all,
     one,

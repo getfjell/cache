@@ -8,8 +8,10 @@ import {
   LocKeyArray,
   PriKey
 } from "@fjell/core";
-import { CacheInfo, CacheMap } from "../CacheMap";
+import { CacheMap } from "../CacheMap";
+import { CacheItemMetadata } from "../eviction/EvictionStrategy";
 import { createNormalizedHashFunction, isLocKeyArrayEqual, QueryCacheEntry } from "../normalization";
+import { estimateValueSize } from "../utils/CacheSize";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get("MemoryCacheMap");
@@ -41,6 +43,9 @@ export class MemoryCacheMap<
 
   // Query result cache: maps query hash to cache entry with expiration
   private queryResultCache: { [queryHash: string]: QueryCacheEntry } = {};
+
+  // Metadata storage for eviction strategies
+  private metadataMap: Map<string, CacheItemMetadata> = new Map();
 
   public constructor(
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
@@ -284,11 +289,44 @@ export class MemoryCacheMap<
     this.queryResultCache = {};
   }
 
-  public getCacheInfo(): CacheInfo {
+  // CacheMapMetadataProvider implementation
+  public getMetadata(key: string): CacheItemMetadata | null {
+    return this.metadataMap.get(key) || null;
+  }
+
+  public setMetadata(key: string, metadata: CacheItemMetadata): void {
+    this.metadataMap.set(key, metadata);
+  }
+
+  public deleteMetadata(key: string): void {
+    this.metadataMap.delete(key);
+  }
+
+  public getAllMetadata(): Map<string, CacheItemMetadata> {
+    return new Map(this.metadataMap);
+  }
+
+  public clearMetadata(): void {
+    this.metadataMap.clear();
+  }
+
+  public getCurrentSize(): { itemCount: number; sizeBytes: number } {
+    let sizeBytes = 0;
+    for (const entry of Object.values(this.map)) {
+      sizeBytes += estimateValueSize(entry.value);
+    }
+
     return {
-      implementationType: this.implementationType,
-      supportsTTL: true, // Supports TTL via getWithTTL()
-      supportsEviction: false // No eviction support in basic implementation
+      itemCount: Object.keys(this.map).length,
+      sizeBytes
+    };
+  }
+
+  public getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+    // Basic MemoryCacheMap has no size limits
+    return {
+      maxItems: null,
+      maxSizeBytes: null
     };
   }
 }

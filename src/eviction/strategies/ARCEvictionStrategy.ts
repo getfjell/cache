@@ -1,4 +1,4 @@
-import { CacheItemMetadata, EvictionStrategy } from '../EvictionStrategy';
+import { CacheItemMetadata, CacheMapMetadataProvider, EvictionContext, EvictionStrategy } from '../EvictionStrategy';
 import { ARCConfig, DEFAULT_ARC_CONFIG } from '../EvictionStrategyConfig';
 import { createValidatedConfig } from '../EvictionStrategyValidation';
 
@@ -7,6 +7,9 @@ import { createValidatedConfig } from '../EvictionStrategyValidation';
  * Balances between recency (LRU) and frequency (LFU) dynamically with sophisticated frequency analysis
  */
 export class ARCEvictionStrategy extends EvictionStrategy {
+  getStrategyName(): string {
+    return 'ARC';
+  }
   private recentGhosts = new Set<string>(); // T1 ghost entries
   private frequentGhosts = new Set<string>(); // T2 ghost entries
   private targetRecentSize = 0; // Target size for T1 (recent entries)
@@ -22,17 +25,28 @@ export class ARCEvictionStrategy extends EvictionStrategy {
     this.lastDecayTime = Date.now();
   }
 
-  selectForEviction(items: Map<string, CacheItemMetadata>): string | null {
-    if (items.size === 0) return null;
+  selectForEviction(
+    metadataProvider: CacheMapMetadataProvider,
+    context: EvictionContext
+  ): string[] {
+    const allMetadata = metadataProvider.getAllMetadata();
+    if (allMetadata.size === 0) return [];
+
+    if (!this.isEvictionNeeded(context)) {
+      return [];
+    }
+
+    const evictionCount = this.calculateEvictionCount(context);
+    if (evictionCount <= 0) return [];
 
     // Apply periodic decay if enabled
-    this.applyPeriodicDecay(items);
+    this.applyPeriodicDecay(allMetadata);
 
     // Split items into recent (T1) and frequent (T2) based on enhanced frequency analysis
     const recentItems = new Map<string, CacheItemMetadata>();
     const frequentItems = new Map<string, CacheItemMetadata>();
 
-    for (const [key, metadata] of items) {
+    for (const [key, metadata] of allMetadata) {
       if (this.isFrequentItem(metadata)) {
         frequentItems.set(key, metadata);
       } else {
@@ -40,23 +54,34 @@ export class ARCEvictionStrategy extends EvictionStrategy {
       }
     }
 
-    // Decide which list to evict from based on target sizes and adaptive algorithm
-    if (recentItems.size > this.targetRecentSize && recentItems.size > 0) {
-      // Evict from recent list (T1)
-      return this.config.useFrequencyWeightedSelection
-        ? this.selectFrequencyWeightedFromItems(recentItems, 'recent')
-        : this.selectLRUFromItems(recentItems);
-    } else if (frequentItems.size > 0) {
-      // Evict from frequent list (T2)
-      return this.config.useFrequencyWeightedSelection
-        ? this.selectFrequencyWeightedFromItems(frequentItems, 'frequent')
-        : this.selectLRUFromItems(frequentItems);
+    const keysToEvict: string[] = [];
+
+    for (let i = 0; i < evictionCount && (recentItems.size > 0 || frequentItems.size > 0); i++) {
+      let keyToEvict: string | null = null;
+
+      // Decide which list to evict from based on target sizes and adaptive algorithm
+      if (recentItems.size > this.targetRecentSize && recentItems.size > 0) {
+        // Evict from recent list (T1)
+        keyToEvict = this.config.useFrequencyWeightedSelection
+          ? this.selectFrequencyWeightedFromItems(recentItems, 'recent')
+          : this.selectLRUFromItems(recentItems);
+        if (keyToEvict) recentItems.delete(keyToEvict);
+      } else if (frequentItems.size > 0) {
+        // Evict from frequent list (T2)
+        keyToEvict = this.config.useFrequencyWeightedSelection
+          ? this.selectFrequencyWeightedFromItems(frequentItems, 'frequent')
+          : this.selectLRUFromItems(frequentItems);
+        if (keyToEvict) frequentItems.delete(keyToEvict);
+      }
+
+      if (keyToEvict) {
+        keysToEvict.push(keyToEvict);
+      } else {
+        break; // No more items to evict
+      }
     }
 
-    // Fallback to overall frequency-weighted selection
-    return this.config.useFrequencyWeightedSelection
-      ? this.selectFrequencyWeightedFromItems(items, 'fallback')
-      : this.selectLRUFromItems(items);
+    return keysToEvict;
   }
 
   private selectLRUFromItems(items: Map<string, CacheItemMetadata>): string | null {
@@ -73,7 +98,10 @@ export class ARCEvictionStrategy extends EvictionStrategy {
     return oldestKey;
   }
 
-  onItemAccessed(key: string, metadata: CacheItemMetadata): void {
+  onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): void {
+    const metadata = metadataProvider.getMetadata(key);
+    if (!metadata) return;
+
     const now = Date.now();
     metadata.lastAccessedAt = now;
     metadata.accessCount++;
@@ -101,29 +129,40 @@ export class ARCEvictionStrategy extends EvictionStrategy {
       this.targetRecentSize = Math.max(this.targetRecentSize - adjustment, 0);
       this.frequentGhosts.delete(key);
     }
+
+    metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemAdded(key: string, metadata: CacheItemMetadata): void {
+  onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): void {
     const now = Date.now();
-    metadata.addedAt = now;
-    metadata.lastAccessedAt = now;
-    metadata.accessCount = 1;
-    metadata.rawFrequency = 1;
+    const metadata: CacheItemMetadata = {
+      key,
+      addedAt: now,
+      lastAccessedAt: now,
+      accessCount: 1,
+      estimatedSize,
+      rawFrequency: 1
+    };
 
     // Initialize frequency score for decay tracking
     if (this.config.useEnhancedFrequency && (this.config.frequencyDecayFactor ?? 0) > 0) {
       metadata.frequencyScore = 1;
       metadata.lastFrequencyUpdate = now;
     }
+
+    metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemRemoved(key: string): void {
+  onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): void {
     // Determine which ghost list to add to based on item characteristics
     // For now, add to recent ghost list by default
     this.addToRecentGhosts(key);
 
     // Ensure both ghost lists stay within bounds
     this.cleanupGhostLists();
+
+    // Clean up metadata
+    metadataProvider.deleteMetadata(key);
   }
 
   /**

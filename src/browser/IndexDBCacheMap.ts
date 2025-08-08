@@ -7,9 +7,10 @@ import {
   LocKeyArray,
   PriKey
 } from "@fjell/core";
-import { CacheInfo, CacheMap } from "../CacheMap";
+import { CacheMap } from "../CacheMap";
 import { AsyncIndexDBCacheMap } from "./AsyncIndexDBCacheMap";
 import { MemoryCacheMap } from "../memory/MemoryCacheMap";
+import { CacheItemMetadata } from "../eviction/EvictionStrategy";
 
 /**
  * Synchronous wrapper for IndexedDB CacheMap implementation.
@@ -296,11 +297,34 @@ export class IndexDBCacheMap<
     }
   }
 
-  public getCacheInfo(): CacheInfo {
-    return {
-      implementationType: this.implementationType,
-      supportsTTL: true, // Supports TTL via getWithTTL()
-      supportsEviction: false // IndexedDB handles its own storage management
-    };
+  // CacheMapMetadataProvider implementation
+  // Delegate to the memory cache for metadata operations for consistency
+  public getMetadata(key: string): CacheItemMetadata | null {
+    return this.memoryCache.getMetadata(key);
   }
+
+  public setMetadata(key: string, metadata: CacheItemMetadata): void {
+    this.memoryCache.setMetadata(key, metadata);
+  }
+
+  public deleteMetadata(key: string): void {
+    this.memoryCache.deleteMetadata(key);
+  }
+
+  public getAllMetadata(): Map<string, CacheItemMetadata> {
+    return this.memoryCache.getAllMetadata();
+  }
+
+  public clearMetadata(): void {
+    this.memoryCache.clearMetadata();
+  }
+
+  public getCurrentSize(): { itemCount: number; sizeBytes: number } {
+    return this.memoryCache.getCurrentSize();
+  }
+
+  public getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+    return this.memoryCache.getSizeLimits();
+  }
+
 }

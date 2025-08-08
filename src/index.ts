@@ -1,8 +1,7 @@
 // Core cache functionality
 export { createCache, isCache } from './Cache';
-export type { Cache } from './Cache';
+export type { Cache, CacheInfo } from './Cache';
 export { CacheMap } from './CacheMap';
-export type { CacheInfo } from './CacheMap';
 
 // Cache implementations
 export { MemoryCacheMap } from './memory/MemoryCacheMap';
@@ -54,12 +53,19 @@ export {
   validateSizeConfig
 } from './utils/CacheSize';
 export {
-  createEvictionStrategy
+  createEvictionStrategy,
+  EvictionManager
 } from './eviction';
 export type {
   CacheItemMetadata,
+  CacheMapMetadataProvider,
+  EvictionContext,
   EvictionStrategy
 } from './eviction';
+
+// TTL system
+export { TTLManager } from './ttl';
+export type { TTLConfig, TTLItemMetadata } from './ttl';
 export {
   validateEvictionStrategyConfig,
   validateLFUConfig,

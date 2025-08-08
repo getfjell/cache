@@ -73,6 +73,11 @@ describe('Aggregator - Extended Tests', () => {
       registry: {},
       api: {},
       cacheMap: cacheMapMock,
+      getCacheInfo: vi.fn(() => ({
+        implementationType: 'memory/test',
+        supportsTTL: false,
+        supportsEviction: false
+      })),
     } as unknown as Mocked<Cache<Item<"test">, "test">>;
 
     otherCacheMock = {
@@ -83,6 +88,11 @@ describe('Aggregator - Extended Tests', () => {
       registry: {},
       api: {},
       cacheMap: {},
+      getCacheInfo: vi.fn(() => ({
+        implementationType: 'memory/other',
+        supportsTTL: false,
+        supportsEviction: false
+      })),
     } as unknown as Mocked<Cache<Item<"other">, "other">>;
 
     aggregator = await createAggregator(itemCacheMock, {
@@ -97,7 +107,7 @@ describe('Aggregator - Extended Tests', () => {
     const facetData = { status: "active", count: 10 };
     (itemCacheMock.operations.allFacet as any).mockResolvedValue([cacheMapMock, facetData]);
 
-    const [,result] = await aggregator.allFacet('testFacet', { param: 'value' }, []);
+    const [, result] = await aggregator.allFacet('testFacet', { param: 'value' }, []);
 
     expect(itemCacheMock.operations.allFacet).toHaveBeenCalledWith('testFacet', { param: 'value' }, []);
     expect(result).toEqual(facetData);
@@ -107,7 +117,7 @@ describe('Aggregator - Extended Tests', () => {
     const facetData = { data: "test" };
     (itemCacheMock.operations.allFacet as any).mockResolvedValue([cacheMapMock, facetData]);
 
-    const [,result] = await aggregator.allFacet('testFacet');
+    const [, result] = await aggregator.allFacet('testFacet');
 
     expect(itemCacheMock.operations.allFacet).toHaveBeenCalledWith('testFacet', {}, []);
     expect(result).toEqual(facetData);
@@ -117,7 +127,7 @@ describe('Aggregator - Extended Tests', () => {
     const facetData = { status: "active" };
     (itemCacheMock.operations.facet as any).mockResolvedValue([cacheMapMock, facetData]);
 
-    const [,result] = await aggregator.facet(items[0].key, 'testFacet');
+    const [, result] = await aggregator.facet(items[0].key, 'testFacet');
 
     expect(itemCacheMock.operations.facet).toHaveBeenCalledWith(items[0].key, 'testFacet');
     expect(result).toEqual(facetData);
@@ -127,7 +137,7 @@ describe('Aggregator - Extended Tests', () => {
     (itemCacheMock.operations.findOne as any).mockResolvedValue([cacheMapMock, items[0]]);
     (otherCacheMock.operations.retrieve as any).mockResolvedValue([null, otherItems[0]]);
 
-    const [,aggregatedItem] = await aggregator.findOne('testFinder', { param: 'value' }, []);
+    const [, aggregatedItem] = await aggregator.findOne('testFinder', { param: 'value' }, []);
 
     expect(itemCacheMock.operations.findOne).toHaveBeenCalledWith('testFinder', { param: 'value' }, []);
     expect(aggregatedItem?.aggs?.other.item).toEqual(otherItems[0]);
@@ -147,9 +157,9 @@ describe('Aggregator - Extended Tests', () => {
     (itemCacheMock.operations.get as any).mockResolvedValue([cacheMapMock, null]);
     (itemCacheMock.operations.retrieve as any).mockResolvedValue([cacheMapMock, null]);
 
-    const [,oneResult] = await aggregator.one();
-    const [,getResult] = await aggregator.get(items[0].key);
-    const [,retrieveResult] = await aggregator.retrieve(items[0].key);
+    const [, oneResult] = await aggregator.one();
+    const [, getResult] = await aggregator.get(items[0].key);
+    const [, retrieveResult] = await aggregator.retrieve(items[0].key);
 
     expect(oneResult).toBeNull();
     expect(getResult).toBeNull();
