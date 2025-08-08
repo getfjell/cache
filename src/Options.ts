@@ -322,8 +322,16 @@ export const validateOptions = <
   }
 
   // Browser storage validation
-  // Do not throw in non-browser environments; allow tests to provide storage mocks
-  // and defer availability checks to the specific cache map implementations.
+  if (['localStorage', 'sessionStorage'].includes(options.cacheType)) {
+    // Check if we're in a real browser environment
+    const isRealBrowser = typeof window !== 'undefined' &&
+      typeof window.document !== 'undefined' &&
+      typeof window.document.createElement === 'function';
+
+    if (!isRealBrowser) {
+      throw new Error(`${options.cacheType} is not available in non-browser environments`);
+    }
+  }
 
   // IndexedDB validation
   if (options.cacheType === 'indexedDB') {
