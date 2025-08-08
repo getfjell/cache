@@ -4,11 +4,30 @@ import { ClientApi } from "@fjell/client-api";
 import { CacheMap } from "./CacheMap";
 import { createOperations, Operations } from "./Operations";
 import { createCacheMap, createOptions, Options } from "./Options";
+import { EvictionManager } from "./eviction/EvictionManager";
+import { createEvictionStrategy } from "./eviction/EvictionStrategyFactory";
+import { TTLManager } from "./ttl/TTLManager";
 import LibLogger from "./logger";
 import { CacheEventEmitter } from "./events/CacheEventEmitter";
 import { CacheEventListener, CacheSubscription, CacheSubscriptionOptions } from "./events/CacheEventTypes";
 
 const logger = LibLogger.get('Cache');
+
+/**
+ * Cache configuration information exposed to client applications
+ */
+export interface CacheInfo {
+  /** The implementation type in format "<category>/<implementation>" */
+  implementationType: string;
+  /** The eviction policy being used (if any) */
+  evictionPolicy?: string;
+  /** Default TTL in milliseconds (if configured) */
+  defaultTTL?: number;
+  /** Whether TTL is supported by this implementation */
+  supportsTTL: boolean;
+  /** Whether eviction is supported by this implementation */
+  supportsEviction: boolean;
+}
 
 /**
  * The Cache interface extends the base Instance from @fjell/registry and adds cache operations
@@ -46,6 +65,18 @@ export interface Cache<
 
   /** Event emitter for cache events */
   eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>;
+
+  /** Eviction manager for handling cache eviction independently of storage */
+  evictionManager: EvictionManager;
+
+  /** TTL manager for handling time-to-live independently of storage */
+  ttlManager: TTLManager;
+
+  /**
+   * Get cache configuration information for client applications
+   * Provides visibility into implementation type, eviction policy, TTL settings, and capabilities
+   */
+  getCacheInfo(): CacheInfo;
 
   /**
    * Subscribe to cache events
@@ -94,10 +125,29 @@ export const createCache = <
   // Create event emitter
   const eventEmitter = new CacheEventEmitter<V, S, L1, L2, L3, L4, L5>();
 
+  // Create eviction manager
+  const evictionManager = new EvictionManager();
+  if (completeOptions.evictionConfig) {
+    // Set eviction strategy from options
+    const strategy = createEvictionStrategy(
+      completeOptions.evictionConfig.type || 'lru',
+      completeOptions.memoryConfig?.maxItems,
+      completeOptions.evictionConfig
+    );
+    evictionManager.setEvictionStrategy(strategy);
+  }
+
+  // Create TTL manager
+  const ttlManager = new TTLManager({
+    defaultTTL: completeOptions.ttl,
+    autoCleanup: true,
+    validateOnAccess: true
+  });
+
   // Create operations with event emitter
   const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions, eventEmitter);
 
-  return {
+  const cache: Cache<V, S, L1, L2, L3, L4, L5> = {
     coordinate,
     registry,
     api,
@@ -105,9 +155,28 @@ export const createCache = <
     operations,
     options: completeOptions,
     eventEmitter,
+    evictionManager,
+    ttlManager,
+    getCacheInfo: () => {
+      const evictionStrategyName = evictionManager.getEvictionStrategyName();
+      const cacheInfo: CacheInfo = {
+        implementationType: cacheMap.implementationType,
+        defaultTTL: ttlManager.getDefaultTTL(),
+        supportsTTL: ttlManager.isTTLEnabled(),
+        supportsEviction: evictionManager.isEvictionSupported()
+      };
+
+      if (evictionStrategyName) {
+        cacheInfo.evictionPolicy = evictionStrategyName;
+      }
+
+      return cacheInfo;
+    },
     subscribe: (listener, options) => eventEmitter.subscribe(listener, options),
     unsubscribe: (subscription) => eventEmitter.unsubscribe(subscription.id)
   };
+
+  return cache;
 };
 
 export const isCache = (cache: any): cache is Cache<any, any, any, any, any, any, any> => {

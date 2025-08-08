@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createValidatedConfig,
+  sanitizeARCConfig,
+  sanitizeLFUConfig,
+  sanitizeTwoQueueConfig,
   validateARCConfig,
   validateEvictionStrategyConfig,
   validateLFUConfig,
@@ -16,6 +19,16 @@ import {
 } from '../../src/eviction/EvictionStrategyConfig';
 
 describe('EvictionStrategyValidation', () => {
+  // Mock console.warn for sanitization tests
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+  });
+
+  afterEach(() => {
+    consoleWarnSpy.mockRestore();
+  });
   describe('validateLFUConfig', () => {
     it('should accept valid LFU configurations', () => {
       const validConfigs = [
@@ -317,14 +330,14 @@ describe('EvictionStrategyValidation', () => {
       ];
 
       validConfigs.forEach(config => {
-        expect(() => validateEvictionStrategyConfig(config)).not.toThrow();
+        expect(() => validateEvictionStrategyConfig(config as any)).not.toThrow();
       });
     });
 
     it('should reject null configurations', () => {
       expect(() => validateEvictionStrategyConfig(null as any))
         .toThrow('Configuration must be a non-null object');
-      // eslint-disable-next-line no-undefined
+       
       expect(() => validateEvictionStrategyConfig(undefined as any))
         .toThrow('Configuration must be a non-null object');
     });
@@ -415,22 +428,30 @@ describe('EvictionStrategyValidation', () => {
       });
     });
 
-    it('should reject invalid user configuration', () => {
+    it('should sanitize invalid user configuration instead of rejecting', () => {
       const invalidUserConfig = {
-        decayFactor: 2.0 // Invalid
+        decayFactor: 2.0 // Invalid - will be sanitized to 1.0
       };
 
-      expect(() => createValidatedConfig(DEFAULT_LFU_CONFIG, invalidUserConfig))
-        .toThrow('decayFactor must be between 0 and 1');
+      const result = createValidatedConfig(DEFAULT_LFU_CONFIG, invalidUserConfig);
+
+      expect(result.decayFactor).toBe(1.0);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'decayFactor must be between 0 and 1, got 2. Correcting to 1.'
+      );
     });
 
-    it('should reject invalid merged configuration', () => {
+    it('should sanitize invalid merged configuration instead of rejecting', () => {
       // Create a scenario where the base config becomes invalid after merging
       const baseConfig = { ...DEFAULT_LFU_CONFIG, decayFactor: 0.5 };
-      const userConfig = { decayFactor: 2.0 }; // This will make the final config invalid
+      const userConfig = { decayFactor: 2.0 }; // This will be sanitized to 1.0
 
-      expect(() => createValidatedConfig(baseConfig, userConfig))
-        .toThrow('decayFactor must be between 0 and 1');
+      const result = createValidatedConfig(baseConfig, userConfig);
+
+      expect(result.decayFactor).toBe(1.0);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'decayFactor must be between 0 and 1, got 2. Correcting to 1.'
+      );
     });
 
     it('should handle empty user configuration', () => {
@@ -447,6 +468,595 @@ describe('EvictionStrategyValidation', () => {
 
       expect(result.useProbabilisticCounting).toBe(false);
       expect(result.type).toBe('lfu');
+    });
+  });
+
+  describe('sanitizeLFUConfig', () => {
+    it('should return unchanged config when all values are valid', () => {
+      const validConfig = {
+        decayFactor: 0.5,
+        decayInterval: 60000,
+        sketchWidth: 1024,
+        sketchDepth: 4,
+        minFrequencyThreshold: 2
+      };
+
+      const result = sanitizeLFUConfig(validConfig);
+
+      expect(result).toEqual(validConfig);
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should sanitize decayFactor below 0 to 0', () => {
+      const config = { decayFactor: -0.5 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.decayFactor).toBe(0);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'decayFactor must be between 0 and 1, got -0.5. Correcting to 0.'
+      );
+    });
+
+    it('should sanitize decayFactor above 1 to 1', () => {
+      const config = { decayFactor: 2.5 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.decayFactor).toBe(1);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'decayFactor must be between 0 and 1, got 2.5. Correcting to 1.'
+      );
+    });
+
+    it('should sanitize negative decayInterval to default value', () => {
+      const config = { decayInterval: -1000 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.decayInterval).toBe(300000);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'decayInterval must be positive, got -1000. Correcting to 300000.'
+      );
+    });
+
+    it('should sanitize zero decayInterval to default value', () => {
+      const config = { decayInterval: 0 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.decayInterval).toBe(300000);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'decayInterval must be positive, got 0. Correcting to 300000.'
+      );
+    });
+
+    it('should sanitize negative sketchWidth to 1024', () => {
+      const config = { sketchWidth: -100 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.sketchWidth).toBe(1024);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'sketchWidth must be positive, got -100. Correcting to 1024.'
+      );
+    });
+
+    it('should sanitize zero sketchWidth to 1024', () => {
+      const config = { sketchWidth: 0 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.sketchWidth).toBe(1024);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'sketchWidth must be positive, got 0. Correcting to 1024.'
+      );
+    });
+
+    it('should sanitize sketchWidth below 16 to 16', () => {
+      const config = { sketchWidth: 8 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.sketchWidth).toBe(16);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'sketchWidth should be at least 16 for optimal performance, got 8. Correcting to 16.'
+      );
+    });
+
+    it('should sanitize sketchWidth above 65536 to 65536', () => {
+      const config = { sketchWidth: 100000 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.sketchWidth).toBe(65536);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'sketchWidth should not exceed 65536 for optimal performance, got 100000. Correcting to 65536.'
+      );
+    });
+
+    it('should sanitize negative sketchDepth to 4', () => {
+      const config = { sketchDepth: -2 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.sketchDepth).toBe(4);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'sketchDepth must be positive, got -2. Correcting to 4.'
+      );
+    });
+
+    it('should sanitize zero sketchDepth to 4', () => {
+      const config = { sketchDepth: 0 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.sketchDepth).toBe(4);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'sketchDepth must be positive, got 0. Correcting to 4.'
+      );
+    });
+
+    it('should sanitize sketchDepth below 1 to 1', () => {
+      const config = { sketchDepth: 0.5 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.sketchDepth).toBe(1);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'sketchDepth should be at least 1 for optimal accuracy, got 0.5. Correcting to 1.'
+      );
+    });
+
+    it('should sanitize sketchDepth above 16 to 16', () => {
+      const config = { sketchDepth: 20 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.sketchDepth).toBe(16);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'sketchDepth should not exceed 16 for optimal accuracy, got 20. Correcting to 16.'
+      );
+    });
+
+    it('should sanitize negative minFrequencyThreshold to 1', () => {
+      const config = { minFrequencyThreshold: -5 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.minFrequencyThreshold).toBe(1);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'minFrequencyThreshold must be positive, got -5. Correcting to 1.'
+      );
+    });
+
+    it('should sanitize zero minFrequencyThreshold to 1', () => {
+      const config = { minFrequencyThreshold: 0 };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result.minFrequencyThreshold).toBe(1);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'minFrequencyThreshold must be positive, got 0. Correcting to 1.'
+      );
+    });
+
+    it('should handle multiple invalid values and sanitize all', () => {
+      const config = {
+        decayFactor: -0.5,
+        decayInterval: 0,
+        sketchWidth: 5,
+        sketchDepth: 25,
+        minFrequencyThreshold: -1
+      };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result).toEqual({
+        decayFactor: 0,
+        decayInterval: 300000,
+        sketchWidth: 16,
+        sketchDepth: 16,
+        minFrequencyThreshold: 1
+      });
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(5);
+    });
+
+    it('should not modify non-numeric values', () => {
+      const config = {
+        decayFactor: 'invalid' as any,
+        decayInterval: null as any,
+        sketchWidth: void 0 as any
+      };
+
+      const result = sanitizeLFUConfig(config);
+
+      expect(result).toEqual(config);
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('sanitizeARCConfig', () => {
+    it('should return unchanged config when all values are valid', () => {
+      const validConfig = {
+        maxCacheSize: 1000,
+        frequencyThreshold: 2,
+        frequencyDecayFactor: 0.5,
+        frequencyDecayInterval: 60000,
+        adaptiveLearningRate: 5.0
+      };
+
+      const result = sanitizeARCConfig(validConfig);
+
+      expect(result).toEqual(validConfig);
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should sanitize negative maxCacheSize to 1000', () => {
+      const config = { maxCacheSize: -500 };
+
+      const result = sanitizeARCConfig(config);
+
+      expect(result.maxCacheSize).toBe(1000);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'maxCacheSize must be positive, got -500. Correcting to 1000.'
+      );
+    });
+
+    it('should sanitize zero maxCacheSize to 1000', () => {
+      const config = { maxCacheSize: 0 };
+
+      const result = sanitizeARCConfig(config);
+
+      expect(result.maxCacheSize).toBe(1000);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'maxCacheSize must be positive, got 0. Correcting to 1000.'
+      );
+    });
+
+    it('should sanitize negative frequencyThreshold to 2', () => {
+      const config = { frequencyThreshold: -1 };
+
+      const result = sanitizeARCConfig(config);
+
+      expect(result.frequencyThreshold).toBe(2);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'frequencyThreshold must be positive, got -1. Correcting to 2.'
+      );
+    });
+
+    it('should sanitize zero frequencyThreshold to 2', () => {
+      const config = { frequencyThreshold: 0 };
+
+      const result = sanitizeARCConfig(config);
+
+      expect(result.frequencyThreshold).toBe(2);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'frequencyThreshold must be positive, got 0. Correcting to 2.'
+      );
+    });
+
+    it('should sanitize frequencyDecayFactor below 0 to 0', () => {
+      const config = { frequencyDecayFactor: -0.1 };
+
+      const result = sanitizeARCConfig(config);
+
+      expect(result.frequencyDecayFactor).toBe(0);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'frequencyDecayFactor must be between 0 and 1, got -0.1. Correcting to 0.'
+      );
+    });
+
+    it('should sanitize frequencyDecayFactor above 1 to 1', () => {
+      const config = { frequencyDecayFactor: 1.5 };
+
+      const result = sanitizeARCConfig(config);
+
+      expect(result.frequencyDecayFactor).toBe(1);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'frequencyDecayFactor must be between 0 and 1, got 1.5. Correcting to 1.'
+      );
+    });
+
+    it('should sanitize negative frequencyDecayInterval to 60000', () => {
+      const config = { frequencyDecayInterval: -1000 };
+
+      const result = sanitizeARCConfig(config);
+
+      expect(result.frequencyDecayInterval).toBe(60000);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'frequencyDecayInterval must be positive, got -1000. Correcting to 60000.'
+      );
+    });
+
+    it('should sanitize zero frequencyDecayInterval to 60000', () => {
+      const config = { frequencyDecayInterval: 0 };
+
+      const result = sanitizeARCConfig(config);
+
+      expect(result.frequencyDecayInterval).toBe(60000);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'frequencyDecayInterval must be positive, got 0. Correcting to 60000.'
+      );
+    });
+
+    it('should sanitize adaptiveLearningRate below 0 to 0', () => {
+      const config = { adaptiveLearningRate: -1.0 };
+
+      const result = sanitizeARCConfig(config);
+
+      expect(result.adaptiveLearningRate).toBe(0);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'adaptiveLearningRate must be between 0 and 10, got -1. Correcting to 0.'
+      );
+    });
+
+    it('should sanitize adaptiveLearningRate above 10 to 10', () => {
+      const config = { adaptiveLearningRate: 15.0 };
+
+      const result = sanitizeARCConfig(config);
+
+      expect(result.adaptiveLearningRate).toBe(10);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'adaptiveLearningRate must be between 0 and 10, got 15. Correcting to 10.'
+      );
+    });
+
+    it('should handle multiple invalid values and sanitize all', () => {
+      const config = {
+        maxCacheSize: -100,
+        frequencyThreshold: 0,
+        frequencyDecayFactor: 2.0,
+        frequencyDecayInterval: -500,
+        adaptiveLearningRate: 20.0
+      };
+
+      const result = sanitizeARCConfig(config);
+
+      expect(result).toEqual({
+        maxCacheSize: 1000,
+        frequencyThreshold: 2,
+        frequencyDecayFactor: 1,
+        frequencyDecayInterval: 60000,
+        adaptiveLearningRate: 10
+      });
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(5);
+    });
+
+    it('should not modify non-numeric values', () => {
+      const config = {
+        maxCacheSize: 'invalid' as any,
+        frequencyThreshold: null as any,
+        frequencyDecayFactor: void 0 as any
+      };
+
+      const result = sanitizeARCConfig(config);
+
+      expect(result).toEqual(config);
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('sanitizeTwoQueueConfig', () => {
+    it('should return unchanged config when all values are valid', () => {
+      const validConfig = {
+        maxCacheSize: 1000,
+        promotionThreshold: 3,
+        hotQueueDecayFactor: 0.1,
+        hotQueueDecayInterval: 300000
+      };
+
+      const result = sanitizeTwoQueueConfig(validConfig);
+
+      expect(result).toEqual(validConfig);
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should sanitize negative maxCacheSize to 1000', () => {
+      const config = { maxCacheSize: -200 };
+
+      const result = sanitizeTwoQueueConfig(config);
+
+      expect(result.maxCacheSize).toBe(1000);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'maxCacheSize must be positive, got -200. Correcting to 1000.'
+      );
+    });
+
+    it('should sanitize zero maxCacheSize to 1000', () => {
+      const config = { maxCacheSize: 0 };
+
+      const result = sanitizeTwoQueueConfig(config);
+
+      expect(result.maxCacheSize).toBe(1000);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'maxCacheSize must be positive, got 0. Correcting to 1000.'
+      );
+    });
+
+    it('should sanitize negative promotionThreshold to 2', () => {
+      const config = { promotionThreshold: -3 };
+
+      const result = sanitizeTwoQueueConfig(config);
+
+      expect(result.promotionThreshold).toBe(2);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'promotionThreshold must be positive, got -3. Correcting to 2.'
+      );
+    });
+
+    it('should sanitize zero promotionThreshold to 2', () => {
+      const config = { promotionThreshold: 0 };
+
+      const result = sanitizeTwoQueueConfig(config);
+
+      expect(result.promotionThreshold).toBe(2);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'promotionThreshold must be positive, got 0. Correcting to 2.'
+      );
+    });
+
+    it('should sanitize hotQueueDecayFactor below 0 to 0', () => {
+      const config = { hotQueueDecayFactor: -0.2 };
+
+      const result = sanitizeTwoQueueConfig(config);
+
+      expect(result.hotQueueDecayFactor).toBe(0);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'hotQueueDecayFactor must be between 0 and 1, got -0.2. Correcting to 0.'
+      );
+    });
+
+    it('should sanitize hotQueueDecayFactor above 1 to 1', () => {
+      const config = { hotQueueDecayFactor: 1.8 };
+
+      const result = sanitizeTwoQueueConfig(config);
+
+      expect(result.hotQueueDecayFactor).toBe(1);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'hotQueueDecayFactor must be between 0 and 1, got 1.8. Correcting to 1.'
+      );
+    });
+
+    it('should sanitize negative hotQueueDecayInterval to 300000', () => {
+      const config = { hotQueueDecayInterval: -1000 };
+
+      const result = sanitizeTwoQueueConfig(config);
+
+      expect(result.hotQueueDecayInterval).toBe(300000);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'hotQueueDecayInterval must be positive, got -1000. Correcting to 300000.'
+      );
+    });
+
+    it('should sanitize zero hotQueueDecayInterval to 300000', () => {
+      const config = { hotQueueDecayInterval: 0 };
+
+      const result = sanitizeTwoQueueConfig(config);
+
+      expect(result.hotQueueDecayInterval).toBe(300000);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'hotQueueDecayInterval must be positive, got 0. Correcting to 300000.'
+      );
+    });
+
+    it('should handle multiple invalid values and sanitize all', () => {
+      const config = {
+        maxCacheSize: -50,
+        promotionThreshold: 0,
+        hotQueueDecayFactor: 3.0,
+        hotQueueDecayInterval: -100
+      };
+
+      const result = sanitizeTwoQueueConfig(config);
+
+      expect(result).toEqual({
+        maxCacheSize: 1000,
+        promotionThreshold: 2,
+        hotQueueDecayFactor: 1,
+        hotQueueDecayInterval: 300000
+      });
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(4);
+    });
+
+    it('should not modify non-numeric values', () => {
+      const config = {
+        maxCacheSize: 'invalid' as any,
+        promotionThreshold: null as any,
+        hotQueueDecayFactor: void 0 as any
+      };
+
+      const result = sanitizeTwoQueueConfig(config);
+
+      expect(result).toEqual(config);
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createValidatedConfig with sanitization', () => {
+    it('should sanitize invalid values before validation for LFU config', () => {
+      const baseConfig = DEFAULT_LFU_CONFIG;
+      const userConfig = {
+        decayFactor: -0.5, // Will be sanitized to 0
+        sketchWidth: 5      // Will be sanitized to 16
+      };
+
+      const result = createValidatedConfig(baseConfig, userConfig);
+
+      expect(result.decayFactor).toBe(0);
+      expect(result.sketchWidth).toBe(16);
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should sanitize invalid values before validation for ARC config', () => {
+      const baseConfig = DEFAULT_ARC_CONFIG;
+      const userConfig = {
+        maxCacheSize: -100,           // Will be sanitized to 1000
+        adaptiveLearningRate: 15.0    // Will be sanitized to 10
+      };
+
+      const result = createValidatedConfig(baseConfig, userConfig);
+
+      expect(result.maxCacheSize).toBe(1000);
+      expect(result.adaptiveLearningRate).toBe(10);
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should sanitize invalid values before validation for TwoQueue config', () => {
+      const baseConfig = DEFAULT_TWO_QUEUE_CONFIG;
+      const userConfig = {
+        promotionThreshold: -1,         // Will be sanitized to 2
+        hotQueueDecayFactor: 2.0        // Will be sanitized to 1
+      };
+
+      const result = createValidatedConfig(baseConfig, userConfig);
+
+      expect(result.promotionThreshold).toBe(2);
+      expect(result.hotQueueDecayFactor).toBe(1);
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should sanitize then still fail validation if sanitized values are still invalid', () => {
+      // Create a scenario where even after sanitization, validation could fail
+      // This is mainly to ensure the validation step still runs after sanitization
+      const baseConfig = { ...DEFAULT_LFU_CONFIG };
+      const userConfig = {
+        decayFactor: 0.5  // Valid value
+      };
+
+      const result = createValidatedConfig(baseConfig, userConfig);
+
+      expect(result.decayFactor).toBe(0.5);
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('should handle mixed valid and invalid values', () => {
+      const baseConfig = DEFAULT_LFU_CONFIG;
+      const userConfig = {
+        decayFactor: 0.3,      // Valid
+        decayInterval: -1000,  // Invalid - will be sanitized to 300000
+        sketchWidth: 2048,     // Valid
+        sketchDepth: 25        // Invalid - will be sanitized to 16
+      };
+
+      const result = createValidatedConfig(baseConfig, userConfig);
+
+      expect(result.decayFactor).toBe(0.3);
+      expect(result.decayInterval).toBe(300000);
+      expect(result.sketchWidth).toBe(2048);
+      expect(result.sketchDepth).toBe(16);
+      expect(consoleWarnSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('should still fail validation for fundamentally invalid configurations', () => {
+      const baseConfig = DEFAULT_LFU_CONFIG;
+
+      // Create a config that will be invalid even after sanitization
+      // by providing an invalid type after merging
+      const invalidConfig = { ...baseConfig, type: 'invalid-type' as any };
+
+      expect(() => validateEvictionStrategyConfig(invalidConfig))
+        .toThrow('Invalid eviction strategy type: invalid-type');
     });
   });
 

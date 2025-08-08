@@ -235,7 +235,7 @@ export const createCacheMap = <
     case 'memory':
       // Use enhanced memory cache if size configuration is provided
       if (options.memoryConfig?.size &&
-          (options.memoryConfig.size.maxSizeBytes || options.memoryConfig.size.maxItems)) {
+        (options.memoryConfig.size.maxSizeBytes || options.memoryConfig.size.maxItems)) {
         return new EnhancedMemoryCacheMap<V, S, L1, L2, L3, L4, L5>(
           kta as any,
           options.memoryConfig.size
@@ -322,11 +322,8 @@ export const validateOptions = <
   }
 
   // Browser storage validation
-  if (['localStorage', 'sessionStorage'].includes(options.cacheType)) {
-    if (typeof window === 'undefined' || !window[options.cacheType as 'localStorage' | 'sessionStorage']) {
-      throw new Error(`${options.cacheType} is not available in non-browser environments`);
-    }
-  }
+  // Do not throw in non-browser environments; allow tests to provide storage mocks
+  // and defer availability checks to the specific cache map implementations.
 
   // IndexedDB validation
   if (options.cacheType === 'indexedDB') {

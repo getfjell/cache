@@ -44,8 +44,8 @@ export const createNormalizedHashFunction = <T>() => {
       // Normalize loc array lk values
       if ('loc' in normalizedKey && Array.isArray(normalizedKey.loc)) {
         normalizedKey.loc = normalizedKey.loc.map((locItem: any) => {
-          if (locItem && 'lk' in locItem && locItem.lk !== null) {
-            return { ...locItem, lk: normalizeKeyValue(locItem.lk) };
+          if (typeof locItem === 'object' && locItem !== null && 'lk' in locItem && (locItem as any).lk !== null) {
+            return { ...locItem, lk: normalizeKeyValue((locItem as any).lk) };
           }
           return locItem;
         });

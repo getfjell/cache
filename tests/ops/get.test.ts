@@ -1,4 +1,4 @@
-/* eslint-disable no-undefined */
+ 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from '../../src/ops/get';
 import { CacheContext } from '../../src/CacheContext';

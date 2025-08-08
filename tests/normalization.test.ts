@@ -1,4 +1,4 @@
-/* eslint-disable no-undefined */
+ 
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   createNormalizedHashFunction,
