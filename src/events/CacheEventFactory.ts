@@ -1,4 +1,4 @@
- 
+
 import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/core";
 import {
   CacheClearedEvent,
@@ -13,6 +13,66 @@ import {
  */
 export class CacheEventFactory {
   private static lastTimestamp = 0;
+  private static cleanupInterval: NodeJS.Timeout | null = null;
+  private static instanceCount = 0;
+  private static readonly CLEANUP_INTERVAL_MS = 60000; // 1 minute
+  private static readonly MAX_TIMESTAMP_AGE_MS = 300000; // 5 minutes
+
+  /**
+   * Initialize cleanup mechanism when first instance is created
+   */
+  private static initializeCleanup(): void {
+    if (this.cleanupInterval === null && this.instanceCount === 0) {
+      this.startCleanupTimer();
+    }
+    this.instanceCount++;
+  }
+
+  /**
+   * Cleanup mechanism when instance is destroyed
+   */
+  public static destroyInstance(): void {
+    this.instanceCount = Math.max(0, this.instanceCount - 1);
+    if (this.instanceCount === 0) {
+      this.stopCleanupTimer();
+      this.resetTimestamp();
+    }
+  }
+
+  /**
+   * Start automatic cleanup timer
+   */
+  private static startCleanupTimer(): void {
+    this.cleanupInterval = setInterval(() => {
+      this.performCleanup();
+    }, this.CLEANUP_INTERVAL_MS);
+
+    // Don't keep the process alive just for cleanup
+    if (this.cleanupInterval.unref) {
+      this.cleanupInterval.unref();
+    }
+  }
+
+  /**
+   * Stop automatic cleanup timer
+   */
+  private static stopCleanupTimer(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+  }
+
+  /**
+   * Perform periodic cleanup of stale timestamp state
+   */
+  private static performCleanup(): void {
+    const now = Date.now();
+    // Reset timestamp if it's too old to prevent memory issues
+    if (now - this.lastTimestamp > this.MAX_TIMESTAMP_AGE_MS) {
+      this.lastTimestamp = 0;
+    }
+  }
 
   /**
    * Reset the timestamp state (useful for testing)
@@ -25,6 +85,8 @@ export class CacheEventFactory {
    * Generate a unique timestamp that is always greater than the previous one
    */
   private static generateTimestamp(): number {
+    this.initializeCleanup();
+
     const now = Date.now();
     // If current time is greater than last timestamp, use current time
     // Otherwise, increment last timestamp to ensure uniqueness

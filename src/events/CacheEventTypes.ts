@@ -197,6 +197,9 @@ export interface CacheSubscriptionOptions<
 
   /** Optional error handler for listener errors */
   onError?: (error: Error, event: any) => void;
+
+  /** Use weak references for the listener (default: true if WeakRef is available) */
+  useWeakRef?: boolean;
 }
 
 /**

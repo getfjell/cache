@@ -476,4 +476,69 @@ describe('action operation', () => {
       expect(mockCacheMap.set).not.toHaveBeenCalled();
     });
   });
+
+  describe('eviction key parsing error handling', () => {
+    beforeEach(() => {
+      // Reset specific mocks for this test group
+      vi.clearAllMocks();
+    });
+
+    it('should handle malformed evicted keys gracefully', async () => {
+      // Setup eviction manager to return malformed JSON keys
+      const malformedKeys = [
+        'invalid-json',
+        '{"circular": "[Circular]"}', // valid JSON but unusual object
+        '{incomplete json',
+        '{"kt":"test","pk":"key1"}' // valid key
+      ];
+      (mockEvictionManager.onItemAdded as any).mockReturnValue(malformedKeys);
+
+      // Mock logger to capture error logs
+      const loggerSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+
+      // Execute action
+      const [resultContext, resultItem] = await action(priKey1, actionName, actionBody, context);
+
+      // Verify operation completed successfully despite malformed keys
+      expect(resultContext).toBe(context);
+      expect(resultItem).toEqual(updatedItem);
+
+      // Verify cache operations
+      expect(mockCacheMap.set).toHaveBeenCalledWith(updatedItem.key, updatedItem);
+
+      // Verify that delete was called for both valid JSON keys
+      // Note: '{"circular": "[Circular]"}' is valid JSON that parses to { circular: '[Circular]' }
+      expect(mockCacheMap.delete).toHaveBeenCalledTimes(2);
+      expect(mockCacheMap.delete).toHaveBeenCalledWith({ circular: '[Circular]' });
+      expect(mockCacheMap.delete).toHaveBeenCalledWith({ "kt": "test", "pk": "key1" });
+
+      // Cleanup
+      loggerSpy.mockRestore();
+    });
+
+    it('should continue processing when JSON parse fails on evicted keys', async () => {
+      // Setup eviction manager to return keys that will cause JSON.parse to fail
+      const problematicKeys = [
+        'null', // valid JSON but parses to null value
+        'undefined',
+        '{circular_ref}',
+        '{"kt":"test","pk":"valid1"}',
+        'invalid',
+        '{"kt":"test","pk":"valid2"}'
+      ];
+      (mockEvictionManager.onItemAdded as any).mockReturnValue(problematicKeys);
+
+      // Execute action
+      await action(priKey1, actionName, actionBody, context);
+
+      // Verify that valid keys were processed despite parsing errors
+      // Note: "null" is valid JSON and will be parsed to null, then passed to delete
+      expect(mockCacheMap.delete).toHaveBeenCalledWith(null);
+      expect(mockCacheMap.delete).toHaveBeenCalledWith({ "kt": "test", "pk": "valid1" });
+      expect(mockCacheMap.delete).toHaveBeenCalledWith({ "kt": "test", "pk": "valid2" });
+
+      // Should have been called three times: null + two valid keys
+      expect(mockCacheMap.delete).toHaveBeenCalledTimes(3);
+    });
+  });
 });
