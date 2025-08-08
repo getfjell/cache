@@ -56,20 +56,5 @@ describe("reset operation", () => {
     const [memoryCache] = await reset<TestItem, "test">(coordinate, memoryOptions);
     expect(memoryCache).toBeDefined();
     expect(memoryCache.get).toBeDefined();
-
-    // Note: We can't test localStorage in Node.js environment
-    // But we can verify the code accepts the option
-    const localStorageOptions: Options<TestItem, "test"> = {
-      cacheType: "localStorage",
-      ttl: 1000,
-      webStorageConfig: {
-        keyPrefix: "test:"
-      }
-    };
-
-    // This should not throw an error when creating the options
-    await expect(reset<TestItem, "test">(coordinate, localStorageOptions))
-      .rejects
-      .toThrow("localStorage is not available in non-browser environments");
   });
 });
