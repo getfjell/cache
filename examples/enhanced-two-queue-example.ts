@@ -1,6 +1,45 @@
 import { createEvictionStrategy } from '../src/eviction/EvictionStrategyFactory';
-import { CacheItemMetadata } from '../src/eviction/EvictionStrategy';
+import { CacheItemMetadata, CacheMapMetadataProvider } from '../src/eviction/EvictionStrategy';
 import { TwoQueueConfig } from '../src/eviction/EvictionStrategyConfig';
+
+/**
+ * Simple metadata provider for examples
+ */
+class SimpleMetadataProvider implements CacheMapMetadataProvider {
+  private metadata = new Map<string, CacheItemMetadata>();
+
+  getMetadata(key: string): CacheItemMetadata | null {
+    return this.metadata.get(key) || null;
+  }
+
+  setMetadata(key: string, metadata: CacheItemMetadata): void {
+    this.metadata.set(key, metadata);
+  }
+
+  deleteMetadata(key: string): void {
+    this.metadata.delete(key);
+  }
+
+  getAllMetadata(): Map<string, CacheItemMetadata> {
+    return new Map(this.metadata);
+  }
+
+  clearMetadata(): void {
+    this.metadata.clear();
+  }
+
+  getCurrentSize(): { itemCount: number; sizeBytes: number } {
+    let sizeBytes = 0;
+    for (const metadata of this.metadata.values()) {
+      sizeBytes += metadata.estimatedSize;
+    }
+    return { itemCount: this.metadata.size, sizeBytes };
+  }
+
+  getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+    return { maxItems: null, maxSizeBytes: null };
+  }
+}
 
 /**
  * Example demonstrating the enhanced 2Q eviction strategy with frequency-based enhancements
@@ -55,7 +94,7 @@ function demonstrateEnhanced2Q() {
 }
 
 function demonstrate2QStrategy(strategy: any, name: string) {
-  const items = new Map<string, CacheItemMetadata>();
+  const metadataProvider = new SimpleMetadataProvider();
 
   // Create items with different access patterns
   const itemData = [
@@ -75,24 +114,31 @@ function demonstrate2QStrategy(strategy: any, name: string) {
       estimatedSize: 1024
     };
 
-    // Add item to cache
-    strategy.onItemAdded(key, metadata);
+    // Add item through metadata provider
+    metadataProvider.setMetadata(key, metadata);
+    strategy.onItemAdded(key, metadata.estimatedSize, metadataProvider);
 
     // Simulate accesses
     for (let i = 1; i < accessCount; i++) {
-      strategy.onItemAccessed(key, metadata);
+      metadata.accessCount++;
+      metadata.lastAccessedAt = Date.now();
+      metadataProvider.setMetadata(key, metadata);
+      strategy.onItemAccessed(key, metadataProvider);
     }
-
-    items.set(key, metadata);
   });
 
   // Show eviction selection
-  const evictKey = strategy.selectForEviction(items);
+  const context = {
+    currentSize: metadataProvider.getCurrentSize(),
+    limits: metadataProvider.getSizeLimits()
+  };
+  const evictKey = strategy.selectForEviction(metadataProvider, context);
   console.log(`  ${name} would evict: ${evictKey}`);
 
   // Show item details
   console.log('  Item details:');
-  for (const [key, metadata] of items) {
+  const allMetadata = metadataProvider.getAllMetadata();
+  for (const [key, metadata] of allMetadata) {
     const freq = metadata.rawFrequency || metadata.accessCount;
     const score = metadata.frequencyScore ? ` (score: ${metadata.frequencyScore.toFixed(2)})` : '';
     const type = key.includes('recent') ? 'Recent' : key.includes('hot') ? 'Hot' : 'Warm';
@@ -101,7 +147,7 @@ function demonstrate2QStrategy(strategy: any, name: string) {
 }
 
 function demonstrateDecay2Q(strategy: any, name: string) {
-  const items = new Map<string, CacheItemMetadata>();
+  const metadataProvider = new SimpleMetadataProvider();
 
   // Create items with different ages to show decay effect
   const oldTime = Date.now() - 600000; // 10 minutes ago
@@ -123,23 +169,31 @@ function demonstrateDecay2Q(strategy: any, name: string) {
       estimatedSize: 1024
     };
 
-    strategy.onItemAdded(key, metadata);
+    // Add item through metadata provider
+    metadataProvider.setMetadata(key, metadata);
+    strategy.onItemAdded(key, metadata.estimatedSize, metadataProvider);
 
     // Simulate accesses over time
     for (let i = 1; i < accessCount; i++) {
-      strategy.onItemAccessed(key, metadata);
+      metadata.accessCount++;
+      metadata.lastAccessedAt = Date.now();
+      metadataProvider.setMetadata(key, metadata);
+      strategy.onItemAccessed(key, metadataProvider);
     }
-
-    items.set(key, metadata);
   });
 
   // Show eviction selection
-  const evictKey = strategy.selectForEviction(items);
+  const context = {
+    currentSize: metadataProvider.getCurrentSize(),
+    limits: metadataProvider.getSizeLimits()
+  };
+  const evictKey = strategy.selectForEviction(metadataProvider, context);
   console.log(`  ${name} would evict: ${evictKey}`);
 
   // Show decay-adjusted scores
   console.log('  Decay-adjusted frequency analysis:');
-  for (const [key, metadata] of items) {
+  const allMetadata = metadataProvider.getAllMetadata();
+  for (const [key, metadata] of allMetadata) {
     const rawFreq = metadata.rawFrequency || metadata.accessCount;
     const effectiveScore = metadata.frequencyScore || rawFreq;
     const age = Math.round((Date.now() - metadata.addedAt) / 60000); // Age in minutes

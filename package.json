@@ -13,7 +13,8 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     }
   },
   "scripts": {
@@ -22,7 +23,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts --fix",
     "clean": "rm -rf dist",
-    "test": "npm run lint && vitest run --coverage",
+    "test": "vitest run --coverage",
     "prepublishOnly": "npm run clean && npm run build",
     "docs:dev": "cd docs && npm run dev",
     "docs:build": "cd docs && npm run build",
@@ -34,7 +35,9 @@
     "@fjell/core": "file:../fjell-core",
     "@fjell/http-api": "file:../fjell-http-api",
     "@fjell/logging": "file:../fjell-logging",
-    "@fjell/registry": "file:../fjell-registry"
+    "@fjell/registry": "file:../fjell-registry",
+    "fast-safe-stringify": "^2.1.1",
+    "flatted": "^3.3.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

@@ -408,7 +408,7 @@ describe('remove operation', () => {
         kt: 'test',
         pk: '123e4567-e89b-12d3-a456-426614174000',
       };
-      // eslint-disable-next-line no-undefined
+       
       mockApi.remove.mockRejectedValue(undefined);
 
       await expect(remove(validKey, context)).rejects.toBeUndefined();

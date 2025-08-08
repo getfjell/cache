@@ -1,4 +1,4 @@
-import { CacheItemMetadata, EvictionStrategy } from '../EvictionStrategy';
+import { CacheItemMetadata, CacheMapMetadataProvider, EvictionContext, EvictionStrategy } from '../EvictionStrategy';
 import { DEFAULT_TWO_QUEUE_CONFIG, TwoQueueConfig } from '../EvictionStrategyConfig';
 import { createValidatedConfig } from '../EvictionStrategyValidation';
 
@@ -8,6 +8,9 @@ import { createValidatedConfig } from '../EvictionStrategyValidation';
  * Uses frequency analysis for promotion decisions and weighted LRU in hot queue
  */
 export class TwoQueueEvictionStrategy extends EvictionStrategy {
+  getStrategyName(): string {
+    return '2Q';
+  }
   private recentQueue: string[] = []; // A1 queue for recent items
   private hotQueue: string[] = []; // Am queue for hot items
   private ghostQueue = new Set<string>(); // A1out ghost queue
@@ -26,37 +29,65 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
     this.lastDecayTime = Date.now();
   }
 
-  selectForEviction(items: Map<string, CacheItemMetadata>): string | null {
-    if (items.size === 0) return null;
+  selectForEviction(
+    metadataProvider: CacheMapMetadataProvider,
+    context: EvictionContext
+  ): string[] {
+    const allMetadata = metadataProvider.getAllMetadata();
+    if (allMetadata.size === 0) return [];
+
+    if (!this.isEvictionNeeded(context)) {
+      return [];
+    }
+
+    const evictionCount = this.calculateEvictionCount(context);
+    if (evictionCount <= 0) return [];
 
     // Apply periodic decay if enabled
-    this.applyPeriodicDecay(items);
+    this.applyPeriodicDecay(allMetadata);
 
-    // First try to evict from recent queue (A1) - evict oldest (tail) of recent queue
-    // Recent queue is maintained with newest at front, oldest at back
-    for (let i = this.recentQueue.length - 1; i >= 0; i--) {
-      const key = this.recentQueue[i];
-      if (items.has(key)) {
-        return key;
+    const keysToEvict: string[] = [];
+
+    for (let i = 0; i < evictionCount; i++) {
+      let keyToEvict: string | null = null;
+
+      // First try to evict from recent queue (A1) - evict oldest (tail) of recent queue
+      for (let j = this.recentQueue.length - 1; j >= 0; j--) {
+        const key = this.recentQueue[j];
+        if (allMetadata.has(key) && !keysToEvict.includes(key)) {
+          keyToEvict = key;
+          break;
+        }
+      }
+
+      // If no valid key in recent queue, try hot queue
+      if (!keyToEvict) {
+        if (this.config.useFrequencyWeightedLRU) {
+          keyToEvict = this.selectFromHotQueueFrequencyWeighted(allMetadata, keysToEvict);
+        } else {
+          keyToEvict = this.selectFromHotQueueLRU(allMetadata, keysToEvict);
+        }
+      }
+
+      if (keyToEvict) {
+        keysToEvict.push(keyToEvict);
+      } else {
+        break; // No more items to evict
       }
     }
 
-    // Then try hot queue (Am) - use frequency-weighted LRU if enabled
-    if (this.config.useFrequencyWeightedLRU) {
-      return this.selectFromHotQueueFrequencyWeighted(items);
-    } else {
-      return this.selectFromHotQueueLRU(items);
-    }
+    return keysToEvict;
   }
 
   /**
    * Select eviction candidate from hot queue using traditional LRU
    */
-  private selectFromHotQueueLRU(items: Map<string, CacheItemMetadata>): string | null {
+  private selectFromHotQueueLRU(items: Map<string, CacheItemMetadata>, excludeKeys: string[] = []): string | null {
     let oldestKey: string | null = null;
     let oldestTime = Infinity;
 
     for (const key of this.hotQueue) {
+      if (excludeKeys.includes(key)) continue;
       const metadata = items.get(key);
       if (metadata && metadata.lastAccessedAt < oldestTime) {
         oldestTime = metadata.lastAccessedAt;
@@ -70,11 +101,12 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
   /**
    * Select eviction candidate from hot queue using frequency-weighted LRU
    */
-  private selectFromHotQueueFrequencyWeighted(items: Map<string, CacheItemMetadata>): string | null {
+  private selectFromHotQueueFrequencyWeighted(items: Map<string, CacheItemMetadata>, excludeKeys: string[] = []): string | null {
     let bestKey: string | null = null;
     let lowestScore = Infinity;
 
     for (const key of this.hotQueue) {
+      if (excludeKeys.includes(key)) continue;
       const metadata = items.get(key);
       if (!metadata) continue;
 
@@ -96,7 +128,10 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
     return bestKey || (items.size > 0 ? (items.keys().next().value ?? null) : null);
   }
 
-  onItemAccessed(key: string, metadata: CacheItemMetadata): void {
+  onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): void {
+    const metadata = metadataProvider.getMetadata(key);
+    if (!metadata) return;
+
     const now = Date.now();
     metadata.lastAccessedAt = now;
     metadata.accessCount++;
@@ -126,19 +161,29 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
         this.hotQueue.unshift(key);
       }
     }
+
+    metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemAdded(key: string, metadata: CacheItemMetadata): void {
+  onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): void {
     const now = Date.now();
-    metadata.addedAt = now;
-    metadata.lastAccessedAt = now;
-    metadata.accessCount = 1;
-    metadata.rawFrequency = 1;
+    let metadata = metadataProvider.getMetadata(key);
 
-    // Initialize frequency score for decay tracking
-    if ((this.config.hotQueueDecayFactor ?? 0) > 0) {
-      metadata.frequencyScore = 1;
-      metadata.lastFrequencyUpdate = now;
+    if (!metadata) {
+      metadata = {
+        key,
+        addedAt: now,
+        lastAccessedAt: now,
+        accessCount: 1,
+        estimatedSize,
+        rawFrequency: 1
+      };
+
+      // Initialize frequency score for decay tracking
+      if ((this.config.hotQueueDecayFactor ?? 0) > 0) {
+        metadata.frequencyScore = 1;
+        metadata.lastFrequencyUpdate = now;
+      }
     }
 
     // Check if this was in ghost queue (promote to hot)
@@ -165,9 +210,11 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
         this.ghostQueue.delete(firstKey);
       }
     }
+
+    metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemRemoved(key: string): void {
+  onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): void {
     // Remove from appropriate queue
     const recentIndex = this.recentQueue.indexOf(key);
     if (recentIndex !== -1) {
@@ -178,6 +225,9 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
     if (hotIndex !== -1) {
       this.hotQueue.splice(hotIndex, 1);
     }
+
+    // Clean up metadata
+    metadataProvider.deleteMetadata(key);
   }
 
   /**

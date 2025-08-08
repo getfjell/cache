@@ -10,6 +10,7 @@ import {
 } from "@fjell/core";
 import { createNormalizedHashFunction, isLocKeyArrayEqual } from "../normalization";
 import LibLogger from "../logger";
+import safeStringify from 'fast-safe-stringify';
 
 const logger = LibLogger.get("AsyncIndexDBCacheMap");
 
@@ -369,7 +370,7 @@ export class AsyncIndexDBCacheMap<
           };
 
           const queryKey = `query:${queryHash}`;
-          const putRequest = store.put(JSON.stringify(entry), queryKey);
+          const putRequest = store.put(safeStringify(entry), queryKey);
 
           putRequest.onerror = () => {
             logger.error('Failed to store query result', { queryHash, error: putRequest.error });

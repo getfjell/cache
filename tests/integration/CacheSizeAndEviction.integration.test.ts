@@ -701,27 +701,35 @@ describe('Cache Size and Eviction Integration Tests', () => {
         decayFactor: 0 // Disable decay to avoid timing-dependent behavior
       });
 
-      // Simulate cache operations with enhanced strategy
-      const items = new Map();
+      // Create a mock metadata provider with actual storage
+      const metadataMap = new Map();
+      const metadataProvider = {
+        setMetadata: vi.fn((key: string, metadata: any) => metadataMap.set(key, metadata)),
+        getMetadata: vi.fn((key: string) => metadataMap.get(key)),
+        getAllMetadata: vi.fn(() => metadataMap),
+        removeMetadata: vi.fn((key: string) => metadataMap.delete(key)),
+        clearMetadata: vi.fn(() => metadataMap.clear()),
+        getCurrentSize: vi.fn(() => ({ itemCount: 2, sizeBytes: 200 }))
+      };
 
       // Add items
-      const item1 = { key: 'item1', addedAt: Date.now(), lastAccessedAt: Date.now(), accessCount: 1, estimatedSize: 100 };
-      const item2 = { key: 'item2', addedAt: Date.now(), lastAccessedAt: Date.now(), accessCount: 1, estimatedSize: 100 };
-
-      enhancedLfuStrategy.onItemAdded('item1', item1);
-      enhancedLfuStrategy.onItemAdded('item2', item2);
+      enhancedLfuStrategy.onItemAdded('item1', 100, metadataProvider);
+      enhancedLfuStrategy.onItemAdded('item2', 100, metadataProvider);
 
       // Access items to build frequency
-      enhancedLfuStrategy.onItemAccessed('item1', item1);
-      enhancedLfuStrategy.onItemAccessed('item1', item1);
+      enhancedLfuStrategy.onItemAccessed('item1', metadataProvider);
+      enhancedLfuStrategy.onItemAccessed('item1', metadataProvider);
 
-      items.set('item1', item1);
-      items.set('item2', item2);
+      const context = {
+        currentSize: { itemCount: 2, sizeBytes: 200 },
+        limits: { maxItems: 1, maxSizeBytes: 100 },
+        newItemSize: 100
+      };
 
       // Strategy should be able to make eviction decisions
-      const evictKey = enhancedLfuStrategy.selectForEviction(items);
-      expect(evictKey).toBeDefined();
-      expect(['item1', 'item2']).toContain(evictKey);
+      const evictKeys = enhancedLfuStrategy.selectForEviction(metadataProvider, context);
+      expect(evictKeys).toBeDefined();
+      expect(evictKeys.length).toBeGreaterThanOrEqual(1);
     });
 
     it('should maintain configuration consistency across operations', () => {

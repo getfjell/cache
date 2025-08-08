@@ -333,14 +333,14 @@ export function createValidatedConfig<T extends EvictionStrategyConfigs>(
   baseConfig: T,
   userConfig: Partial<T>
 ): T {
-  // Sanitize user config first
-  const sanitizedUserConfig = sanitizeConfigByType(userConfig);
+  // Merge with defaults first
+  const mergedConfig = { ...baseConfig, ...userConfig };
 
-  // Merge with defaults
-  const mergedConfig = { ...baseConfig, ...sanitizedUserConfig };
+  // Sanitize the merged configuration
+  const sanitizedConfig = sanitizeConfigByType(mergedConfig);
 
-  // Validate the final merged configuration
-  validateEvictionStrategyConfig(mergedConfig);
+  // Validate the final sanitized configuration
+  validateEvictionStrategyConfig(sanitizedConfig);
 
-  return mergedConfig;
+  return sanitizedConfig as T;
 }

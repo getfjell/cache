@@ -210,7 +210,7 @@ describe('AsyncIndexDBCacheMap Extended Coverage', () => {
         let result;
         try {
           result = await errorCacheMap.getQueryResult('test');
-        } catch (_) { // eslint-disable-line @typescript-eslint/no-unused-vars
+        } catch (_) {
           result = null; // Expected behavior when errors are handled gracefully
         }
         expect(result).toBeNull();
@@ -220,7 +220,7 @@ describe('AsyncIndexDBCacheMap Extended Coverage', () => {
         let hasResult;
         try {
           hasResult = await errorCacheMap.hasQueryResult('test');
-        } catch (_) { // eslint-disable-line @typescript-eslint/no-unused-vars
+        } catch (_) {
           hasResult = false; // Expected behavior when errors are handled gracefully
         }
         expect(hasResult).toBe(false);
@@ -265,7 +265,7 @@ describe('AsyncIndexDBCacheMap Extended Coverage', () => {
       let result;
       try {
         result = await cacheMap.get(priKey1);
-      } catch (_) { // eslint-disable-line @typescript-eslint/no-unused-vars
+      } catch (_) {
         result = null; // Expected behavior when errors are handled gracefully
       }
       expect(result).toBeNull();

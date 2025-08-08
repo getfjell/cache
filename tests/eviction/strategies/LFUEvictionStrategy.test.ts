@@ -2,9 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LFUEvictionStrategy } from '../../../src/eviction/strategies/LFUEvictionStrategy';
 import { CacheItemMetadata } from '../../../src/eviction/EvictionStrategy';
 import { LFUConfig } from '../../../src/eviction/EvictionStrategyConfig';
+import { MockMetadataProvider } from '../../utils/MockMetadataProvider';
 
 describe('LFUEvictionStrategy', () => {
   let strategy: LFUEvictionStrategy;
+  let metadataProvider: MockMetadataProvider;
 
   function createMockMetadata(key: string, addedAt = 1000, accessCount = 1): CacheItemMetadata {
     return {
@@ -19,49 +21,61 @@ describe('LFUEvictionStrategy', () => {
   describe('Backwards Compatible Mode (Default)', () => {
     beforeEach(() => {
       strategy = new LFUEvictionStrategy();
+      metadataProvider = new MockMetadataProvider();
     });
 
     it('should select item with lowest access count', () => {
-      const items = new Map<string, CacheItemMetadata>([
-        ['key1', createMockMetadata('key1', 1000, 5)],
-        ['key2', createMockMetadata('key2', 2000, 2)], // Should be evicted
-        ['key3', createMockMetadata('key3', 3000, 8)]
-      ]);
+      // Add items to metadata provider
+      metadataProvider.setMetadata('key1', createMockMetadata('key1', 1000, 5));
+      metadataProvider.setMetadata('key2', createMockMetadata('key2', 2000, 2)); // Should be evicted
+      metadataProvider.setMetadata('key3', createMockMetadata('key3', 3000, 8));
 
-      const result = strategy.selectForEviction(items);
-      expect(result).toBe('key2');
+      const context = {
+        currentSize: { itemCount: 3, sizeBytes: 300 },
+        limits: { maxItems: 3, maxSizeBytes: null }
+      };
+      const result = strategy.selectForEviction(metadataProvider, context);
+      expect(result).toContain('key2');
     });
 
     it('should use access time as tiebreaker when access counts are equal', () => {
-      const items = new Map<string, CacheItemMetadata>([
-        ['key1', createMockMetadata('key1', 1000, 3)], // Older, should be evicted
-        ['key2', createMockMetadata('key2', 2000, 3)]
-      ]);
+      // Add items to metadata provider
+      metadataProvider.setMetadata('key1', createMockMetadata('key1', 1000, 3)); // Older, should be evicted
+      metadataProvider.setMetadata('key2', createMockMetadata('key2', 2000, 3));
 
-      const result = strategy.selectForEviction(items);
-      expect(result).toBe('key1');
+      const context = {
+        currentSize: { itemCount: 2, sizeBytes: 200 },
+        limits: { maxItems: 2, maxSizeBytes: null }
+      };
+      const result = strategy.selectForEviction(metadataProvider, context);
+      expect(result).toContain('key1');
     });
 
     it('should increment access count on item access', () => {
       const metadata = createMockMetadata('key1', 1000, 5);
-      strategy.onItemAccessed('key1', metadata);
+      metadataProvider.setMetadata('key1', metadata);
 
-      expect(metadata.accessCount).toBe(6);
-      expect(metadata.rawFrequency).toBe(6);
+      strategy.onItemAccessed('key1', metadataProvider);
+
+      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      expect(updatedMetadata.accessCount).toBe(6);
+      expect(updatedMetadata.rawFrequency).toBe(6);
     });
 
     it('should initialize new items correctly', () => {
-      const metadata = createMockMetadata('key1');
-      strategy.onItemAdded('key1', metadata);
+      strategy.onItemAdded('key1', 100, metadataProvider);
 
+      const metadata = metadataProvider.getMetadata('key1')!;
       expect(metadata.accessCount).toBe(1);
       expect(metadata.rawFrequency).toBe(1);
-      expect(metadata.frequencyScore).toBeUndefined(); // No decay in default mode
+      expect(metadata.frequencyScore).toBe(1); // Always initialized for consistency
+      expect(metadata.estimatedSize).toBe(100);
     });
   });
 
   describe('Frequency Sketching Mode', () => {
     beforeEach(() => {
+      metadataProvider = new MockMetadataProvider();
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: true,
@@ -73,44 +87,44 @@ describe('LFUEvictionStrategy', () => {
     });
 
     it('should use count-min sketch for frequency estimation', () => {
-      const metadata = createMockMetadata('key1');
-      strategy.onItemAdded('key1', metadata);
+      strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Access multiple times
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('key1', metadata);
+        strategy.onItemAccessed('key1', metadataProvider);
       }
 
+      const metadata = metadataProvider.getMetadata('key1')!;
       expect(metadata.rawFrequency).toBeGreaterThan(0);
       expect(metadata.accessCount).toBe(6); // 1 from add + 5 from access
     });
 
     it('should handle frequency estimation for multiple keys', () => {
-      const items = new Map<string, CacheItemMetadata>([
-        ['frequent', createMockMetadata('frequent')],
-        ['rare', createMockMetadata('rare')]
-      ]);
-
       // Add items
-      strategy.onItemAdded('frequent', items.get('frequent')!);
-      strategy.onItemAdded('rare', items.get('rare')!);
+      strategy.onItemAdded('frequent', 100, metadataProvider);
+      strategy.onItemAdded('rare', 100, metadataProvider);
 
       // Access frequent item multiple times
       for (let i = 0; i < 10; i++) {
-        strategy.onItemAccessed('frequent', items.get('frequent')!);
+        strategy.onItemAccessed('frequent', metadataProvider);
       }
 
       // Access rare item once
-      strategy.onItemAccessed('rare', items.get('rare')!);
+      strategy.onItemAccessed('rare', metadataProvider);
 
-      const result = strategy.selectForEviction(items);
-      expect(result).toBe('rare'); // Should evict the less frequent item
+      const context = {
+        currentSize: { itemCount: 2, sizeBytes: 200 },
+        limits: { maxItems: 2, maxSizeBytes: null }
+      };
+      const result = strategy.selectForEviction(metadataProvider, context);
+      expect(result).toContain('rare'); // Should evict the less frequent item
     });
   });
 
   describe('Frequency Decay Mode', () => {
     beforeEach(() => {
       vi.useFakeTimers();
+      metadataProvider = new MockMetadataProvider();
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: false,
@@ -126,62 +140,66 @@ describe('LFUEvictionStrategy', () => {
     });
 
     it('should apply decay to frequency scores over time', () => {
-      const metadata = createMockMetadata('key1');
-      strategy.onItemAdded('key1', metadata);
+      strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = metadataProvider.getMetadata('key1')!;
 
       expect(metadata.frequencyScore).toBe(1);
 
       // Advance time and access item
       vi.advanceTimersByTime(30000); // 30 seconds
-      strategy.onItemAccessed('key1', metadata);
+      strategy.onItemAccessed('key1', metadataProvider);
 
-      const initialScore = metadata.frequencyScore!;
+      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      const initialScore = updatedMetadata.frequencyScore!;
       expect(initialScore).toBeGreaterThan(1);
 
       // Advance time significantly and check decay
       vi.advanceTimersByTime(60000); // 1 minute
-      strategy.onItemAccessed('key1', metadata);
+      strategy.onItemAccessed('key1', metadataProvider);
 
       // Score should have some decay applied
-      expect(metadata.frequencyScore).toBeGreaterThanOrEqual(1); // At least min threshold
+      const finalMetadata = metadataProvider.getMetadata('key1')!;
+      expect(finalMetadata.frequencyScore).toBeGreaterThanOrEqual(1); // At least min threshold
     });
 
     it('should apply periodic decay to the entire cache', () => {
-      const items = new Map<string, CacheItemMetadata>([
-        ['key1', createMockMetadata('key1')],
-        ['key2', createMockMetadata('key2')]
-      ]);
-
       // Initialize items
-      strategy.onItemAdded('key1', items.get('key1')!);
-      strategy.onItemAdded('key2', items.get('key2')!);
+      strategy.onItemAdded('key1', 100, metadataProvider);
+      strategy.onItemAdded('key2', 100, metadataProvider);
 
       // Build up frequencies
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('key1', items.get('key1')!);
+        strategy.onItemAccessed('key1', metadataProvider);
       }
 
       // Advance time past decay interval
       vi.advanceTimersByTime(65000); // Just over 1 minute
 
       // Trigger periodic decay by calling selectForEviction
-      strategy.selectForEviction(items);
+      const context = {
+        currentSize: { itemCount: 2, sizeBytes: 200 },
+        limits: { maxItems: 2, maxSizeBytes: null }
+      };
+      strategy.selectForEviction(metadataProvider, context);
 
       // The periodic decay should have been applied
       // (Specific values depend on implementation details)
     });
 
     it('should respect minimum frequency threshold', () => {
-      const metadata = createMockMetadata('key1');
-      strategy.onItemAdded('key1', metadata);
+      strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Advance time way past decay interval
       vi.advanceTimersByTime(600000); // 10 minutes
 
-      const items = new Map([['key1', metadata]]);
-      strategy.selectForEviction(items); // Apply decay
+      const context = {
+        currentSize: { itemCount: 1, sizeBytes: 100 },
+        limits: { maxItems: 1, maxSizeBytes: null }
+      };
+      strategy.selectForEviction(metadataProvider, context); // Apply decay
 
       // Even with significant decay, frequency should not go below threshold
+      const metadata = metadataProvider.getMetadata('key1')!;
       const config = strategy.getConfig();
       expect(metadata.frequencyScore).toBeGreaterThanOrEqual(config.minFrequencyThreshold!);
     });
@@ -190,6 +208,7 @@ describe('LFUEvictionStrategy', () => {
   describe('Combined Sketching and Decay Mode', () => {
     beforeEach(() => {
       vi.useFakeTimers();
+      metadataProvider = new MockMetadataProvider(); // Fresh metadata provider
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: true,
@@ -207,18 +226,13 @@ describe('LFUEvictionStrategy', () => {
     });
 
     it('should combine probabilistic counting with time-based decay', () => {
-      const items = new Map<string, CacheItemMetadata>([
-        ['old-frequent', createMockMetadata('old-frequent')],
-        ['new-frequent', createMockMetadata('new-frequent')]
-      ]);
-
       // Initialize items
-      strategy.onItemAdded('old-frequent', items.get('old-frequent')!);
-      strategy.onItemAdded('new-frequent', items.get('new-frequent')!);
+      strategy.onItemAdded('old-frequent', 100, metadataProvider);
+      strategy.onItemAdded('new-frequent', 100, metadataProvider);
 
       // Make old item very frequent initially
       for (let i = 0; i < 20; i++) {
-        strategy.onItemAccessed('old-frequent', items.get('old-frequent')!);
+        strategy.onItemAccessed('old-frequent', metadataProvider);
       }
 
       // Advance time significantly
@@ -226,14 +240,22 @@ describe('LFUEvictionStrategy', () => {
 
       // Make new item moderately frequent
       for (let i = 0; i < 10; i++) {
-        strategy.onItemAccessed('new-frequent', items.get('new-frequent')!);
+        strategy.onItemAccessed('new-frequent', metadataProvider);
       }
 
-      const result = strategy.selectForEviction(items);
+      const context = {
+        currentSize: { itemCount: 2, sizeBytes: 200 },
+        limits: { maxItems: 1, maxSizeBytes: null }
+      };
+      const result = strategy.selectForEviction(metadataProvider, context);
 
       // Due to decay, the old frequent item might now be less valuable than new frequent
       // The exact result depends on decay parameters, but both should be valid candidates
-      expect(['old-frequent', 'new-frequent']).toContain(result);
+      expect(result.length).toBeGreaterThan(0);
+
+      // Either key could be selected based on frequency and decay calculations
+      const validKeys = ['old-frequent', 'new-frequent'];
+      expect(validKeys.some(key => result.includes(key))).toBeTruthy();
     });
   });
 
@@ -260,14 +282,14 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      const metadata = createMockMetadata('key1');
-      strategy.onItemAdded('key1', metadata);
+      strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Build up frequency
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('key1', metadata);
+        strategy.onItemAccessed('key1', metadataProvider);
       }
 
+      const metadata = metadataProvider.getMetadata('key1')!;
       expect(metadata.rawFrequency).toBeGreaterThan(1);
 
       // Reset should clear internal sketch state
@@ -278,21 +300,25 @@ describe('LFUEvictionStrategy', () => {
     });
 
     it('should handle empty item sets gracefully', () => {
-      const items = new Map<string, CacheItemMetadata>();
-      const result = strategy.selectForEviction(items);
-      expect(result).toBeNull();
+      const context = {
+        currentSize: { itemCount: 0, sizeBytes: 0 },
+        limits: { maxItems: 10, maxSizeBytes: null }
+      };
+      const result = strategy.selectForEviction(metadataProvider, context);
+      expect(result).toEqual([]);
     });
 
     it('should handle onItemRemoved calls', () => {
       strategy = new LFUEvictionStrategy();
 
       // This method should execute without error
-      expect(() => strategy.onItemRemoved()).not.toThrow();
+      expect(() => strategy.onItemRemoved('key1', metadataProvider)).not.toThrow();
     });
   });
 
   describe('Edge Cases and Coverage Completeness', () => {
     beforeEach(() => {
+      metadataProvider = new MockMetadataProvider();
       vi.useFakeTimers();
     });
 
@@ -309,15 +335,22 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      const metadata = createMockMetadata('key1');
+      strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = metadataProvider.getMetadata('key1')!;
       metadata.rawFrequency = 5;
       // Deliberately not setting frequencyScore or lastFrequencyUpdate
+      delete metadata.frequencyScore;
+      delete metadata.lastFrequencyUpdate;
+      metadataProvider.setMetadata('key1', metadata);
 
-      const items = new Map([['key1', metadata]]);
-      const result = strategy.selectForEviction(items);
+      const context = {
+        currentSize: { itemCount: 1, sizeBytes: 100 },
+        limits: { maxItems: 1, maxSizeBytes: null }
+      };
+      const result = strategy.selectForEviction(metadataProvider, context);
 
       // Should fallback to rawFrequency
-      expect(result).toBe('key1');
+      expect(result).toContain('key1');
     });
 
     it('should handle metadata without lastFrequencyUpdate in calculateFrequencyScore', () => {
@@ -329,31 +362,40 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      const metadata = createMockMetadata('key1');
+      strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = metadataProvider.getMetadata('key1')!;
       metadata.rawFrequency = 3;
+      metadata.accessCount = 1;
       // Deliberately not setting lastFrequencyUpdate (should be undefined)
       delete metadata.lastFrequencyUpdate;
+      metadataProvider.setMetadata('key1', metadata);
 
-      strategy.onItemAccessed('key1', metadata);
+      strategy.onItemAccessed('key1', metadataProvider);
 
       // The calculateFrequencyScore should return rawFrequency when lastFrequencyUpdate is not a number
       // Note: rawFrequency gets updated to accessCount (2) during onItemAccessed since useProbabilisticCounting is false
-      expect(metadata.frequencyScore).toBe(2);
+      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      expect(updatedMetadata.frequencyScore).toBe(2);
     });
 
     it('should handle undefined rawFrequency in fallback paths', () => {
       strategy = new LFUEvictionStrategy(); // Default config with no decay
 
-      const metadata = createMockMetadata('key1');
+      strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = metadataProvider.getMetadata('key1')!;
       metadata.accessCount = 7;
       // Deliberately not setting rawFrequency
       delete metadata.rawFrequency;
+      metadataProvider.setMetadata('key1', metadata);
 
-      const items = new Map([['key1', metadata]]);
-      const result = strategy.selectForEviction(items);
+      const context = {
+        currentSize: { itemCount: 1, sizeBytes: 100 },
+        limits: { maxItems: 1, maxSizeBytes: null }
+      };
+      const result = strategy.selectForEviction(metadataProvider, context);
 
       // Should use accessCount as fallback
-      expect(result).toBe('key1');
+      expect(result).toContain('key1');
     });
 
     it('should handle metadata with undefined rawFrequency in decay calculation', () => {
@@ -365,15 +407,18 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      const metadata = createMockMetadata('key1');
+      strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = metadataProvider.getMetadata('key1')!;
       metadata.accessCount = 4;
       // Deliberately set rawFrequency to undefined
       delete metadata.rawFrequency;
+      metadataProvider.setMetadata('key1', metadata);
 
-      strategy.onItemAccessed('key1', metadata);
+      strategy.onItemAccessed('key1', metadataProvider);
 
       // Should fall back to accessCount for calculations
-      expect(metadata.frequencyScore).toBeGreaterThan(0);
+      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      expect(updatedMetadata.frequencyScore).toBeGreaterThan(0);
     });
 
     it('should calculate frequency score with full decay path', () => {
@@ -386,19 +431,20 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      const metadata = createMockMetadata('key1');
-      strategy.onItemAdded('key1', metadata);
+      strategy.onItemAdded('key1', 100, metadataProvider);
 
       // First access to establish baseline
-      strategy.onItemAccessed('key1', metadata);
+      strategy.onItemAccessed('key1', metadataProvider);
+      const metadata = metadataProvider.getMetadata('key1')!;
       const firstScore = metadata.frequencyScore!;
 
       // Advance time and access again to test full decay calculation
       vi.advanceTimersByTime(30000); // 30 seconds
-      strategy.onItemAccessed('key1', metadata);
+      strategy.onItemAccessed('key1', metadataProvider);
 
       // Should have calculated with decay
-      expect(metadata.frequencyScore).toBeGreaterThan(firstScore);
+      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      expect(updatedMetadata.frequencyScore).toBeGreaterThan(firstScore);
     });
 
     it('should handle undefined frequencyScore in calculateFrequencyScore', () => {
@@ -410,16 +456,19 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      const metadata = createMockMetadata('key1');
+      strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = metadataProvider.getMetadata('key1')!;
       metadata.rawFrequency = 5;
       metadata.lastFrequencyUpdate = Date.now() - 10000; // 10 seconds ago
       // Deliberately not setting frequencyScore
       delete metadata.frequencyScore;
+      metadataProvider.setMetadata('key1', metadata);
 
-      strategy.onItemAccessed('key1', metadata);
+      strategy.onItemAccessed('key1', metadataProvider);
 
       // Should use rawFreq as fallback for previousScore
-      expect(metadata.frequencyScore).toBeGreaterThan(0);
+      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      expect(updatedMetadata.frequencyScore).toBeGreaterThan(0);
     });
 
     it('should test periodic decay with probabilistic counting', () => {
@@ -433,39 +482,45 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      const items = new Map<string, CacheItemMetadata>([
-        ['key1', createMockMetadata('key1')]
-      ]);
-
-      strategy.onItemAdded('key1', items.get('key1')!);
+      strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Build up frequency
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('key1', items.get('key1')!);
+        strategy.onItemAccessed('key1', metadataProvider);
       }
 
       // Advance time past decay interval
       vi.advanceTimersByTime(35000); // 35 seconds
 
       // This should trigger periodic decay in the sketch
-      strategy.selectForEviction(items);
+      const context = {
+        currentSize: { itemCount: 1, sizeBytes: 100 },
+        limits: { maxItems: 1, maxSizeBytes: null }
+      };
+      strategy.selectForEviction(metadataProvider, context);
 
       // The decay should have been applied (exact values depend on implementation)
-      expect(items.get('key1')!.rawFrequency).toBeGreaterThan(0);
+      const metadata = metadataProvider.getMetadata('key1')!;
+      expect(metadata.rawFrequency).toBeGreaterThan(0);
     });
 
     it('should handle rawFrequency being 0 or falsy', () => {
       strategy = new LFUEvictionStrategy(); // Default config
 
-      const metadata = createMockMetadata('key1');
+      strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = metadataProvider.getMetadata('key1')!;
       metadata.accessCount = 3;
       metadata.rawFrequency = 0; // Explicitly set to 0
+      metadataProvider.setMetadata('key1', metadata);
 
-      const items = new Map([['key1', metadata]]);
-      const result = strategy.selectForEviction(items);
+      const context = {
+        currentSize: { itemCount: 1, sizeBytes: 100 },
+        limits: { maxItems: 1, maxSizeBytes: null }
+      };
+      const result = strategy.selectForEviction(metadataProvider, context);
 
       // Should use accessCount when rawFrequency is 0
-      expect(result).toBe('key1');
+      expect(result).toContain('key1');
     });
 
     it('should test periodic decay without probabilistic counting', () => {
@@ -477,20 +532,21 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      const items = new Map<string, CacheItemMetadata>([
-        ['key1', createMockMetadata('key1')]
-      ]);
-
-      strategy.onItemAdded('key1', items.get('key1')!);
+      strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Advance time past decay interval
       vi.advanceTimersByTime(35000); // 35 seconds
 
       // This should trigger periodic decay without sketch
-      strategy.selectForEviction(items);
+      const context = {
+        currentSize: { itemCount: 1, sizeBytes: 100 },
+        limits: { maxItems: 1, maxSizeBytes: null }
+      };
+      strategy.selectForEviction(metadataProvider, context);
 
       // Should complete without error even without sketch
-      expect(items.get('key1')!.accessCount).toBe(1);
+      const metadata = metadataProvider.getMetadata('key1')!;
+      expect(metadata.accessCount).toBe(1);
     });
   });
 });

@@ -10,7 +10,7 @@ vi.mock('@fjell/client-api', () => ({
   createClientApi: vi.fn(() => ({}))
 }));
 
-vi.mock('../../src/index', () => ({
+vi.mock('../../../src/index', () => ({
   createInstanceFactory: vi.fn(() =>
     vi.fn((coordinate, options) => ({
       cacheMap: { constructor: { name: 'MockCacheMap' } },
@@ -29,8 +29,8 @@ describe('Cache Configuration Example', () => {
 
   beforeEach(() => {
     // Mock console.log to capture output
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => { });
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
     void consoleErrorSpy; // Suppress unused variable warning
 
     // Mock process.env
@@ -57,7 +57,10 @@ describe('Cache Configuration Example', () => {
       value: {
         localStorage: mockStorage,
         sessionStorage: mockStorage,
-        indexedDB: mockIndexedDB
+        indexedDB: mockIndexedDB,
+        document: {
+          createElement: vi.fn()
+        }
       },
       configurable: true
     });

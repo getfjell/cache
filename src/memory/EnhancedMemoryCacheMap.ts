@@ -8,7 +8,7 @@ import {
   LocKeyArray,
   PriKey
 } from "@fjell/core";
-import { CacheInfo, CacheMap } from "../CacheMap";
+import { CacheMap } from "../CacheMap";
 import { createNormalizedHashFunction, isLocKeyArrayEqual, QueryCacheEntry } from "../normalization";
 import { CacheSizeConfig } from "../Options";
 import {
@@ -113,7 +113,7 @@ export class EnhancedMemoryCacheMap<
     // Check if entry exists AND the normalized keys match
     if (entry && this.normalizedHashFunction(entry.originalKey) === hashedKey) {
       // Update access metadata
-      this.evictionStrategy.onItemAccessed(hashedKey, entry.metadata);
+      this.evictionStrategy.onItemAccessed(hashedKey, this);
       return entry.value;
     }
 
@@ -148,7 +148,7 @@ export class EnhancedMemoryCacheMap<
       }
 
       // Update access metadata
-      this.evictionStrategy.onItemAccessed(hashedKey, entry.metadata);
+      this.evictionStrategy.onItemAccessed(hashedKey, this);
       return entry.value;
     }
 
@@ -175,8 +175,8 @@ export class EnhancedMemoryCacheMap<
 
       // For updates, we need to notify eviction strategy properly
       // Since the value changed, this is effectively a remove + add
-      this.evictionStrategy.onItemRemoved(hashedKey);
-      this.evictionStrategy.onItemAdded(hashedKey, existingEntry.metadata);
+      this.evictionStrategy.onItemRemoved(hashedKey, this);
+      this.evictionStrategy.onItemAdded(hashedKey, existingEntry.metadata.estimatedSize, this);
 
       logger.trace('Updated existing cache entry', {
         key: hashedKey,
@@ -206,7 +206,7 @@ export class EnhancedMemoryCacheMap<
       this.currentSizeBytes += estimatedSize;
       this.currentItemCount++;
 
-      this.evictionStrategy.onItemAdded(hashedKey, metadata);
+      this.evictionStrategy.onItemAdded(hashedKey, metadata.estimatedSize, this);
 
       logger.trace('Added new cache entry', {
         key: hashedKey,
@@ -231,7 +231,7 @@ export class EnhancedMemoryCacheMap<
     if (entry && this.normalizedHashFunction(entry.originalKey) === hashedKey) {
       this.currentSizeBytes -= entry.metadata.estimatedSize;
       this.currentItemCount--;
-      this.evictionStrategy.onItemRemoved(hashedKey);
+      this.evictionStrategy.onItemRemoved(hashedKey, this);
       delete this.map[hashedKey];
 
       logger.trace('Deleted cache entry', {
@@ -259,7 +259,7 @@ export class EnhancedMemoryCacheMap<
 
     // Notify eviction strategy of all removals
     for (const hashedKey of Object.keys(this.map)) {
-      this.evictionStrategy.onItemRemoved(hashedKey);
+      this.evictionStrategy.onItemRemoved(hashedKey, this);
     }
 
     this.map = {};
@@ -301,7 +301,7 @@ export class EnhancedMemoryCacheMap<
     return items.filter((item) => isQueryMatch(item, query));
   }
 
-  public clone(): EnhancedMemoryCacheMap<V, S, L1, L2, L3, L4, L5> {
+  public clone(): CacheMap<V, S, L1, L2, L3, L4, L5> {
     const sizeConfig: CacheSizeConfig = {};
     if (this.maxSizeBytes) {
       sizeConfig.maxSizeBytes = this.maxSizeBytes.toString();
@@ -368,37 +368,73 @@ export class EnhancedMemoryCacheMap<
 
     // Check if we need to evict based on item count
     while (this.maxItems && this.currentItemCount >= this.maxItems) {
-      const keyToEvict = this.evictionStrategy.selectForEviction(itemMetadata);
-      if (!keyToEvict) {
+      const context = {
+        currentSize: {
+          itemCount: this.currentItemCount,
+          sizeBytes: this.currentSizeBytes
+        },
+        limits: {
+          maxItems: this.maxItems ?? null,
+          maxSizeBytes: this.maxSizeBytes ?? null
+        },
+        newItemSize
+      };
+      const keysToEvict = this.evictionStrategy.selectForEviction(this, context);
+      if (keysToEvict.length === 0) {
         logger.debug('No item selected for eviction despite being over item limit');
         break;
       }
 
-      this.evictItem(keyToEvict, itemMetadata);
-      logger.debug('Evicted item due to count limit', {
-        evictedKey: keyToEvict,
-        currentCount: this.currentItemCount,
-        maxItems: this.maxItems
-      });
+      for (const keyToEvict of keysToEvict) {
+        this.evictItem(keyToEvict, itemMetadata);
+        logger.debug('Evicted item due to count limit', {
+          evictedKey: keyToEvict,
+          currentCount: this.currentItemCount,
+          maxItems: this.maxItems
+        });
+
+        // Break if we're no longer over the limit
+        if (!this.maxItems || this.currentItemCount < this.maxItems) {
+          break;
+        }
+      }
     }
 
     // Check if we need to evict based on size (including query results cache)
     while (this.maxSizeBytes && (this.getTotalSizeBytes() + newItemSize) > this.maxSizeBytes) {
-      const keyToEvict = this.evictionStrategy.selectForEviction(itemMetadata);
-      if (!keyToEvict) {
+      const context = {
+        currentSize: {
+          itemCount: this.currentItemCount,
+          sizeBytes: this.currentSizeBytes
+        },
+        limits: {
+          maxItems: this.maxItems ?? null,
+          maxSizeBytes: this.maxSizeBytes ?? null
+        },
+        newItemSize
+      };
+      const keysToEvict = this.evictionStrategy.selectForEviction(this, context);
+      if (keysToEvict.length === 0) {
         logger.debug('No item selected for eviction despite being over size limit');
         break;
       }
 
-      this.evictItem(keyToEvict, itemMetadata);
-      logger.debug('Evicted item due to size limit', {
-        evictedKey: keyToEvict,
-        currentItemsSize: this.currentSizeBytes,
-        queryResultsSize: this.queryResultsCacheSize,
-        totalSize: this.getTotalSizeBytes(),
-        newItemSize,
-        maxSizeBytes: this.maxSizeBytes
-      });
+      for (const keyToEvict of keysToEvict) {
+        this.evictItem(keyToEvict, itemMetadata);
+        logger.debug('Evicted item due to size limit', {
+          evictedKey: keyToEvict,
+          currentItemsSize: this.currentSizeBytes,
+          queryResultsSize: this.queryResultsCacheSize,
+          totalSize: this.getTotalSizeBytes(),
+          newItemSize,
+          maxSizeBytes: this.maxSizeBytes
+        });
+
+        // Break if we're no longer over the limit
+        if (!this.maxSizeBytes || (this.getTotalSizeBytes() + newItemSize) <= this.maxSizeBytes) {
+          break;
+        }
+      }
     }
   }
 
@@ -591,12 +627,60 @@ export class EnhancedMemoryCacheMap<
     return this.currentSizeBytes + this.queryResultsCacheSize;
   }
 
-  public getCacheInfo(): CacheInfo {
+  // CacheMapMetadataProvider implementation
+  public getMetadata(key: string): CacheItemMetadata | null {
+    const entry = this.map[key];
+    return entry ? entry.metadata : null;
+  }
+
+  public setMetadata(key: string, metadata: CacheItemMetadata): void {
+    const entry = this.map[key];
+    if (entry) {
+      entry.metadata = metadata;
+    }
+  }
+   
+  public deleteMetadata(_key: string): void {
+    // Metadata is deleted when the item is deleted
+    // This is a no-op since metadata is part of the item entry
+  }
+
+  public getAllMetadata(): Map<string, CacheItemMetadata> {
+    const metadata = new Map<string, CacheItemMetadata>();
+    for (const [hashedKey, entry] of Object.entries(this.map)) {
+      metadata.set(hashedKey, entry.metadata);
+    }
+    return metadata;
+  }
+
+  public clearMetadata(): void {
+    // Metadata is cleared when items are cleared
+    // This is a no-op since metadata is part of the item entries
+  }
+
+  public getCurrentSize(): { itemCount: number; sizeBytes: number } {
     return {
-      implementationType: this.implementationType,
-      evictionPolicy: this.evictionPolicy,
-      supportsTTL: true, // Supports TTL via getWithTTL()
-      supportsEviction: true // Enhanced implementation supports eviction
+      itemCount: this.currentItemCount,
+      sizeBytes: this.currentSizeBytes
+    };
+  }
+
+  public getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+    return {
+      maxItems: this.maxItems ?? null,
+      maxSizeBytes: this.maxSizeBytes ?? null
+    };
+  }
+
+  protected supportsEviction(): boolean {
+    return true; // Enhanced memory cache supports eviction
+  }
+
+  public getCacheInfo() {
+    const baseInfo = super.getCacheInfo();
+    return {
+      ...baseInfo,
+      evictionPolicy: this.evictionPolicy || 'lru' // Default eviction policy
     };
   }
 }
