@@ -13,7 +13,36 @@ import LibLogger from "../logger";
 const logger = LibLogger.get('get');
 
 // Track in-flight API requests to prevent duplicate calls for the same key
-const inFlightRequests = new Map<string, Promise<any>>();
+const inFlightRequests = new Map<string, { promise: Promise<any>; timestamp: number }>();
+
+// Cleanup timeout for hanging requests (default 5 minutes)
+const CLEANUP_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+// Periodic cleanup of stale in-flight requests
+const cleanupStaleRequests = () => {
+  const now = Date.now();
+  const keysToDelete: string[] = [];
+
+  inFlightRequests.forEach((request, key) => {
+    if (now - request.timestamp > CLEANUP_TIMEOUT) {
+      keysToDelete.push(key);
+    }
+  });
+
+  keysToDelete.forEach(key => {
+    logger.debug('Cleaning up stale in-flight request', { key });
+    inFlightRequests.delete(key);
+  });
+};
+
+// Run cleanup every minute
+const cleanupInterval = setInterval(cleanupStaleRequests, 60 * 1000);
+
+// Export cleanup function for graceful shutdown
+export const cleanup = () => {
+  clearInterval(cleanupInterval);
+  inFlightRequests.clear();
+};
 
 // Normalized key stringification for tracking purposes - uses same normalization as cache maps
 const keyToString = createNormalizedHashFunction<any>();
@@ -63,25 +92,31 @@ export const get = async <
 
   try {
     // Check if there's already an in-flight request for this key
-    let apiRequest = inFlightRequests.get(keyStr);
+    const requestEntry = inFlightRequests.get(keyStr);
+    let apiRequest: Promise<any>;
 
-    if (!apiRequest) {
+    if (!requestEntry) {
       // Create new API request
       apiRequest = api.get(key);
 
       // Only track successful promise creation
       if (apiRequest && typeof apiRequest.then === 'function') {
-        inFlightRequests.set(keyStr, apiRequest);
+        const timestamp = Date.now();
+        inFlightRequests.set(keyStr, { promise: apiRequest, timestamp });
 
         // Clean up the tracking when request completes (success or failure)
+        const cleanup = () => inFlightRequests.delete(keyStr);
+
         if (typeof apiRequest.finally === 'function') {
-          apiRequest.finally(() => {
-            inFlightRequests.delete(keyStr);
-          });
+          apiRequest.finally(cleanup);
+        } else {
+          // Fallback cleanup for promises without .finally()
+          apiRequest.then(cleanup, cleanup);
         }
       }
     } else {
       logger.debug('Using in-flight request for key', { key });
+      apiRequest = requestEntry.promise;
     }
 
     ret = await apiRequest;

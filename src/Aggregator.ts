@@ -1,4 +1,4 @@
- 
+
 import {
   ComKey,
   Item,
@@ -431,6 +431,7 @@ export const createAggregator = async <
     // Event system
     eventEmitter: cache.eventEmitter,
     subscribe: (listener, options) => cache.subscribe(listener, options),
-    unsubscribe: (subscription) => cache.unsubscribe(subscription)
+    unsubscribe: (subscription) => cache.unsubscribe(subscription),
+    destroy: () => cache.destroy()
   }
 }

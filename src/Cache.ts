@@ -10,6 +10,7 @@ import { TTLManager } from "./ttl/TTLManager";
 import LibLogger from "./logger";
 import { CacheEventEmitter } from "./events/CacheEventEmitter";
 import { CacheEventListener, CacheSubscription, CacheSubscriptionOptions } from "./events/CacheEventTypes";
+import { CacheEventFactory } from "./events/CacheEventFactory";
 
 const logger = LibLogger.get('Cache');
 
@@ -95,6 +96,11 @@ export interface Cache<
    * @returns True if subscription was found and cancelled
    */
   unsubscribe(subscription: CacheSubscription): boolean;
+
+  /**
+   * Destroy the cache and clean up all resources
+   */
+  destroy(): void;
 }
 
 export const createCache = <
@@ -185,7 +191,27 @@ export const createCache = <
       return cacheInfo;
     },
     subscribe: (listener, options) => eventEmitter.subscribe(listener, options),
-    unsubscribe: (subscription) => eventEmitter.unsubscribe(subscription.id)
+    unsubscribe: (subscription) => eventEmitter.unsubscribe(subscription.id),
+    destroy: () => {
+      // Clean up event emitter
+      eventEmitter.destroy();
+
+      // Clean up TTL manager
+      if (ttlManager && typeof ttlManager.destroy === 'function') {
+        ttlManager.destroy();
+      }
+
+      // Clean up eviction manager (EvictionManager doesn't need explicit cleanup)
+      // evictionManager is stateless and doesn't require destruction
+
+      // Clean up cache map if it has a destroy method
+      if (cacheMap && typeof (cacheMap as any).destroy === 'function') {
+        (cacheMap as any).destroy();
+      }
+
+      // Notify CacheEventFactory that an instance is being destroyed
+      CacheEventFactory.destroyInstance();
+    }
   };
 
   return cache;

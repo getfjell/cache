@@ -21,10 +21,13 @@ interface InternalSubscription<
 > {
   id: string;
   listener: CacheEventListener<V, S, L1, L2, L3, L4, L5>;
+  listenerRef?: WeakRef<CacheEventListener<V, S, L1, L2, L3, L4, L5>>;
   options: CacheSubscriptionOptions<S, L1, L2, L3, L4, L5>;
   isActive: boolean;
   debounceTimer?: NodeJS.Timeout | null;
   lastEmitTime?: number;
+  createdAt: number;
+  lastAccessTime: number;
 }
 
 /**
@@ -42,6 +45,61 @@ export class CacheEventEmitter<
   private subscriptions = new Map<string, InternalSubscription<V, S, L1, L2, L3, L4, L5>>();
   private nextSubscriptionId = 1;
   private isDestroyed = false;
+  private cleanupInterval: NodeJS.Timeout | null = null;
+  private readonly CLEANUP_INTERVAL_MS = 30000; // 30 seconds
+  private readonly MAX_INACTIVE_TIME_MS = 300000; // 5 minutes
+  private readonly WEAK_REF_ENABLED = typeof WeakRef !== 'undefined';
+
+  constructor() {
+    this.startPeriodicCleanup();
+  }
+
+  /**
+   * Start periodic cleanup of inactive subscriptions
+   */
+  private startPeriodicCleanup(): void {
+    if (this.cleanupInterval) return;
+
+    this.cleanupInterval = setInterval(() => {
+      this.performPeriodicCleanup();
+    }, this.CLEANUP_INTERVAL_MS);
+
+    // Don't keep the process alive just for cleanup
+    if (this.cleanupInterval.unref) {
+      this.cleanupInterval.unref();
+    }
+  }
+
+  /**
+   * Perform periodic cleanup of inactive subscriptions
+   */
+  private performPeriodicCleanup(): void {
+    if (this.isDestroyed) return;
+
+    const now = Date.now();
+    const toRemove: string[] = [];
+
+    for (const [id, subscription] of this.subscriptions) {
+      // Check if subscription is inactive for too long
+      if (!subscription.isActive ||
+        (now - subscription.lastAccessTime > this.MAX_INACTIVE_TIME_MS)) {
+        toRemove.push(id);
+        continue;
+      }
+
+      // Check if listener has been garbage collected (for weak references)
+      if (this.WEAK_REF_ENABLED && subscription.listenerRef) {
+        const listener = subscription.listenerRef.deref();
+        if (!listener) {
+          toRemove.push(id);
+          continue;
+        }
+      }
+    }
+
+    // Remove inactive subscriptions
+    toRemove.forEach(id => this.unsubscribe(id));
+  }
 
   /**
    * Subscribe to cache events
@@ -55,12 +113,17 @@ export class CacheEventEmitter<
     }
 
     const id = `subscription_${this.nextSubscriptionId++}`;
+    const now = Date.now();
 
     const subscription: InternalSubscription<V, S, L1, L2, L3, L4, L5> = {
       id,
       listener,
+      listenerRef: this.WEAK_REF_ENABLED && options.useWeakRef !== false ?
+        new WeakRef(listener) : undefined,
       options,
-      isActive: true
+      isActive: true,
+      createdAt: now,
+      lastAccessTime: now
     };
 
     this.subscriptions.set(id, subscription);
@@ -69,7 +132,13 @@ export class CacheEventEmitter<
     return {
       id,
       unsubscribe: () => this.unsubscribe(id),
-      isActive: () => this.subscriptions.get(id)?.isActive ?? false,
+      isActive: () => {
+        const sub = this.subscriptions.get(id);
+        if (sub) {
+          sub.lastAccessTime = Date.now();
+        }
+        return sub?.isActive ?? false;
+      },
       getOptions: () => ({ ...options }) as CacheSubscriptionOptions<S, L1, L2, L3, L4, L5>
     };
   }
@@ -134,6 +203,12 @@ export class CacheEventEmitter<
    * Destroy the event emitter and clean up all subscriptions
    */
   public destroy(): void {
+    // Stop periodic cleanup
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+
     // Clear all debounce timers
     for (const subscription of this.subscriptions.values()) {
       if (subscription.debounceTimer) {
@@ -229,10 +304,25 @@ export class CacheEventEmitter<
     event: AnyCacheEvent<V, S, L1, L2, L3, L4, L5>,
     subscription: InternalSubscription<V, S, L1, L2, L3, L4, L5>
   ): void {
+    // Update last access time for cleanup purposes
+    subscription.lastAccessTime = Date.now();
+
+    // Get the listener, either directly or from weak reference
+    let listener = subscription.listener;
+    if (this.WEAK_REF_ENABLED && subscription.listenerRef) {
+      const weakListener = subscription.listenerRef.deref();
+      if (!weakListener) {
+        // Listener has been garbage collected, mark as inactive
+        subscription.isActive = false;
+        return;
+      }
+      listener = weakListener;
+    }
+
     if (!subscription.options.debounceMs) {
       // No debouncing, emit immediately
       try {
-        subscription.listener(event);
+        listener(event);
       } catch (error) {
         this.handleListenerError(error, event, subscription);
       }
@@ -248,8 +338,20 @@ export class CacheEventEmitter<
     // Set new debounce timer
     subscription.debounceTimer = setTimeout(() => {
       if (subscription.isActive) {
+        // Re-check listener availability for weak references
+        let currentListener = subscription.listener;
+        if (this.WEAK_REF_ENABLED && subscription.listenerRef) {
+          const weakListener = subscription.listenerRef.deref();
+          if (!weakListener) {
+            subscription.isActive = false;
+            subscription.debounceTimer = null;
+            return;
+          }
+          currentListener = weakListener;
+        }
+
         try {
-          subscription.listener(event);
+          currentListener(event);
           subscription.lastEmitTime = Date.now();
         } catch (error) {
           this.handleListenerError(error, event, subscription);
