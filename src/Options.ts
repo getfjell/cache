@@ -34,7 +34,7 @@ export interface CacheSizeConfig {
   maxSizeBytes?: string;
   /** Maximum number of items in cache */
   maxItems?: number;
-  /** Eviction policy to use when limits are exceeded (default: 'lru') */
+  /** @deprecated Eviction policy is now handled by Cache-level EvictionManager via evictionConfig */
   evictionPolicy?: EvictionPolicy;
 }
 
@@ -70,8 +70,6 @@ export interface WebStorageConfig {
 export interface MemoryConfig {
   /** Maximum number of items to keep in memory (default: unlimited) */
   maxItems?: number;
-  /** Time to live for cached items in milliseconds (default: unlimited) */
-  ttl?: number;
   /** Size configuration for memory cache */
   size?: CacheSizeConfig;
 }
@@ -236,9 +234,14 @@ export const createCacheMap = <
       // Use enhanced memory cache if size configuration is provided
       if (options.memoryConfig?.size &&
         (options.memoryConfig.size.maxSizeBytes || options.memoryConfig.size.maxItems)) {
+        // Create size config without evictionPolicy since that's handled by Cache-level EvictionManager
+        const sizeConfig = {
+          maxSizeBytes: options.memoryConfig.size.maxSizeBytes,
+          maxItems: options.memoryConfig.size.maxItems
+        };
         return new EnhancedMemoryCacheMap<V, S, L1, L2, L3, L4, L5>(
           kta as any,
-          options.memoryConfig.size
+          sizeConfig
         );
       }
       return new MemoryCacheMap<V, S, L1, L2, L3, L4, L5>(kta as any);
@@ -304,10 +307,6 @@ export const validateOptions = <
 
   if (typeof options.memoryConfig?.maxItems === 'number' && options.memoryConfig.maxItems <= 0) {
     throw new Error('memoryConfig.maxItems must be positive');
-  }
-
-  if (typeof options.memoryConfig?.ttl === 'number' && options.memoryConfig.ttl <= 0) {
-    throw new Error('memoryConfig.ttl must be positive');
   }
 
   // Validate size configurations

@@ -22,6 +22,8 @@ import { findOne } from "./ops/findOne";
 import { set } from "./ops/set";
 import { reset } from "./ops/reset";
 import { Options } from "./Options";
+import { TTLManager } from "./ttl/TTLManager";
+import { EvictionManager } from "./eviction/EvictionManager";
 
 export interface Operations<
   V extends Item<S, L1, L2, L3, L4, L5>,
@@ -171,11 +173,13 @@ export const createOperations = <
     cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
     pkType: S,
     options: Options<V, S, L1, L2, L3, L4, L5>,
-    eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>
+    eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>,
+    ttlManager: TTLManager,
+    evictionManager: EvictionManager
   ): Operations<V, S, L1, L2, L3, L4, L5> => {
 
   // Create the cache context once and reuse it across all operations
-  const context = createCacheContext(api, cacheMap, pkType, options, eventEmitter);
+  const context = createCacheContext(api, cacheMap, pkType, options, eventEmitter, ttlManager, evictionManager);
 
   return {
     all: (query, locations) => all(query, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),

@@ -63,15 +63,6 @@ describe('SessionStorageCacheMap', () => {
     it('should have correct implementationType', () => {
       expect(cacheMap.implementationType).toBe('browser/sessionStorage');
     });
-
-    it('should provide correct cache information', () => {
-      const cacheInfo = cacheMap.getCacheInfo();
-      expect(cacheInfo.implementationType).toBe('browser/sessionStorage');
-      expect(cacheInfo.evictionPolicy).toBeUndefined();
-      expect(cacheInfo.defaultTTL).toBeUndefined();
-      expect(cacheInfo.supportsTTL).toBe(true);
-      expect(cacheInfo.supportsEviction).toBe(false);
-    });
   });
 
   describe('Basic Operations', () => {
@@ -445,123 +436,10 @@ describe('SessionStorageCacheMap', () => {
     });
   });
 
-  describe('TTL (Time To Live) Functionality', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    describe('getWithTTL()', () => {
-      it('should return item when within TTL', () => {
-        cacheMap.set(priKey1, testItems[0]);
-
-        // Item should be retrievable within TTL
-        const result = cacheMap.getWithTTL(priKey1, 5000); // 5 second TTL
-        expect(result).toEqual(testItems[0]);
-      });
-
-      it('should return null when TTL is 0 (caching disabled)', () => {
-        cacheMap.set(priKey1, testItems[0]);
-
-        // TTL of 0 should disable caching
-        const result = cacheMap.getWithTTL(priKey1, 0);
-        expect(result).toBeNull();
-      });
-
-      it('should return null when item has expired', () => {
-        cacheMap.set(priKey1, testItems[0]);
-
-        // Fast-forward time past TTL
-        vi.advanceTimersByTime(6000); // 6 seconds
-
-        const result = cacheMap.getWithTTL(priKey1, 5000); // 5 second TTL
-        expect(result).toBeNull();
-      });
-
-      it('should remove expired item from storage', () => {
-        cacheMap.set(priKey1, testItems[0]);
-        expect(cacheMap.includesKey(priKey1)).toBe(true);
-
-        // Fast-forward time past TTL
-        vi.advanceTimersByTime(6000);
-
-        // Getting with TTL should remove expired item
-        cacheMap.getWithTTL(priKey1, 5000);
-
-        // Item should be removed from storage
-        expect(cacheMap.includesKey(priKey1)).toBe(false);
-      });
-
-      it('should handle missing timestamp gracefully', () => {
-        // Manually set item without timestamp to test backward compatibility
-        const storageKey = `test-session-cache:${cacheMap['normalizedHashFunction'](priKey1)}`;
-        const dataWithoutTimestamp = {
-          originalKey: priKey1,
-          value: testItems[0],
-          originalVerificationHash: cacheMap['verificationHashFunction'](priKey1)
-          // No timestamp field
-        };
-        window.sessionStorage.setItem(storageKey, JSON.stringify(dataWithoutTimestamp));
-
-        // Should treat missing timestamp as 0 and expire immediately
-        const result = cacheMap.getWithTTL(priKey1, 5000);
-        expect(result).toBeNull();
-      });
-
-      it('should handle malformed timestamp data', () => {
-        // Manually set item with invalid timestamp
-        const storageKey = `test-session-cache:${cacheMap['normalizedHashFunction'](priKey1)}`;
-        const dataWithBadTimestamp = {
-          originalKey: priKey1,
-          value: testItems[0],
-          timestamp: 'invalid',
-          originalVerificationHash: cacheMap['verificationHashFunction'](priKey1)
-        };
-        window.sessionStorage.setItem(storageKey, JSON.stringify(dataWithBadTimestamp));
-
-        // Should handle gracefully and treat as expired
-        const result = cacheMap.getWithTTL(priKey1, 5000);
-        expect(result).toBeNull();
-      });
-
-      it('should return item exactly at TTL boundary', () => {
-        cacheMap.set(priKey1, testItems[0]);
-
-        // Fast-forward to exactly TTL duration
-        vi.advanceTimersByTime(5000); // Exactly 5 seconds
-
-        const result = cacheMap.getWithTTL(priKey1, 5000);
-        expect(result).toBeNull(); // Should be expired (age > ttl)
-      });
-
-      it('should handle sessionStorage errors during TTL check', () => {
-        // Mock sessionStorage.getItem to throw an error
-        // @ts-ignore
-        window.sessionStorage.getItem.mockImplementationOnce(() => {
-          throw new Error('Storage error during TTL check');
-        });
-
-        const result = cacheMap.getWithTTL(priKey1, 5000);
-        expect(result).toBeNull();
-      });
-    });
-  });
-
   describe('Query Result Caching', () => {
     const queryHash1 = 'query-hash-1';
     const queryHash2 = 'query-hash-2';
     const itemKeys = [priKey1, priKey2];
-
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
 
     describe('setQueryResult() and getQueryResult()', () => {
       it('should store and retrieve query results without TTL', () => {
@@ -571,40 +449,9 @@ describe('SessionStorageCacheMap', () => {
         expect(result).toEqual(itemKeys);
       });
 
-      it('should store and retrieve query results with TTL', () => {
-        cacheMap.setQueryResult(queryHash1, itemKeys, 5000); // 5 second TTL
-
-        const result = cacheMap.getQueryResult(queryHash1);
-        expect(result).toEqual(itemKeys);
-      });
-
       it('should return null for non-existent query hash', () => {
         const result = cacheMap.getQueryResult('non-existent');
         expect(result).toBeNull();
-      });
-
-      it('should return null when query result has expired', () => {
-        cacheMap.setQueryResult(queryHash1, itemKeys, 5000); // 5 second TTL
-
-        // Fast-forward past TTL
-        vi.advanceTimersByTime(6000);
-
-        const result = cacheMap.getQueryResult(queryHash1);
-        expect(result).toBeNull();
-      });
-
-      it('should remove expired query results from storage', () => {
-        cacheMap.setQueryResult(queryHash1, itemKeys, 5000);
-        expect(cacheMap.hasQueryResult(queryHash1)).toBe(true);
-
-        // Fast-forward past TTL
-        vi.advanceTimersByTime(6000);
-
-        // Getting expired result should remove it
-        cacheMap.getQueryResult(queryHash1);
-
-        // Should be removed from storage
-        expect(cacheMap.hasQueryResult(queryHash1)).toBe(false);
       });
 
       it('should handle old format query results (array without expiration)', () => {
@@ -628,7 +475,7 @@ describe('SessionStorageCacheMap', () => {
       it('should handle query results with missing itemKeys', () => {
         // Manually store data without itemKeys
         const queryKey = `test-session-cache:query:${queryHash1}`;
-        const malformedData = { expiresAt: Date.now() + 5000 };
+        const malformedData = { someOtherField: 'value' };
         window.sessionStorage.setItem(queryKey, JSON.stringify(malformedData));
 
         const result = cacheMap.getQueryResult(queryHash1);
@@ -667,14 +514,6 @@ describe('SessionStorageCacheMap', () => {
         expect(cacheMap.hasQueryResult('non-existent')).toBe(false);
       });
 
-      it('should return false for expired query results', () => {
-        cacheMap.setQueryResult(queryHash1, itemKeys, 5000);
-
-        // Fast-forward past TTL
-        vi.advanceTimersByTime(6000);
-
-        expect(cacheMap.hasQueryResult(queryHash1)).toBe(false);
-      });
     });
 
     describe('deleteQueryResult()', () => {
@@ -1523,30 +1362,18 @@ describe('SessionStorageCacheMap', () => {
     });
   });
 
-  describe('Enhanced getCacheInfo Coverage', () => {
-    it('should provide complete cache information', () => {
-      const cacheInfo = cacheMap.getCacheInfo();
-
-      expect(cacheInfo).toHaveProperty('implementationType');
-      expect(cacheInfo).toHaveProperty('supportsTTL');
-      expect(cacheInfo).toHaveProperty('supportsEviction');
-
-      expect(cacheInfo.implementationType).toBe('browser/sessionStorage');
-      expect(cacheInfo.supportsTTL).toBe(true);
-      expect(cacheInfo.supportsEviction).toBe(false);
-
-      // evictionPolicy and defaultTTL are optional and not set by default
-      // The base CacheMap implementation doesn't include these unless specifically set
+  describe('Implementation Type Consistency', () => {
+    it('should have consistent implementationType', () => {
+      expect(cacheMap.implementationType).toBe('browser/sessionStorage');
     });
 
-    it('should return consistent cache information across instances', () => {
+    it('should return consistent implementationType across instances', () => {
       const cache1 = new SessionStorageCacheMap<TestItem, 'test', 'container'>(['test', 'container'], 'cache1');
       const cache2 = new SessionStorageCacheMap<TestItem, 'test', 'container'>(['test', 'container'], 'cache2');
 
-      const info1 = cache1.getCacheInfo();
-      const info2 = cache2.getCacheInfo();
-
-      expect(info1).toEqual(info2);
+      expect(cache1.implementationType).toBe('browser/sessionStorage');
+      expect(cache2.implementationType).toBe('browser/sessionStorage');
+      expect(cache1.implementationType).toBe(cache2.implementationType);
     });
   });
 

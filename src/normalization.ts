@@ -94,11 +94,10 @@ export const normalizeLocKeyItem = (item: any): any => {
 // Query result cache utilities
 
 /**
- * Interface for storing query results with expiration
+ * Interface for storing query results
  */
 export interface QueryCacheEntry {
   itemKeys: (any)[];
-  expiresAt?: number; // Timestamp when this entry expires
 }
 
 /**
