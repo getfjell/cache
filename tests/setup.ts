@@ -28,8 +28,12 @@ beforeAll(async () => {
 
   // Mock browser globals for browser cache tests
   if (typeof globalThis.window === 'undefined') {
-    // Mock window object
-    globalThis.window = {} as any;
+    // Mock window object with document for browser environment validation
+    globalThis.window = {
+      document: {
+        createElement: vi.fn(() => ({}))
+      }
+    } as any;
 
     // Import the proper storage mock
     const { StorageMock } = await import('./browser/storage-mock');
