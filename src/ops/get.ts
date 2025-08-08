@@ -68,11 +68,11 @@ export const get = async <
     if (!apiRequest) {
       // Create new API request
       apiRequest = api.get(key);
-      
+
       // Only track successful promise creation
       if (apiRequest && typeof apiRequest.then === 'function') {
         inFlightRequests.set(keyStr, apiRequest);
-        
+
         // Clean up the tracking when request completes (success or failure)
         if (typeof apiRequest.finally === 'function') {
           apiRequest.finally(() => {
