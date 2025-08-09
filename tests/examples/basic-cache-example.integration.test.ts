@@ -288,7 +288,9 @@ describe('Basic Cache Example Integration Tests', () => {
       };
 
       const registry = createRegistry();
-      const cache = await createCache(consistencyApi as any, createCoordinate('consistency'), registry);
+      const cache = await createCache(consistencyApi as any, createCoordinate('consistency'), registry, {
+        ttl: 100 // 100ms TTL to ensure cache expiration
+      });
 
       // Create initial item
       const initialItem: ConsistencyItem = {
@@ -324,7 +326,10 @@ describe('Basic Cache Example Integration Tests', () => {
       const [, cachedItem] = await cache.operations.retrieve({ kt: 'consistency', pk: 'consistency-1' });
       expect(cachedItem?.version).toBe(1); // Still cached version
 
-      // Fresh get should fetch updated version
+      // Wait for TTL to expire
+      await new Promise(resolve => setTimeout(resolve, 150));
+
+      // Get should fetch updated version after TTL expiration
       const [, freshItem] = await cache.operations.get({ kt: 'consistency', pk: 'consistency-1' });
       expect(freshItem?.version).toBe(2); // Updated version
 

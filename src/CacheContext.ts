@@ -5,6 +5,7 @@ import { Options } from "./Options";
 import { CacheEventEmitter } from "./events/CacheEventEmitter";
 import { TTLManager } from "./ttl/TTLManager";
 import { EvictionManager } from "./eviction/EvictionManager";
+import { CacheStatsManager } from "./CacheStats";
 
 /**
  * Context object that consolidates all cache-related parameters
@@ -40,6 +41,9 @@ export interface CacheContext<
 
   /** Eviction manager for handling cache eviction independently of storage */
   evictionManager: EvictionManager;
+
+  /** Statistics manager for tracking cache metrics */
+  statsManager: CacheStatsManager;
 }
 
 /**
@@ -60,7 +64,8 @@ export const createCacheContext = <
     options: Options<V, S, L1, L2, L3, L4, L5>,
     eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>,
     ttlManager: TTLManager,
-    evictionManager: EvictionManager
+    evictionManager: EvictionManager,
+    statsManager: CacheStatsManager
   ): CacheContext<V, S, L1, L2, L3, L4, L5> => {
   return {
     api,
@@ -69,6 +74,7 @@ export const createCacheContext = <
     options,
     eventEmitter,
     ttlManager,
-    evictionManager
+    evictionManager,
+    statsManager
   };
 };

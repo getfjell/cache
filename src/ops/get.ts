@@ -8,6 +8,7 @@ import {
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
 import { createNormalizedHashFunction } from "../normalization";
+import { estimateValueSize } from "../utils/CacheSize";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('get');
@@ -59,8 +60,11 @@ export const get = async <
   key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V | null]> => {
-  const { api, cacheMap, pkType, ttlManager } = context;
+  const { api, cacheMap, pkType, ttlManager, statsManager } = context;
   logger.default('get', { key, defaultTTL: ttlManager.getDefaultTTL() });
+
+  // Track cache request
+  statsManager.incrementRequests();
 
   if (!isValidItemKey(key)) {
     logger.error('Key for Get is not a valid ItemKey: %j', key);
@@ -76,14 +80,29 @@ export const get = async <
       const isValid = ttlManager.validateItem(keyStr, cacheMap);
       if (isValid) {
         logger.debug('Cache hit with valid TTL', { key, defaultTTL: ttlManager.getDefaultTTL() });
+        statsManager.incrementHits();
         return [context, validatePK(cachedItem, pkType) as V];
       } else {
         // Item expired, remove it from cache
         logger.debug('Cache item expired, removing', { key });
         cacheMap.delete(key);
+        statsManager.incrementMisses();
       }
+    } else {
+      // No cached item found
+      statsManager.incrementMisses();
     }
     logger.debug('Cache miss or expired', { key, defaultTTL: ttlManager.getDefaultTTL() });
+  } else {
+    // TTL not enabled, check cache directly
+    const cachedItem = cacheMap.get(key);
+    if (cachedItem) {
+      logger.debug('Cache hit (TTL disabled)', { key });
+      statsManager.incrementHits();
+      return [context, validatePK(cachedItem, pkType) as V];
+    } else {
+      statsManager.incrementMisses();
+    }
   }
 
   // If TTL is 0 or cache miss/expired, fetch from API
@@ -123,12 +142,28 @@ export const get = async <
     if (ret) {
       cacheMap.set(ret.key, ret);
 
-      // Set TTL metadata for the newly cached item
       const keyStr = JSON.stringify(ret.key);
-      ttlManager.onItemAdded(keyStr, cacheMap);
+
+      // Create base metadata if it doesn't exist (needed for TTL and eviction)
+      const metadata = cacheMap.getMetadata?.(keyStr);
+      if (!metadata) {
+        const now = Date.now();
+        const baseMetadata = {
+          key: keyStr,
+          addedAt: now,
+          lastAccessedAt: now,
+          accessCount: 1,
+          estimatedSize: estimateValueSize(ret)
+        };
+        cacheMap.setMetadata?.(keyStr, baseMetadata);
+      }
 
       // Handle eviction for the newly cached item
       const evictedKeys = context.evictionManager.onItemAdded(keyStr, ret, cacheMap);
+
+      // Set TTL metadata for the newly cached item
+      ttlManager.onItemAdded(keyStr, cacheMap);
+
       // Remove evicted items from cache
       evictedKeys.forEach(evictedKey => {
         const parsedKey = JSON.parse(evictedKey);

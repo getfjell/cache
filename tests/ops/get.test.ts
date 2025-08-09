@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from '../../src/ops/get';
 import { CacheContext } from '../../src/CacheContext';
 import { CacheMap } from '../../src/CacheMap';
+import { CacheStatsManager } from '../../src/CacheStats';
 
 import { ClientApi } from '@fjell/client-api';
 import { ComKey, Item, PriKey, UUID } from '@fjell/core';
@@ -34,6 +35,7 @@ describe('get operation', () => {
   let mockEventEmitter: any;
   let mockTtlManager: any;
   let mockEvictionManager: any;
+  let mockStatsManager: CacheStatsManager;
   let context: CacheContext<TestItem, 'test', 'container'>;
 
   beforeEach(() => {
@@ -87,6 +89,9 @@ describe('get operation', () => {
       getPolicy: vi.fn()
     } as any;
 
+    // Mock stats manager
+    mockStatsManager = new CacheStatsManager();
+
     // Create context
     context = {
       api: mockApi,
@@ -95,7 +100,8 @@ describe('get operation', () => {
       options: {} as any,
       eventEmitter: mockEventEmitter,
       ttlManager: mockTtlManager,
-      evictionManager: mockEvictionManager
+      evictionManager: mockEvictionManager,
+      statsManager: mockStatsManager
     };
   });
 
@@ -129,12 +135,13 @@ describe('get operation', () => {
       vi.mocked(mockTtlManager.isTTLEnabled).mockReturnValue(false);
     });
 
-    it('should skip cache and fetch from API', async () => {
+    it('should check cache and fetch from API on cache miss', async () => {
+      vi.mocked(mockCacheMap.get).mockReturnValue(null); // Cache miss
       vi.mocked(mockApi.get).mockResolvedValue(testItem1);
 
       const [resultContext, result] = await get(priKey1, context);
 
-      expect(mockCacheMap.get).not.toHaveBeenCalled();
+      expect(mockCacheMap.get).toHaveBeenCalledWith(priKey1);
       expect(mockApi.get).toHaveBeenCalledWith(priKey1);
       expect(mockCacheMap.set).toHaveBeenCalledWith(priKey1, testItem1);
       expect(result).toEqual(testItem1);
@@ -158,12 +165,13 @@ describe('get operation', () => {
       vi.mocked(mockTtlManager.isTTLEnabled).mockReturnValue(false);
     });
 
-    it('should skip cache and fetch from API', async () => {
+    it('should check cache and fetch from API on cache miss', async () => {
+      vi.mocked(mockCacheMap.get).mockReturnValue(null); // Cache miss
       vi.mocked(mockApi.get).mockResolvedValue(testItem1);
 
       const [, result] = await get(priKey1, context);
 
-      expect(mockCacheMap.get).not.toHaveBeenCalled();
+      expect(mockCacheMap.get).toHaveBeenCalledWith(priKey1);
       expect(mockApi.get).toHaveBeenCalledWith(priKey1);
       expect(mockCacheMap.set).toHaveBeenCalledWith(priKey1, testItem1);
       expect(result).toEqual(testItem1);
@@ -336,11 +344,12 @@ describe('get operation', () => {
 
     it('should treat disabled TTL as no TTL', async () => {
       vi.mocked(mockTtlManager.isTTLEnabled).mockReturnValue(false);
+      vi.mocked(mockCacheMap.get).mockReturnValue(null); // Cache miss
       vi.mocked(mockApi.get).mockResolvedValue(testItem1);
 
       await get(priKey1, context);
 
-      expect(mockCacheMap.get).not.toHaveBeenCalled();
+      expect(mockCacheMap.get).toHaveBeenCalledWith(priKey1);
       expect(mockApi.get).toHaveBeenCalledWith(priKey1);
     });
   });

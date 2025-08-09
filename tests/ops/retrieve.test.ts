@@ -4,6 +4,7 @@ import { CacheContext } from '../../src/CacheContext';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
 import { ComKey, Item, PriKey, UUID } from '@fjell/core';
 import * as getOp from '../../src/ops/get';
+import { CacheStatsManager } from '../../src/CacheStats';
 
 // Mock the logger
 vi.mock('../../src/logger', () => ({
@@ -61,6 +62,7 @@ describe('retrieve operation', () => {
   let mockEventEmitter: any;
   let mockTTLManager: any;
   let mockEvictionManager: any;
+  let mockStatsManager: CacheStatsManager;
 
   // Test keys
   const key1: PriKey<'test'> = { kt: 'test', pk: 'item1' as UUID };
@@ -104,9 +106,10 @@ describe('retrieve operation', () => {
       onItemRemoved: vi.fn()
     };
 
+    mockStatsManager = new CacheStatsManager();
+
     context = {
       api: mockApi,
-      coordinate: { kta: ['test'] },
       cacheMap,
       pkType: 'test',
       options: {
@@ -117,7 +120,8 @@ describe('retrieve operation', () => {
       },
       eventEmitter: mockEventEmitter,
       ttlManager: mockTTLManager,
-      evictionManager: mockEvictionManager
+      evictionManager: mockEvictionManager,
+      statsManager: mockStatsManager
     };
   });
 
@@ -568,4 +572,3 @@ describe('retrieve operation', () => {
     });
   });
 });
-
