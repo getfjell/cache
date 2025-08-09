@@ -6,6 +6,7 @@ import { ComKey, Item, PriKey, UUID } from '@fjell/core';
 import { CacheContext, createCacheContext } from '../../src/CacheContext';
 import { Options } from '../../src/Options';
 import { createFinderHash } from '../../src/normalization';
+import { CacheStatsManager } from '../../src/CacheStats';
 
 describe('Find Operations', () => {
   interface TestItem extends Item<'test', 'container'> {
@@ -79,7 +80,8 @@ describe('Find Operations', () => {
       performEviction: vi.fn().mockReturnValue([])
     } as any;
 
-    context = createCacheContext(mockApi, cacheMap, 'test', options, mockEventEmitter, mockTtlManager, mockEvictionManager);
+    const mockStatsManager = new CacheStatsManager();
+    context = createCacheContext(mockApi, cacheMap, 'test', options, mockEventEmitter, mockTtlManager, mockEvictionManager, mockStatsManager);
   });
 
   describe('find operation', () => {

@@ -3,6 +3,10 @@ export { createCache, isCache } from './Cache';
 export type { Cache, CacheInfo } from './Cache';
 export { CacheMap } from './CacheMap';
 
+// Cache statistics
+export { CacheStatsManager } from './CacheStats';
+export type { CacheStats } from './CacheStats';
+
 // Cache implementations
 export { MemoryCacheMap } from './memory/MemoryCacheMap';
 export { EnhancedMemoryCacheMap } from './memory/EnhancedMemoryCacheMap';

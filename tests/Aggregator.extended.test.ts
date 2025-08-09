@@ -78,6 +78,14 @@ describe('Aggregator - Extended Tests', () => {
         supportsTTL: false,
         supportsEviction: false
       })),
+      getStats: vi.fn().mockReturnValue({
+        numRequests: 0,
+        numMisses: 0,
+        numHits: 0,
+        numSubscriptions: 0,
+        numUnsubscriptions: 0,
+        activeSubscriptions: 0
+      }),
     } as unknown as Mocked<Cache<Item<"test">, "test">>;
 
     otherCacheMock = {
@@ -93,6 +101,14 @@ describe('Aggregator - Extended Tests', () => {
         supportsTTL: false,
         supportsEviction: false
       })),
+      getStats: vi.fn().mockReturnValue({
+        numRequests: 0,
+        numMisses: 0,
+        numHits: 0,
+        numSubscriptions: 0,
+        numUnsubscriptions: 0,
+        activeSubscriptions: 0
+      }),
     } as unknown as Mocked<Cache<Item<"other">, "other">>;
 
     aggregator = await createAggregator(itemCacheMock, {

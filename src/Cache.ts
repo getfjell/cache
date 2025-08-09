@@ -11,6 +11,7 @@ import LibLogger from "./logger";
 import { CacheEventEmitter } from "./events/CacheEventEmitter";
 import { CacheEventListener, CacheSubscription, CacheSubscriptionOptions } from "./events/CacheEventTypes";
 import { CacheEventFactory } from "./events/CacheEventFactory";
+import { CacheStats, CacheStatsManager } from "./CacheStats";
 
 const logger = LibLogger.get('Cache');
 
@@ -73,11 +74,20 @@ export interface Cache<
   /** TTL manager for handling time-to-live independently of storage */
   ttlManager: TTLManager;
 
+  /** Statistics manager for tracking cache metrics */
+  statsManager: CacheStatsManager;
+
   /**
    * Get cache configuration information for client applications
    * Provides visibility into implementation type, eviction policy, TTL settings, and capabilities
    */
   getCacheInfo(): CacheInfo;
+
+  /**
+   * Get current cache statistics
+   * @returns Current cache statistics including hits, misses, requests, and subscription counts
+   */
+  getStats(): CacheStats;
 
   /**
    * Subscribe to cache events
@@ -158,11 +168,14 @@ export const createCache = <
     validateOnAccess: true
   });
 
+  // Create statistics manager
+  const statsManager = new CacheStatsManager();
+
   // Note: EvictionManager operates independently of CacheMap implementations
   // and is passed through CacheContext to operations for external eviction management
 
-  // Create operations with event emitter and eviction manager
-  const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions, eventEmitter, ttlManager, evictionManager);
+  // Create operations with event emitter, eviction manager, and stats manager
+  const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions, eventEmitter, ttlManager, evictionManager, statsManager);
 
   const cache: Cache<V, S, L1, L2, L3, L4, L5> = {
     coordinate,
@@ -174,6 +187,7 @@ export const createCache = <
     eventEmitter,
     evictionManager,
     ttlManager,
+    statsManager,
     getCacheInfo: () => {
       const evictionStrategyName = evictionManager.getEvictionStrategyName();
       const cacheInfo: CacheInfo = {
@@ -190,8 +204,18 @@ export const createCache = <
 
       return cacheInfo;
     },
-    subscribe: (listener, options) => eventEmitter.subscribe(listener, options),
-    unsubscribe: (subscription) => eventEmitter.unsubscribe(subscription.id),
+    getStats: () => statsManager.getStats(),
+    subscribe: (listener, options) => {
+      statsManager.incrementSubscriptions();
+      return eventEmitter.subscribe(listener, options);
+    },
+    unsubscribe: (subscription) => {
+      const result = eventEmitter.unsubscribe(subscription.id);
+      if (result) {
+        statsManager.incrementUnsubscriptions();
+      }
+      return result;
+    },
     destroy: () => {
       // Clean up event emitter
       eventEmitter.destroy();
