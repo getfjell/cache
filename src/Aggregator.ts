@@ -407,6 +407,8 @@ export const createAggregator = async <
     operations: cache.operations,
     evictionManager: cache.evictionManager,
     ttlManager: cache.ttlManager,
+    statsManager: cache.statsManager,
+    getStats: cache.getStats.bind(cache),
     getCacheInfo: cache.getCacheInfo.bind(cache),
     // Cache operations exposed directly
     all,

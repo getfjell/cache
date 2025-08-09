@@ -23,8 +23,11 @@ export const retrieve = async <
   key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5> | null, V | null]> => {
-  const { cacheMap, pkType } = context;
+  const { cacheMap, pkType, statsManager } = context;
   logger.default('retrieve', { key });
+
+  // Track cache request
+  statsManager.incrementRequests();
 
   if (!isValidItemKey(key)) {
     logger.error('Key for Retrieve is not a valid ItemKey: %j', key);
@@ -40,8 +43,10 @@ export const retrieve = async <
     logger.default('Looking for Object in Cache', key);
     retrieved = cacheMap.get(key);
     contextToReturn = null;
+    statsManager.incrementHits();
   } else {
     logger.default('Object Not Found in Cache, Retrieving from Server API', { key });
+    statsManager.incrementMisses();
     [contextToReturn, retrieved] = await get(key, context);
   }
 

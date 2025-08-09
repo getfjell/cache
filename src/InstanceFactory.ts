@@ -5,7 +5,11 @@ import { Instance } from "./Instance";
 import { Coordinate } from "@fjell/registry";
 import { createOperations } from "./Operations";
 import { createCacheMap, createOptions, Options, validateOptions } from "./Options";
+import { TTLManager } from "./ttl/TTLManager";
+import { EvictionManager } from "./eviction/EvictionManager";
+import { CacheEventEmitter } from "./events/CacheEventEmitter";
 import LibLogger from "./logger";
+import { CacheStatsManager } from "./CacheStats";
 
 const logger = LibLogger.get("InstanceFactory");
 
@@ -57,28 +61,18 @@ export const createInstanceFactory = <
     // Create the appropriate cache map based on options
     const cacheMap = createCacheMap<V, S, L1, L2, L3, L4, L5>(coordinate.kta, instanceOptions);
     const pkType = coordinate.kta[0] as S;
-    // Create event emitter for this instance (use dynamic import later if needed)
-    // For now, skip event emitter in InstanceFactory since it's an older interface
-    const mockEventEmitter = {
-      subscribe: () => ({ id: 'mock', unsubscribe: () => false, isActive: () => false, getOptions: () => ({}) }),
-      unsubscribe: () => false,
-      emit: () => { },
-      getSubscriptionCount: () => 0,
-      getSubscriptions: () => [],
-      destroy: () => { }
-    } as any;
-    const mockTTLManager = {
-      getDefaultTTL: () => 1000,
-      isTTLEnabled: () => true,
-      validateItem: () => true,
-      getTTL: () => 1000,
-      setTTL: () => { }
-    } as any;
-    const mockEvictionManager = {
-      isEvictionSupported: () => false,
-      getEvictionStrategyName: () => null
-    } as any;
-    const operations = createOperations(api, coordinate, cacheMap, pkType, instanceOptions, mockEventEmitter, mockTTLManager, mockEvictionManager);
+
+    // Create proper managers instead of mocks
+    const eventEmitter = new CacheEventEmitter<V, S, L1, L2, L3, L4, L5>();
+    const ttlManager = new TTLManager({
+      defaultTTL: instanceOptions.ttl,
+      autoCleanup: true,
+      validateOnAccess: true
+    });
+    const evictionManager = new EvictionManager();
+    const statsManager = new CacheStatsManager();
+    const operations = createOperations(
+      api, coordinate, cacheMap, pkType, instanceOptions, eventEmitter, ttlManager, evictionManager, statsManager);
 
     return {
       coordinate,
@@ -86,7 +80,31 @@ export const createInstanceFactory = <
       api,
       cacheMap,
       operations,
-      options: instanceOptions
+      options: instanceOptions,
+      eventEmitter,
+      ttlManager,
+      evictionManager,
+      getCacheInfo: () => {
+        const evictionStrategyName = evictionManager.getEvictionStrategyName();
+        const cacheInfo = {
+          implementationType: cacheMap.implementationType,
+          defaultTTL: ttlManager.getDefaultTTL(),
+          supportsTTL: (cacheMap as any).supportsTTL?.() || !!ttlManager.getDefaultTTL(),
+          supportsEviction: evictionManager.isEvictionSupported()
+        };
+        if (evictionStrategyName) {
+          (cacheInfo as any).evictionPolicy = evictionStrategyName;
+        }
+        return cacheInfo;
+      },
+      subscribe: (listener, options) => eventEmitter.subscribe(listener, options),
+      unsubscribe: (subscription) => eventEmitter.unsubscribe(subscription.id),
+      destroy: () => {
+        if (typeof ttlManager.destroy === 'function') {
+          ttlManager.destroy();
+        }
+        eventEmitter.destroy();
+      }
     } as Instance<V, S, L1, L2, L3, L4, L5>;
   };
 };
