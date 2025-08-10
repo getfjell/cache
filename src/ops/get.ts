@@ -7,16 +7,15 @@ import {
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import LibLogger from "../logger";
+import { createNormalizedHashFunction } from "../normalization";
 
 const logger = LibLogger.get('get');
 
 // Track in-flight API requests to prevent duplicate calls for the same key
 const inFlightRequests = new Map<string, Promise<any>>();
 
-// Simple key stringification for tracking purposes
-const keyToString = (key: any): string => {
-  return JSON.stringify(key);
-};
+// Normalized hashing for tracking keys consistently
+const hashKey = createNormalizedHashFunction<any>();
 
 export const get = async <
   V extends Item<S, L1, L2, L3, L4, L5>,
@@ -50,7 +49,7 @@ export const get = async <
 
   // If TTL is 0 or cache miss/expired, fetch from API
   let ret: V | null;
-  const keyStr = keyToString(key);
+  const keyStr = hashKey(key);
 
   try {
     // Check if there's already an in-flight request for this key
