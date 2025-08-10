@@ -1,4 +1,4 @@
- 
+
 /**
  * Basic Cache Example
  *
@@ -167,10 +167,10 @@ export const runBasicCacheExample = async (): Promise<void> => {
   console.log('Step 3: Cache operations - Fetching all items');
   console.log('----------------------------------------------');
 
-  const [, allUsers] = await userCache.operations.all();
+  const allUsers = await userCache.operations.all();
   console.log(`📋 Cached ${allUsers.length} users:`, allUsers.map((u: User) => u.name));
 
-  const [, allTasks] = await taskCache.operations.all();
+  const allTasks = await taskCache.operations.all();
   console.log(`📋 Cached ${allTasks.length} tasks:`, allTasks.map((t: Task) => t.title));
   console.log('');
 
@@ -178,10 +178,10 @@ export const runBasicCacheExample = async (): Promise<void> => {
   console.log('Step 4: Individual item retrieval');
   console.log('---------------------------------');
 
-  const [, cachedUser1] = await userCache.operations.get(user1.key);
+  const cachedUser1 = await userCache.operations.get(user1.key);
   console.log(`👤 Retrieved from cache: ${cachedUser1?.name} (${cachedUser1?.email})`);
 
-  const [, cachedTask1] = await taskCache.operations.get(task1.key);
+  const cachedTask1 = await taskCache.operations.get(task1.key);
   console.log(`📝 Retrieved from cache: ${cachedTask1?.title} - Status: ${cachedTask1?.status}`);
   console.log('');
 
@@ -191,14 +191,14 @@ export const runBasicCacheExample = async (): Promise<void> => {
 
   // This should hit the cache (no API call)
   console.log('🎯 Second retrieval (should hit cache):');
-  const [, cachedUser1Again] = await userCache.operations.retrieve(user1.key);
+  const cachedUser1Again = await userCache.operations.retrieve(user1.key);
   console.log(`👤 Retrieved: ${cachedUser1Again?.name} (cache hit)`);
 
   // Create a new user and demonstrate cache miss
   const user3 = createTestUser('user-3', 'Charlie Brown', 'charlie@example.com', 'guest');
 
   console.log('🎯 New item retrieval (cache miss, will fetch from API):');
-  const [, cachedUser3] = await userCache.operations.get(user3.key);
+  const cachedUser3 = await userCache.operations.get(user3.key);
   console.log(`👤 Retrieved: ${cachedUser3?.name} (fetched from API and cached)`);
   console.log('');
 
@@ -218,10 +218,10 @@ export const runBasicCacheExample = async (): Promise<void> => {
   console.log('Step 7: Query operations');
   console.log('-----------------------');
 
-  const [, foundTasks] = await taskCache.operations.find('all');
+  const foundTasks = await taskCache.operations.find('all');
   console.log(`🔍 Found ${foundTasks.length} tasks through cache query`);
 
-  const [, oneTask] = await taskCache.operations.one();
+  const oneTask = await taskCache.operations.one();
   console.log(`📝 Retrieved one task: ${oneTask?.title}`);
   console.log('');
 
@@ -244,11 +244,11 @@ export const runBasicCacheExample = async (): Promise<void> => {
   console.log('🗑️ Removed user from storage');
 
   // Cache still has the old data until next fetch
-  const [, stillCachedUser3] = await userCache.operations.retrieve(user3.key);
+  const stillCachedUser3 = await userCache.operations.retrieve(user3.key);
   console.log(`🎯 Cache still contains removed user: ${stillCachedUser3?.name || 'null'}`);
 
   // Fresh fetch will update cache
-  const [, freshAllUsers] = await userCache.operations.all();
+  const freshAllUsers = await userCache.operations.all();
   console.log(`📋 Fresh fetch shows ${freshAllUsers.length} users (cache updated)`);
   console.log('');
 
