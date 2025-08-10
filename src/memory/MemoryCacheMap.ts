@@ -114,7 +114,22 @@ export class MemoryCacheMap<
   public delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
     logger.trace('delete', { key });
     const hashedKey = this.normalizedHashFunction(key);
-    delete this.map[hashedKey];
+    const entry = this.map[hashedKey];
+    if (entry && this.normalizedHashFunction(entry.originalKey) === hashedKey) {
+      // Remove associated metadata using the original key representation
+      const keyStr = JSON.stringify(entry.originalKey);
+      this.metadataMap.delete(keyStr);
+
+      delete this.map[hashedKey];
+
+      // Remove this key from any cached query results
+      for (const [queryHash, cacheEntry] of Object.entries(this.queryResultCache)) {
+        cacheEntry.itemKeys = cacheEntry.itemKeys.filter(k => this.normalizedHashFunction(k) !== hashedKey);
+        if (cacheEntry.itemKeys.length === 0) {
+          delete this.queryResultCache[queryHash];
+        }
+      }
+    }
   }
 
   public keys(): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] {
@@ -127,6 +142,9 @@ export class MemoryCacheMap<
 
   public clear(): void {
     this.map = {};
+    // Clear related metadata and query results to avoid memory leaks
+    this.metadataMap.clear();
+    this.queryResultCache = {};
   }
 
   public allIn(
