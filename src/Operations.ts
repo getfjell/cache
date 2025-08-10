@@ -43,7 +43,7 @@ export interface Operations<
   all(
     query?: ItemQuery,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]>;
+  ): Promise<V[]>;
 
   /**
    * Retrieves the first item that matches the query from cache or API.
@@ -52,7 +52,7 @@ export interface Operations<
   one(
     query?: ItemQuery,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V | null]>;
+  ): Promise<V | null>;
 
   /**
    * Creates a new item via API and caches it.
@@ -60,29 +60,28 @@ export interface Operations<
   create(
     item: Partial<Item<S, L1, L2, L3, L4, L5>>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
+  ): Promise<V>;
 
   /**
    * Gets an item by key from cache or API and caches it.
    */
   get(
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V | null]>;
+  ): Promise<V | null>;
 
   /**
    * Retrieves an item from cache if available, otherwise from API.
-   * Returns null as first element if item was already in cache.
    */
   retrieve(
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5> | null, V | null]>;
+  ): Promise<V | null>;
 
   /**
    * Removes an item via API and from cache.
    */
   remove(
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
-  ): Promise<CacheMap<V, S, L1, L2, L3, L4, L5>>;
+  ): Promise<void>;
 
   /**
    * Updates an item via API and caches the result.
@@ -90,7 +89,7 @@ export interface Operations<
   update(
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     item: Partial<Item<S, L1, L2, L3, L4, L5>>
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
+  ): Promise<V>;
 
   /**
    * Executes an action on an item via API and caches the result.
@@ -99,7 +98,7 @@ export interface Operations<
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     action: string,
     body?: any
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
+  ): Promise<V>;
 
   /**
    * Executes an action on all items matching criteria via API and caches results.
@@ -108,7 +107,7 @@ export interface Operations<
     action: string,
     body?: any,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]>;
+  ): Promise<V[]>;
 
   /**
    * Executes a facet query on an item via API (pass-through, no caching).
@@ -117,7 +116,7 @@ export interface Operations<
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     facet: string,
     params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]>;
+  ): Promise<any>;
 
   /**
    * Executes a facet query on all items matching criteria via API (pass-through, no caching).
@@ -126,7 +125,7 @@ export interface Operations<
     facet: string,
     params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]>;
+  ): Promise<any>;
 
   /**
    * Finds items using a finder method via API and caches results.
@@ -135,7 +134,7 @@ export interface Operations<
     finder: string,
     params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]>;
+  ): Promise<V[]>;
 
   /**
    * Finds a single item using a finder method via API and caches result.
@@ -144,7 +143,7 @@ export interface Operations<
     finder: string,
     params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
+  ): Promise<V>;
 
   /**
    * Sets an item directly in cache without API call.
@@ -152,12 +151,12 @@ export interface Operations<
   set(
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     item: Item<S, L1, L2, L3, L4, L5>
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
+  ): Promise<V>;
 
   /**
    * Resets the cache, clearing all cached items.
    */
-  reset(): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>]>;
+  reset(): Promise<void>;
 }
 
 export const createOperations = <
@@ -184,20 +183,20 @@ export const createOperations = <
   const context = createCacheContext(api, cacheMap, pkType, options, eventEmitter, ttlManager, evictionManager, statsManager);
 
   return {
-    all: (query, locations) => all(query, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),
-    one: (query, locations) => one(query, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),
-    create: (item, locations) => create(item, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),
-    get: (key) => get(key, context).then(([ctx, result]) => [ctx.cacheMap, result]),
-    retrieve: (key) => retrieve(key, context).then(([ctx, result]) => [ctx ? ctx.cacheMap : null, result]),
-    remove: (key) => remove(key, context).then((ctx) => ctx.cacheMap),
-    update: (key, item) => update(key, item, context).then(([ctx, result]) => [ctx.cacheMap, result]),
-    action: (key, actionName, body) => action(key, actionName, body, context).then(([ctx, result]) => [ctx.cacheMap, result]),
-    allAction: (actionName, body, locations) => allAction(actionName, body, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),
-    facet: (key, facetName, params) => facet(key, facetName, params, context).then(result => [context.cacheMap, result]),
-    allFacet: (facetName, params, locations) => allFacet(facetName, params, locations, context).then(result => [context.cacheMap, result]),
-    find: (finder, params, locations) => find(finder, params, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),
-    findOne: (finder, params, locations) => findOne(finder, params, locations, context).then(([ctx, result]) => [ctx.cacheMap, result]),
-    set: (key, item) => set(key, item, context).then(([ctx, result]) => [ctx.cacheMap, result]),
-    reset: () => reset(coordinate, options)
+    all: (query, locations) => all(query, locations, context).then(([ctx, result]) => result),
+    one: (query, locations) => one(query, locations, context).then(([ctx, result]) => result),
+    create: (item, locations) => create(item, locations, context).then(([ctx, result]) => result),
+    get: (key) => get(key, context).then(([ctx, result]) => result),
+    retrieve: (key) => retrieve(key, context).then(([ctx, result]) => result),
+    remove: (key) => remove(key, context).then((ctx) => undefined),
+    update: (key, item) => update(key, item, context).then(([ctx, result]) => result),
+    action: (key, actionName, body) => action(key, actionName, body, context).then(([ctx, result]) => result),
+    allAction: (actionName, body, locations) => allAction(actionName, body, locations, context).then(([ctx, result]) => result),
+    facet: (key, facetName, params) => facet(key, facetName, params, context).then(result => result),
+    allFacet: (facetName, params, locations) => allFacet(facetName, params, locations, context).then(result => result),
+    find: (finder, params, locations) => find(finder, params, locations, context).then(([ctx, result]) => result),
+    findOne: (finder, params, locations) => findOne(finder, params, locations, context).then(([ctx, result]) => result),
+    set: (key, item) => set(key, item, context).then(([ctx, result]) => result),
+    reset: () => reset(coordinate, options).then(() => undefined)
   };
 };

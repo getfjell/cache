@@ -51,7 +51,7 @@ describe('Cache String/Number Key Normalization', () => {
     await cache.operations.set(stringKey, testItem);
 
     // Try to retrieve with number key - should find the same item
-    const [, retrievedItem] = await cache.operations.retrieve(numberKey);
+    const retrievedItem = await cache.operations.retrieve(numberKey);
 
     expect(retrievedItem).not.toBeNull();
     expect(retrievedItem?.key).toEqual(stringKey);
@@ -84,7 +84,7 @@ describe('Cache String/Number Key Normalization', () => {
     await cache.operations.set(stringComKey, testItem);
 
     // Try to retrieve with number keys - should find the same item
-    const [, retrievedItem] = await cache.operations.retrieve(numberComKey);
+    const retrievedItem = await cache.operations.retrieve(numberComKey);
 
     expect(retrievedItem).not.toBeNull();
     expect(retrievedItem?.key).toEqual(stringComKey);

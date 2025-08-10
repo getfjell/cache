@@ -80,7 +80,29 @@ export class MemoryCacheMap<
   public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
     logger.trace('set', { key, value });
     const hashedKey = this.normalizedHashFunction(key);
+    const keyStr = JSON.stringify(key);
+
+    // Create or update the item entry
     this.map[hashedKey] = { originalKey: key, value: value };
+
+    // Create metadata if it doesn't exist
+    if (!this.metadataMap.has(keyStr)) {
+      const now = Date.now();
+      const metadata: CacheItemMetadata = {
+        key: keyStr,
+        addedAt: now,
+        lastAccessedAt: now,
+        accessCount: 1,
+        estimatedSize: estimateValueSize(value)
+      };
+      this.metadataMap.set(keyStr, metadata);
+    } else {
+      // Update existing metadata
+      const metadata = this.metadataMap.get(keyStr)!;
+      metadata.lastAccessedAt = Date.now();
+      metadata.accessCount++;
+      metadata.estimatedSize = estimateValueSize(value);
+    }
   }
 
   public includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean {

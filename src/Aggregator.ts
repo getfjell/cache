@@ -27,77 +27,77 @@ export interface Aggregator<
   all: (
     query?: ItemQuery,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]>;
+  ) => Promise<V[]>;
 
   one: (
     query?: ItemQuery,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V | null]>;
+  ) => Promise<V | null>;
 
   action: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     action: string,
     body?: any
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
+  ) => Promise<V>;
 
   allAction: (
     action: string,
     body?: any,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]>;
+  ) => Promise<V[]>;
 
   allFacet: (
     facet: string,
     params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]>;
+  ) => Promise<any>;
 
   create: (
     item: Partial<Item<S, L1, L2, L3, L4, L5>>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
+  ) => Promise<V>;
 
   get: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V | null]>;
+  ) => Promise<V | null>;
 
   retrieve: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5> | null, V | null]>;
+  ) => Promise<V | null>;
 
   remove: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
-  ) => Promise<CacheMap<V, S, L1, L2, L3, L4, L5>>;
+  ) => Promise<void>;
 
   update: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     item: Partial<Item<S, L1, L2, L3, L4, L5>>
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
+  ) => Promise<V>;
 
   facet: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     facet: string,
     params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]>;
+  ) => Promise<any>;
 
   find: (
     finder: string,
     params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]>;
+  ) => Promise<V[]>;
 
   findOne: (
     finder: string,
     params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
+  ) => Promise<V>;
 
   set: (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     item: Item<S, L1, L2, L3, L4, L5>
-  ) => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]>;
+  ) => Promise<V>;
 
-  reset: () => Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>]>;
+  reset: () => Promise<void>;
 
   populate: (item: V) => Promise<V>;
   populateAggregate: (key: string, item: V) => Promise<void>;
@@ -198,7 +198,7 @@ export const createAggregator = async <
       const ref = item.refs[key];
 
       logger.default('AGG Retrieving Item in Populate', { key: ref });
-      const [, newItem] = await cacheConfig.cache.operations.retrieve(ref);
+      const newItem = await cacheConfig.cache.operations.retrieve(ref);
       if (newItem) {
         if (item.aggs === undefined) {
           item.aggs = {};
@@ -233,7 +233,7 @@ export const createAggregator = async <
       }
 
       logger.default('EVENT Retrieving Item in Populate', { key: event.by });
-      const [, newItem] = await cacheConfig.cache.operations.retrieve(event.by);
+      const newItem = await cacheConfig.cache.operations.retrieve(event.by);
       if (newItem) {
         event.agg = newItem as Item;
       }
@@ -244,158 +244,156 @@ export const createAggregator = async <
     query: ItemQuery = {},
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
   ):
-    Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]> => {
+    Promise<V[]> => {
     logger.default('all', { query, locations });
-    const [cacheMap, items] = await cache.operations.all(query, locations);
+    const items = await cache.operations.all(query, locations);
     const populatedItems = await Promise.all(items.map(async (item) => populate(item)));
-    return [cacheMap, populatedItems];
+    return populatedItems;
   }
 
   const one = async (
     query: ItemQuery = {},
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
   ):
-    Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V | null]> => {
+    Promise<V | null> => {
     logger.default('one', { query, locations });
-    const [cacheMap, item] = await cache.operations.one(query, locations);
+    const item = await cache.operations.one(query, locations);
     let populatedItem = null;
     if (item) {
       populatedItem = await populate(item);
     }
-    return [cacheMap, populatedItem];
+    return populatedItem;
   }
 
   const action = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     action: string,
     body: any = {},
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
+  ): Promise<V> => {
     logger.default('action', { key, action, body });
-    const [cacheMap, item] = await cache.operations.action(key, action, body);
+    const item = await cache.operations.action(key, action, body);
     const populatedItem = await populate(item);
-    return [cacheMap, populatedItem];
+    return populatedItem;
   }
 
   const allAction = async (
     action: string,
     body: any = {},
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]> => {
+  ): Promise<V[]> => {
     logger.default('action', { action, body, locations });
-    const [cacheMap, items] = await cache.operations.allAction(action, body, locations);
+    const items = await cache.operations.allAction(action, body, locations);
     const populatedItems = await Promise.all(items.map(async (item: V) => populate(item)));
-    return [cacheMap, populatedItems];
+    return populatedItems;
   }
 
   const allFacet = async (
     facet: string,
     params: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]> => {
+  ): Promise<any> => {
     logger.default('allFacet', { facet, params, locations });
-    const [cacheMap, response] = await cache.operations.allFacet(facet, params, locations);
-    return [cacheMap, response];
+    const response = await cache.operations.allFacet(facet, params, locations);
+    return response;
   }
 
   const create = async (
     v: Partial<Item<S, L1, L2, L3, L4, L5>>,
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
+  ): Promise<V> => {
     logger.default('create', { v, locations });
-    const [cacheMap, item] = await cache.operations.create(v, locations);
+    const item = await cache.operations.create(v, locations);
     const populatedItem = await populate(item);
-    return [cacheMap, populatedItem];
+    return populatedItem;
   }
 
   const get = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V | null]> => {
+  ): Promise<V | null> => {
     logger.default('get', { key });
-    const [cacheMap, item] = await cache.operations.get(key);
+    const item = await cache.operations.get(key);
     let populatedItem = null;
     if (item) {
       populatedItem = await populate(item);
     }
-    return [cacheMap, populatedItem];
+    return populatedItem;
   }
 
   const retrieve = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5> | null, V | null]> => {
+  ): Promise<V | null> => {
     logger.default('retrieve', { key });
-    const [cacheMap, item] = await cache.operations.retrieve(key);
+    const item = await cache.operations.retrieve(key);
     let populatedItem = null;
     if (item) {
       populatedItem = await populate(item);
     }
-    return [cacheMap, populatedItem];
+    return populatedItem;
   }
 
   const remove = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-  ): Promise<CacheMap<V, S, L1, L2, L3, L4, L5>> => {
+  ): Promise<void> => {
     logger.default('remove', { key });
-    const cacheMap = await cache.operations.remove(key);
-    return cacheMap;
+    await cache.operations.remove(key);
   }
 
   const update = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     v: Partial<Item<S, L1, L2, L3, L4, L5>>,
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
+  ): Promise<V> => {
     logger.default('update', { key, v });
-    const [cacheMap, item] = await cache.operations.update(key, v);
+    const item = await cache.operations.update(key, v);
     const populatedItem = await populate(item);
-    return [cacheMap, populatedItem];
+    return populatedItem;
   }
 
   // Facets are a pass-thru for aggregators
   const facet = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     facet: string,
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, any]> => {
+  ): Promise<any> => {
     logger.default('facet', { key, facet });
-    const [cacheMap, response] = await cache.operations.facet(key, facet);
-    return [cacheMap, response];
+    const response = await cache.operations.facet(key, facet);
+    return response;
   }
 
   const find = async (
     finder: string,
     finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V[]]> => {
+  ): Promise<V[]> => {
     logger.default('find', { finder, finderParams, locations });
-    const [cacheMap, items] = await cache.operations.find(finder, finderParams, locations);
+    const items = await cache.operations.find(finder, finderParams, locations);
     const populatedItems = await Promise.all(items.map(async (item: V) => populate(item)));
-    return [cacheMap, populatedItems];
+    return populatedItems;
   }
 
   const findOne = async (
     finder: string,
     finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
+  ): Promise<V> => {
     logger.default('find', { finder, finderParams, locations });
-    const [cacheMap, item] = await cache.operations.findOne(finder, finderParams, locations);
+    const item = await cache.operations.findOne(finder, finderParams, locations);
     const populatedItem = await populate(item);
-    return [cacheMap, populatedItem];
+    return populatedItem;
   }
 
   const set = async (
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     v: Item<S, L1, L2, L3, L4, L5>
-  ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>, V]> => {
+  ): Promise<V> => {
     logger.default('set', { key, v });
 
     // TODO: There should be some input validation here to ensure a valid item.
-    const [cacheMap, item] = await cache.operations.set(key, v);
+    const item = await cache.operations.set(key, v);
     const populatedItem = await populate(item);
-    return [cacheMap, populatedItem];
+    return populatedItem;
   }
 
-  const reset = async (): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>]> => {
-    const cacheMap = await cache.operations.reset();
-    return cacheMap;
+  const reset = async (): Promise<void> => {
+    await cache.operations.reset();
   }
 
   return {

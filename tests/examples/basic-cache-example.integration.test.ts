@@ -107,13 +107,13 @@ describe('Basic Cache Example Integration Tests', () => {
       );
 
       // Test operations with empty results
-      const [, allItems] = await cache.operations.all();
+      const allItems = await cache.operations.all();
       expect(allItems).toEqual([]);
 
-      const [, oneItem] = await cache.operations.one({});
+      const oneItem = await cache.operations.one({});
       expect(oneItem).toBeNull();
 
-      const [, foundItems] = await cache.operations.find('all');
+      const foundItems = await cache.operations.find('all');
       expect(foundItems).toEqual([]);
 
       // Test error handling
@@ -169,7 +169,7 @@ describe('Basic Cache Example Integration Tests', () => {
 
       // Test cache performance - first call should hit API
       const startTime = process.hrtime.bigint();
-      const [, allItems] = await cache.operations.all();
+      const allItems = await cache.operations.all();
       const firstCallTime = process.hrtime.bigint() - startTime;
 
       expect(allItems).toHaveLength(100);
@@ -177,7 +177,7 @@ describe('Basic Cache Example Integration Tests', () => {
 
       // Test cache hit - second call should be faster
       const hitStartTime = process.hrtime.bigint();
-      const [, cachedItems] = await cache.operations.all();
+      const cachedItems = await cache.operations.all();
       const cacheHitTime = process.hrtime.bigint() - hitStartTime;
 
       expect(cachedItems).toHaveLength(100);
@@ -251,7 +251,7 @@ describe('Basic Cache Example Integration Tests', () => {
       const results = await Promise.all(concurrentPromises);
 
       // All operations should succeed and return the same item
-      results.forEach(([, item]) => {
+      results.forEach((item) => {
         expect(item).toBeDefined();
         expect(item?.id).toBe('concurrent-1');
         expect(item?.value).toBe(42);
@@ -307,7 +307,7 @@ describe('Basic Cache Example Integration Tests', () => {
       storage.set('consistency-1', initialItem);
 
       // First fetch - caches the item
-      const [, firstItem] = await cache.operations.get({ kt: 'consistency', pk: 'consistency-1' });
+      const firstItem = await cache.operations.get({ kt: 'consistency', pk: 'consistency-1' });
       expect(firstItem?.version).toBe(1);
 
       // Update the item in storage (simulate external update)
@@ -323,14 +323,14 @@ describe('Basic Cache Example Integration Tests', () => {
       storage.set('consistency-1', updatedItem);
 
       // Cache retrieve should still return cached version
-      const [, cachedItem] = await cache.operations.retrieve({ kt: 'consistency', pk: 'consistency-1' });
+      const cachedItem = await cache.operations.retrieve({ kt: 'consistency', pk: 'consistency-1' });
       expect(cachedItem?.version).toBe(1); // Still cached version
 
       // Wait for TTL to expire
       await new Promise(resolve => setTimeout(resolve, 150));
 
       // Get should fetch updated version after TTL expiration
-      const [, freshItem] = await cache.operations.get({ kt: 'consistency', pk: 'consistency-1' });
+      const freshItem = await cache.operations.get({ kt: 'consistency', pk: 'consistency-1' });
       expect(freshItem?.version).toBe(2); // Updated version
 
       // Test cache update
@@ -341,7 +341,7 @@ describe('Basic Cache Example Integration Tests', () => {
       await cache.operations.set({ kt: 'consistency', pk: 'consistency-1' }, manualUpdateItem);
 
       // Should now return the manually updated version
-      const [, finalItem] = await cache.operations.retrieve({ kt: 'consistency', pk: 'consistency-1' });
+      const finalItem = await cache.operations.retrieve({ kt: 'consistency', pk: 'consistency-1' });
       expect(finalItem?.version).toBe(3);
     });
 
@@ -383,13 +383,13 @@ describe('Basic Cache Example Integration Tests', () => {
       const cache = await createCache(edgeCaseApi as any, createCoordinate('edge'), registry);
 
       // Test empty results
-      const [, emptyAll] = await cache.operations.all();
+      const emptyAll = await cache.operations.all();
       expect(emptyAll).toEqual([]);
 
-      const [, nullOne] = await cache.operations.one();
+      const nullOne = await cache.operations.one();
       expect(nullOne).toBeNull();
 
-      const [, emptyFind] = await cache.operations.find('test');
+      const emptyFind = await cache.operations.find('test');
       expect(emptyFind).toEqual([]);
 
       // Test error scenarios
@@ -484,25 +484,25 @@ describe('Basic Cache Example Integration Tests', () => {
       const cache = await createCache(queryApi as any, createCoordinate('query'), registry);
 
       // Test various query patterns
-      const [, allItems] = await cache.operations.all();
+      const allItems = await cache.operations.all();
       expect(allItems).toHaveLength(3);
 
-      const [, electronicsItems] = await cache.operations.all({ category: 'electronics' });
+      const electronicsItems = await cache.operations.all({ category: 'electronics' });
       expect(electronicsItems).toHaveLength(2);
       expect(electronicsItems.every(item => item.category === 'electronics')).toBe(true);
 
-      const [, activeItems] = await cache.operations.all({ status: 'active' });
+      const activeItems = await cache.operations.all({ status: 'active' });
       expect(activeItems).toHaveLength(2);
       expect(activeItems.every(item => item.status === 'active')).toBe(true);
 
-      const [, firstElectronics] = await cache.operations.one({ category: 'electronics' });
+      const firstElectronics = await cache.operations.one({ category: 'electronics' });
       expect(firstElectronics?.category).toBe('electronics');
 
-      const [, foundElectronics] = await cache.operations.find('electronics');
+      const foundElectronics = await cache.operations.find('electronics');
       expect(foundElectronics).toHaveLength(2);
 
       // Test individual retrieval
-      const [, specificItem] = await cache.operations.get({ kt: 'query', pk: 'item-2' });
+      const specificItem = await cache.operations.get({ kt: 'query', pk: 'item-2' });
       expect(specificItem?.category).toBe('books');
       expect(specificItem?.status).toBe('inactive');
     });
