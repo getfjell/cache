@@ -48,7 +48,7 @@ const createComment = (id: string, documentId: string, content: string, author: 
 });
 
 export const runCacheMapExample = async (): Promise<void> => {
-  console.log('\n🚀 Fjell-Cache CacheMap Example');
+  console.log('\nFjell-Cache CacheMap Example');
   console.log('==============================\n');
 
   console.log('This example demonstrates direct CacheMap operations for low-level cache management.\n');
@@ -61,9 +61,9 @@ export const runCacheMapExample = async (): Promise<void> => {
   const documentCacheMap = new MemoryCacheMap<Document, 'document'>(['document']);
   const commentCacheMap = new MemoryCacheMap<Comment, 'comment', 'document'>(['comment', 'document']);
 
-  console.log('✅ Created CacheMap instances for documents and comments');
-  console.log(`   📄 Document CacheMap: supports primary keys only`);
-  console.log(`   💬 Comment CacheMap: supports contained items with location hierarchy\n`);
+  console.log('Created CacheMap instances for documents and comments');
+  console.log(`   Document CacheMap: supports primary keys only`);
+  console.log(`   Comment CacheMap: supports contained items with location hierarchy\n`);
 
   // Step 2: Create test data
   console.log('Step 2: Creating test data');
@@ -77,7 +77,7 @@ export const runCacheMapExample = async (): Promise<void> => {
   const comment2 = createComment('comment-2', doc1.id, 'Thanks for sharing this.', 'Eve');
   const comment3 = createComment('comment-3', doc2.id, 'Excellent advanced techniques.', 'Frank');
 
-  console.log('✅ Created test documents and comments\n');
+  console.log('Created test documents and comments\n');
 
   // Step 3: Basic CacheMap operations
   console.log('Step 3: Basic CacheMap operations');
@@ -92,39 +92,39 @@ export const runCacheMapExample = async (): Promise<void> => {
   commentCacheMap.set(comment2.key, comment2);
   commentCacheMap.set(comment3.key, comment3);
 
-  console.log('📥 Stored all items in CacheMaps');
-  console.log(`   📄 Documents cached: ${documentCacheMap.values().length}`);
-  console.log(`   💬 Comments cached: ${commentCacheMap.values().length}`);
+  console.log('Stored all items in CacheMaps');
+  console.log(`   Documents cached: ${(await documentCacheMap.values()).length}`);
+  console.log(`   Comments cached: ${(await commentCacheMap.values()).length}`);
 
   // Get individual items
-  const retrievedDoc1 = documentCacheMap.get(doc1.key);
-  const retrievedComment1 = commentCacheMap.get(comment1.key);
+  const retrievedDoc1 = await documentCacheMap.get(doc1.key);
+  const retrievedComment1 = await commentCacheMap.get(comment1.key);
 
-  console.log(`\n🔍 Retrieved items by key:`);
-  console.log(`   📄 Document: "${retrievedDoc1?.title}" by ${retrievedDoc1?.author}`);
-  console.log(`   💬 Comment: "${retrievedComment1?.content}" by ${retrievedComment1?.author}`);
+  console.log(`\nRetrieved items by key:`);
+  console.log(`   Document: "${retrievedDoc1?.title}" by ${retrievedDoc1?.author}`);
+  console.log(`   Comment: "${retrievedComment1?.content}" by ${retrievedComment1?.author}`);
 
   // Step 4: Key operations and checking
   console.log('\n\nStep 4: Key operations and checking');
   console.log('----------------------------------');
 
   // Check if keys exist
-  const hasDoc1 = documentCacheMap.includesKey(doc1.key);
-  const hasDoc4 = documentCacheMap.includesKey({ kt: 'document', pk: 'doc-4' });
+  const hasDoc1 = await documentCacheMap.includesKey(doc1.key);
+  const hasDoc4 = await documentCacheMap.includesKey({ kt: 'document', pk: 'doc-4' });
 
-  console.log(`🔑 Key existence checks:`);
-  console.log(`   📄 Document 1 exists: ${hasDoc1}`);
-  console.log(`   📄 Document 4 exists: ${hasDoc4}`);
+  console.log(`Key existence checks:`);
+  console.log(`   Document 1 exists: ${hasDoc1}`);
+  console.log(`   Document 4 exists: ${hasDoc4}`);
 
   // Get all keys
-  const allDocKeys = documentCacheMap.keys();
-  const allCommentKeys = commentCacheMap.keys();
+  const allDocKeys = await documentCacheMap.keys();
+  const allCommentKeys = await commentCacheMap.keys();
 
-  console.log(`\n🗂️ All cached keys:`);
-  console.log(`   📄 Document keys: ${allDocKeys.length} items`);
+  console.log(`\nAll cached keys:`);
+  console.log(`   Document keys: ${allDocKeys.length} items`);
   allDocKeys.forEach((key: PriKey<'document'>) => console.log(`      - ${key.pk}`));
 
-  console.log(`   💬 Comment keys: ${allCommentKeys.length} items`);
+  console.log(`   Comment keys: ${allCommentKeys.length} items`);
   allCommentKeys.forEach((key) => {
     if ('loc' in key) {
       const comKey = key as ComKey<'comment', 'document'>;
@@ -140,29 +140,29 @@ export const runCacheMapExample = async (): Promise<void> => {
   console.log('----------------------');
 
   // Get all items
-  const allDocuments = documentCacheMap.allIn([]);
-  const allComments = commentCacheMap.allIn([]);
+  const allDocuments = await documentCacheMap.allIn([]);
+  const allComments = await commentCacheMap.allIn([]);
 
-  console.log(`📋 Retrieved all items:`);
-  console.log(`   📄 Documents: ${allDocuments.length} items`);
+  console.log(`Retrieved all items:`);
+  console.log(`   Documents: ${allDocuments.length} items`);
   allDocuments.forEach((doc: Document) => console.log(`      - "${doc.title}" (${doc.tags.join(', ')})`));
 
-  console.log(`   💬 Comments: ${allComments.length} items`);
+  console.log(`   Comments: ${allComments.length} items`);
   allComments.forEach((comment: Comment) => console.log(`      - "${comment.content}" on doc ${comment.documentId}`));
 
   // Get all values (another way to access items)
-  const allDocumentValues = documentCacheMap.values();
-  console.log(`\n📦 Document values count: ${allDocumentValues.length}`);
+  const allDocumentValues = await documentCacheMap.values();
+  console.log(`\nDocument values count: ${allDocumentValues.length}`);
 
   // Step 6: Location-based operations for contained items
   console.log('\n\nStep 6: Location-based operations');
   console.log('---------------------------------');
 
   // Get comments for specific document (using location filtering)
-  const doc1Comments = commentCacheMap.allIn([{ kt: 'document' as const, lk: doc1.id }] as any);
+  const doc1Comments = await commentCacheMap.allIn([{ kt: 'document' as const, lk: doc1.id }] as any);
 
-  console.log(`🔍 Location-based retrieval:`);
-  console.log(`   💬 Comments in document "${doc1.title}": ${doc1Comments.length} found`);
+  console.log(`Location-based retrieval:`);
+  console.log(`   Comments in document "${doc1.title}": ${doc1Comments.length} found`);
   doc1Comments.forEach((comment: Comment) => console.log(`      - "${comment.content}" by ${comment.author}`));
 
   // Step 7: Update operations
@@ -178,11 +178,11 @@ export const runCacheMapExample = async (): Promise<void> => {
   };
 
   documentCacheMap.set(updatedDoc1.key, updatedDoc1);
-  const retrievedUpdatedDoc = documentCacheMap.get(updatedDoc1.key);
+  const retrievedUpdatedDoc = await documentCacheMap.get(updatedDoc1.key);
 
-  console.log(`🔄 Updated document:`);
-  console.log(`   📄 New title: "${retrievedUpdatedDoc?.title}"`);
-  console.log(`   🏷️ New tags: ${retrievedUpdatedDoc?.tags.join(', ')}`);
+  console.log(`Updated document:`);
+  console.log(`   New title: "${retrievedUpdatedDoc?.title}"`);
+  console.log(`   New tags: ${retrievedUpdatedDoc?.tags.join(', ')}`);
 
   // Step 8: Deletion operations
   console.log('\n\nStep 8: Deletion operations');
@@ -190,27 +190,27 @@ export const runCacheMapExample = async (): Promise<void> => {
 
   // Delete a specific item
   documentCacheMap.delete(doc3.key);
-  console.log(`🗑️ Deleted document: doc-3`);
-  console.log(`   📄 Documents remaining: ${documentCacheMap.values().length}`);
+  console.log(`Deleted document: doc-3`);
+  console.log(`   Documents remaining: ${(await documentCacheMap.values()).length}`);
 
   // Try to get deleted item
-  const deletedDocCheck = documentCacheMap.get(doc3.key);
-  console.log(`   🔍 Deleted document still exists: ${deletedDocCheck !== null}`);
+  const deletedDocCheck = await documentCacheMap.get(doc3.key);
+  console.log(`   Deleted document still exists: ${deletedDocCheck !== null}`);
 
   // Step 9: Performance and statistics
   console.log('\n\nStep 9: Performance and statistics');
   console.log('---------------------------------');
 
-  console.log(`📊 CacheMap Statistics:`);
-  console.log(`   📄 Document CacheMap:`);
-  console.log(`      - Items: ${documentCacheMap.values().length}`);
-  console.log(`      - Keys: ${documentCacheMap.keys().length}`);
-  console.log(`      - Values: ${documentCacheMap.values().length}`);
+  console.log(`CacheMap Statistics:`);
+  console.log(`   Document CacheMap:`);
+  console.log(`      - Items: ${(await documentCacheMap.values()).length}`);
+  console.log(`      - Keys: ${(await documentCacheMap.keys()).length}`);
+  console.log(`      - Values: ${(await documentCacheMap.values()).length}`);
 
-  console.log(`   💬 Comment CacheMap:`);
-  console.log(`      - Items: ${commentCacheMap.values().length}`);
-  console.log(`      - Keys: ${commentCacheMap.keys().length}`);
-  console.log(`      - Values: ${commentCacheMap.values().length}`);
+  console.log(`   Comment CacheMap:`);
+  console.log(`      - Items: ${(await commentCacheMap.values()).length}`);
+  console.log(`      - Keys: ${(await commentCacheMap.keys()).length}`);
+  console.log(`      - Values: ${(await commentCacheMap.values()).length}`);
 
   // Performance test - bulk operations
   const startTime = Date.now();
@@ -220,9 +220,9 @@ export const runCacheMapExample = async (): Promise<void> => {
   }
   const insertTime = Date.now() - startTime;
 
-  console.log(`\n⚡ Performance test:`);
-  console.log(`   📥 Inserted 1000 items in ${insertTime}ms`);
-  console.log(`   📊 Total documents: ${documentCacheMap.values().length}`);
+  console.log(`\nPerformance test:`);
+  console.log(`   Inserted 1000 items in ${insertTime}ms`);
+  console.log(`   Total documents: ${(await documentCacheMap.values()).length}`);
 
   // Clean up performance test data
   const cleanupStart = Date.now();
@@ -231,29 +231,29 @@ export const runCacheMapExample = async (): Promise<void> => {
   }
   const cleanupTime = Date.now() - cleanupStart;
 
-  console.log(`   🧹 Cleaned up 1000 items in ${cleanupTime}ms`);
-  console.log(`   📊 Documents after cleanup: ${documentCacheMap.values().length}`);
+  console.log(`   Cleaned up 1000 items in ${cleanupTime}ms`);
+  console.log(`   Documents after cleanup: ${(await documentCacheMap.values()).length}`);
 
   // Step 10: Clone operations
   console.log('\n\nStep 10: Clone operations');
   console.log('------------------------');
 
   // Clone the cache map
-  const clonedDocumentCache = documentCacheMap.clone();
-  console.log(`📋 Cloned document cache:`);
-  console.log(`   📄 Original cache: ${documentCacheMap.values().length} items`);
-  console.log(`   📄 Cloned cache: ${clonedDocumentCache.values().length} items`);
+  const clonedDocumentCache = await documentCacheMap.clone();
+  console.log(`Cloned document cache:`);
+  console.log(`   Original cache: ${(await documentCacheMap.values()).length} items`);
+  console.log(`   Cloned cache: ${(await clonedDocumentCache.values()).length} items`);
 
   // Modify original to show independence
   const newDoc = createDocument('doc-clone-test', 'Clone Test Doc', 'Testing cloning', 'Test Author', ['test']);
   documentCacheMap.set(newDoc.key, newDoc);
 
-  console.log(`\n📊 After adding to original:`);
-  console.log(`   📄 Original cache: ${documentCacheMap.values().length} items`);
-  console.log(`   📄 Cloned cache: ${clonedDocumentCache.values().length} items`);
-  console.log(`   ✅ Clones are independent`);
+  console.log(`\nAfter adding to original:`);
+  console.log(`   Original cache: ${(await documentCacheMap.values()).length} items`);
+  console.log(`   Cloned cache: ${(await clonedDocumentCache.values()).length} items`);
+  console.log(`   Clones are independent`);
 
-  console.log('\n🎉 CacheMap Example Complete!');
+  console.log('\nCacheMap Example Complete!');
   console.log('=============================\n');
 
   console.log('Key concepts demonstrated:');

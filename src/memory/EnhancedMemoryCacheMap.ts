@@ -91,9 +91,9 @@ export class EnhancedMemoryCacheMap<
     }
   }
 
-  public get(
+  public async get(
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-  ): V | null {
+  ): Promise<V | null> {
     logger.trace('get', { key });
     const hashedKey = this.normalizedHashFunction(key);
     const entry = this.map[hashedKey];
@@ -158,7 +158,7 @@ export class EnhancedMemoryCacheMap<
     }
   }
 
-  public includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean {
+  public async includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<boolean> {
     const hashedKey = this.normalizedHashFunction(key);
     const entry = this.map[hashedKey];
     return !!entry && this.normalizedHashFunction(entry.originalKey) === hashedKey && entry.value !== null;
@@ -202,7 +202,7 @@ export class EnhancedMemoryCacheMap<
       .map(entry => entry.originalKey);
   }
 
-  public values(): V[] {
+  public async values(): Promise<V[]> {
     return Object.values(this.map)
       .filter(entry => entry.value !== null)
       .map(entry => entry.value);
@@ -221,10 +221,10 @@ export class EnhancedMemoryCacheMap<
     // Use clearQueryResults() separately if you need to clear query cache as well
   }
 
-  public allIn(
+  public async allIn(
     locations: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): V[] {
-    const allValues = this.values();
+  ): Promise<V[]> {
+    const allValues = await this.values();
     if (locations.length === 0) {
       logger.debug('Returning all items, LocKeys is empty');
       return allValues;
@@ -240,22 +240,22 @@ export class EnhancedMemoryCacheMap<
     }
   }
 
-  public contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): boolean {
+  public async contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<boolean> {
     logger.debug('contains', { query, locations });
-    const items = this.allIn(locations);
+    const items = await this.allIn(locations);
     return items.some((item) => isQueryMatch(item, query));
   }
 
-  public queryIn(
+  public async queryIn(
     query: ItemQuery,
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): V[] {
+  ): Promise<V[]> {
     logger.debug('queryIn', { query, locations });
-    const items = this.allIn(locations);
+    const items = await this.allIn(locations);
     return items.filter((item) => isQueryMatch(item, query));
   }
 
-  public clone(): CacheMap<V, S, L1, L2, L3, L4, L5> {
+  public async clone(): Promise<CacheMap<V, S, L1, L2, L3, L4, L5>> {
     const sizeConfig: CacheSizeConfig = {};
     if (this.maxSizeBytes) {
       sizeConfig.maxSizeBytes = this.maxSizeBytes.toString();
@@ -268,7 +268,7 @@ export class EnhancedMemoryCacheMap<
 
     // Copy entries (this will trigger proper size tracking)
     for (const key of this.keys()) {
-      const value = this.get(key);
+      const value = await this.get(key);
       if (value) {
         clone.set(key, value);
       }
@@ -331,7 +331,7 @@ export class EnhancedMemoryCacheMap<
     this.addQueryResultToSizeTracking(queryHash, entry);
   }
 
-  public getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null {
+  public async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
     logger.trace('getQueryResult', { queryHash });
 
     const entry = this.queryResultCache[queryHash];
@@ -437,7 +437,7 @@ export class EnhancedMemoryCacheMap<
     });
   }
 
-  public invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): void {
+  public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
     logger.debug('invalidateLocation', { locations });
 
     let keysToInvalidate: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] = [];
@@ -449,7 +449,7 @@ export class EnhancedMemoryCacheMap<
       keysToInvalidate = primaryKeys;
     } else {
       // For contained items, get all items in the location and invalidate them
-      const itemsInLocation = this.allIn(locations);
+      const itemsInLocation = await this.allIn(locations);
       keysToInvalidate = itemsInLocation.map(item => item.key);
     }
 

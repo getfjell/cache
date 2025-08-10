@@ -41,7 +41,7 @@ export abstract class CacheMap<
   /**
    * Retrieve an item by its key
    */
-  public abstract get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): V | null;
+  public abstract get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<V | null>;
 
   /**
    * Store an item with its key
@@ -51,7 +51,7 @@ export abstract class CacheMap<
   /**
    * Check if a key exists in the cache
    */
-  public abstract includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean;
+  public abstract includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<boolean>;
 
   /**
    * Delete an item by its key
@@ -61,22 +61,22 @@ export abstract class CacheMap<
   /**
    * Get all items in the specified locations
    */
-  public abstract allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): V[];
+  public abstract allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]>;
 
   /**
    * Check if any items match the query in the specified locations
    */
-  public abstract contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): boolean;
+  public abstract contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<boolean>;
 
   /**
    * Get all items that match the query in the specified locations
    */
-  public abstract queryIn(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): V[];
+  public abstract queryIn(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]>;
 
   /**
    * Create a clone of this cache map
    */
-  public abstract clone(): CacheMap<V, S, L1, L2, L3, L4, L5>;
+  public abstract clone(): Promise<CacheMap<V, S, L1, L2, L3, L4, L5>>;
 
   /**
    * Get all keys in the cache
@@ -86,7 +86,7 @@ export abstract class CacheMap<
   /**
    * Get all values in the cache
    */
-  public abstract values(): V[];
+  public abstract values(): Promise<V[]>;
 
   /**
    * Clear all items from the cache
@@ -103,7 +103,7 @@ export abstract class CacheMap<
   /**
    * Get a query result as a collection of item keys
    */
-  public abstract getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null;
+  public abstract getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null>;
 
   /**
    * Check if a query result exists in cache
@@ -123,7 +123,7 @@ export abstract class CacheMap<
   /**
    * Invalidate all items in specified locations and clear related query results
    */
-  public abstract invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): void;
+  public abstract invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void>;
 
   /**
    * Clear all query result cache entries

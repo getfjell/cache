@@ -71,29 +71,29 @@ describe('LocalStorageCacheMap', () => {
     mockLocalStorage.store.clear();
   });
 
-  it('should store and retrieve items', () => {
+  it('should store and retrieve items', async () => {
     const testItem = new TestItem('1', 'Test Item');
     cache.set({ kt: 'test', pk: '1' }, testItem);
-    const retrieved = cache.get({ kt: 'test', pk: '1' });
+    const retrieved = await cache.get({ kt: 'test', pk: '1' });
     expect(retrieved).toEqual(testItem);
   });
 
-  it('should delete items', () => {
+  it('should delete items', async () => {
     const testItem = new TestItem('1', 'Test Item');
     cache.set({ kt: 'test', pk: '1' }, testItem);
     cache.delete({ kt: 'test', pk: '1' });
-    const retrieved = cache.get({ kt: 'test', pk: '1' });
+    const retrieved = await cache.get({ kt: 'test', pk: '1' });
     expect(retrieved).toBeNull();
   });
 
-  it('should check if key exists', () => {
+  it('should check if key exists', async () => {
     const testItem = new TestItem('1', 'Test Item');
     cache.set({ kt: 'test', pk: '1' }, testItem);
-    expect(cache.includesKey({ kt: 'test', pk: '1' })).toBe(true);
-    expect(cache.includesKey({ kt: 'test', pk: '2' })).toBe(false);
+    expect(await cache.includesKey({ kt: 'test', pk: '1' })).toBe(true);
+    expect(await cache.includesKey({ kt: 'test', pk: '2' })).toBe(false);
   });
 
-  it('should clear all items', () => {
+  it('should clear all items', async () => {
     const items = [
       new TestItem('1', 'Item 1'),
       new TestItem('2', 'Item 2')
@@ -102,9 +102,9 @@ describe('LocalStorageCacheMap', () => {
     items.forEach(item => cache.set({ kt: 'test', pk: item.id }, item));
 
     // Verify items were stored
-    items.forEach(item => {
-      expect(cache.get({ kt: 'test', pk: item.id })).toBeTruthy();
-    });
+    for (const item of items) {
+      expect(await cache.get({ kt: 'test', pk: item.id })).toBeTruthy();
+    }
 
     // Clear the cache
     cache.clear();
@@ -112,11 +112,11 @@ describe('LocalStorageCacheMap', () => {
     mockLocalStorage.debug();
 
     // Verify items were cleared
-    items.forEach(item => {
-      const retrieved = cache.get({ kt: 'test', pk: item.id });
+    for (const item of items) {
+      const retrieved = await cache.get({ kt: 'test', pk: item.id });
       console.log('Retrieved item:', retrieved);
       expect(retrieved).toBeNull();
-    });
+    }
   });
 
   describe('Query result caching', () => {
@@ -128,7 +128,7 @@ describe('LocalStorageCacheMap', () => {
       vi.useRealTimers();
     });
 
-    it('should store and retrieve query results', () => {
+    it('should store and retrieve query results', async () => {
       const queryHash = 'test-query-1';
       const itemKeys: PriKey<'test'>[] = [
         { kt: 'test', pk: '1' },
@@ -136,7 +136,7 @@ describe('LocalStorageCacheMap', () => {
       ];
 
       cache.setQueryResult(queryHash, itemKeys);
-      const retrieved = cache.getQueryResult(queryHash);
+      const retrieved = await cache.getQueryResult(queryHash);
       expect(retrieved).toEqual(itemKeys);
     });
 
@@ -183,7 +183,7 @@ describe('LocalStorageCacheMap', () => {
       });
     });
 
-    it('should handle invalid stored query data', () => {
+    it('should handle invalid stored query data', async () => {
       const queryHash = 'test-query-1';
       const queryKey = `fjell-cache:query:${queryHash}`;
 
@@ -191,10 +191,10 @@ describe('LocalStorageCacheMap', () => {
       localStorage.setItem(queryKey, 'invalid json');
 
       // Should return null for invalid data
-      expect(cache.getQueryResult(queryHash)).toBeNull();
+      expect(await cache.getQueryResult(queryHash)).toBeNull();
     });
 
-    it('should handle old format query results (array without expiration)', () => {
+    it('should handle old format query results (array without expiration)', async () => {
       const queryHash = 'test-query-1';
       const queryKey = `fjell-cache:query:${queryHash}`;
       const itemKeys: PriKey<'test'>[] = [
@@ -205,7 +205,7 @@ describe('LocalStorageCacheMap', () => {
       localStorage.setItem(queryKey, JSON.stringify(itemKeys));
 
       // Should still work with old format
-      expect(cache.getQueryResult(queryHash)).toEqual(itemKeys);
+      expect(await cache.getQueryResult(queryHash)).toEqual(itemKeys);
     });
   });
 
@@ -360,7 +360,7 @@ describe('LocalStorageCacheMap', () => {
   });
 
   describe('Storage quota handling and cleanup', () => {
-    it('should handle quota exceeded error when setting items', () => {
+    it('should handle quota exceeded error when setting items', async () => {
       const testItem = new TestItem('1', 'Test Item');
       const key: PriKey<'test'> = { kt: 'test', pk: '1' };
 
@@ -379,13 +379,13 @@ describe('LocalStorageCacheMap', () => {
 
       // Should handle quota error and retry after cleanup
       cache.set(key, testItem);
-      expect(cache.get(key)).toEqual(testItem);
+      expect(await cache.get(key)).toEqual(testItem);
 
       // Restore original setItem
       localStorage.setItem = originalSetItem;
     });
 
-    it('should handle various quota exceeded error types', () => {
+    it('should handle various quota exceeded error types', async () => {
       const testItem = new TestItem('1', 'Test Item');
       const key: PriKey<'test'> = { kt: 'test', pk: '1' };
 
@@ -415,7 +415,7 @@ describe('LocalStorageCacheMap', () => {
 
         // Should handle quota error and retry after cleanup
         cache.set(key, testItem);
-        expect(cache.get(key)).toEqual(testItem);
+        expect(await cache.get(key)).toEqual(testItem);
 
         // Restore original setItem
         localStorage.setItem = originalSetItem;
@@ -423,7 +423,7 @@ describe('LocalStorageCacheMap', () => {
       }
     });
 
-    it('should cleanup old entries when storage is full', () => {
+    it('should cleanup old entries when storage is full', async () => {
       // Create multiple test items with timestamps spread over time
       const items = Array.from({ length: 10 }, (_, i) => {
         const item = new TestItem(String(i), `Test Item ${i}`);
@@ -462,17 +462,17 @@ describe('LocalStorageCacheMap', () => {
       cache.set(newKey, newItem);
 
       // Verify new item was stored
-      expect(cache.get(newKey)).toEqual(newItem);
+      expect(await cache.get(newKey)).toEqual(newItem);
 
       // Verify oldest items were removed (25% of items)
       const removedCount = Math.ceil(items.length * 0.25);
       for (let i = 0; i < removedCount; i++) {
-        expect(cache.get(items[i].key)).toBeNull();
+        expect(await cache.get(items[i].key)).toBeNull();
       }
 
       // Verify newer items still exist
       for (let i = removedCount; i < items.length; i++) {
-        expect(cache.get(items[i].key)).toEqual(items[i].item);
+        expect(await cache.get(items[i].key)).toEqual(items[i].item);
       }
 
       // Restore original setItem
@@ -708,7 +708,7 @@ describe('LocalStorageCacheMap', () => {
       localStorage.clear();
     });
 
-    it('should retrieve all items in a location', () => {
+    it('should retrieve all items in a location', async () => {
       const items = [
         new TestItemWithLoc('1', 'Item 1', 'locA', 'locX'),
         new TestItemWithLoc('2', 'Item 2', 'locA', 'locX'),
@@ -720,21 +720,21 @@ describe('LocalStorageCacheMap', () => {
       items.forEach(item => locCache.set(item.key, item));
 
       // Test allIn with specific location
-      const locAXItems = locCache.allIn(createLocKeys('locA', 'locX'));
+      const locAXItems = await locCache.allIn(createLocKeys('locA', 'locX'));
       expect(locAXItems).toHaveLength(2);
       expect(locAXItems.map(item => item.id)).toEqual(['1', '2']);
 
       // Test allIn with different location
-      const locBYItems = locCache.allIn(createLocKeys('locB', 'locY'));
+      const locBYItems = await locCache.allIn(createLocKeys('locB', 'locY'));
       expect(locBYItems).toHaveLength(1);
       expect(locBYItems[0].id).toBe('3');
 
       // Test allIn with empty location array (should return all items)
-      const allItems = locCache.allIn([]);
+      const allItems = await locCache.allIn([]);
       expect(allItems).toHaveLength(4);
     });
 
-    it('should check if query matches items in location', () => {
+    it('should check if query matches items in location', async () => {
       const items = [
         new TestItemWithLoc('1', 'Apple', 'locA', 'locX'),
         new TestItemWithLoc('2', 'Banana', 'locA', 'locX'),
@@ -746,13 +746,13 @@ describe('LocalStorageCacheMap', () => {
 
       // Test contains with query and location
       const query: ItemQuery = {};
-      expect(locCache.contains(query, createLocKeys('locA', 'locX'))).toBe(true);
-      expect(locCache.contains(query, createLocKeys('locA', 'locX'))).toBe(true);
-      expect(locCache.contains(query, createLocKeys('locB', 'locY'))).toBe(true);
-      expect(locCache.contains(query, createLocKeys('locC', 'locZ'))).toBe(false);
+      expect(await locCache.contains(query, createLocKeys('locA', 'locX'))).toBe(true);
+      expect(await locCache.contains(query, createLocKeys('locA', 'locX'))).toBe(true);
+      expect(await locCache.contains(query, createLocKeys('locB', 'locY'))).toBe(true);
+      expect(await locCache.contains(query, createLocKeys('locC', 'locZ'))).toBe(false);
     });
 
-    it('should query items in location', () => {
+    it('should query items in location', async () => {
       const items = [
         new TestItemWithLoc('1', 'Apple', 'locA', 'locX'),
         new TestItemWithLoc('2', 'Banana', 'locA', 'locX'),
@@ -764,17 +764,17 @@ describe('LocalStorageCacheMap', () => {
 
       // Test queryIn with specific location
       const query: ItemQuery = {};
-      const itemsInLocAX = locCache.queryIn(query, createLocKeys('locA', 'locX'));
+      const itemsInLocAX = await locCache.queryIn(query, createLocKeys('locA', 'locX'));
       expect(itemsInLocAX).toHaveLength(2);
       expect(itemsInLocAX.map(item => item.id).sort()).toEqual(['1', '2']);
 
       // Test queryIn with empty location array (all locations)
-      const allItems = locCache.queryIn(query, []);
+      const allItems = await locCache.queryIn(query, []);
       expect(allItems).toHaveLength(3);
       expect(allItems.map(item => item.id).sort()).toEqual(['1', '2', '3']);
     });
 
-    it('should invalidate items by location', () => {
+    it('should invalidate items by location', async () => {
       const items = [
         new TestItemWithLoc('1', 'Item 1', 'locA', 'locX'),
         new TestItemWithLoc('2', 'Item 2', 'locA', 'locX'),
@@ -788,17 +788,17 @@ describe('LocalStorageCacheMap', () => {
       locCache.setQueryResult('query1', [items[0].key, items[1].key]);
 
       // Invalidate specific location
-      locCache.invalidateLocation(createLocKeys('locA', 'locX'));
+      await locCache.invalidateLocation(createLocKeys('locA', 'locX'));
 
       // Verify items in invalidated location are removed
-      expect(locCache.allIn(createLocKeys('locA', 'locX'))).toHaveLength(0);
-      expect(locCache.allIn(createLocKeys('locB', 'locY'))).toHaveLength(1);
+      expect(await locCache.allIn(createLocKeys('locA', 'locX'))).toHaveLength(0);
+      expect(await locCache.allIn(createLocKeys('locB', 'locY'))).toHaveLength(1);
 
       // Verify query results were cleared
-      expect(locCache.getQueryResult('query1')).toBeNull();
+      expect(await locCache.getQueryResult('query1')).toBeNull();
     });
 
-    it('should invalidate primary items (no location)', () => {
+    it('should invalidate primary items (no location)', async () => {
       // Create a mixed cache with both primary and composite keys
       const primaryItem = new TestItem('1', 'Primary Item');
       const locItem = new TestItemWithLoc('2', 'Location Item', 'locA', 'locX');
@@ -807,14 +807,14 @@ describe('LocalStorageCacheMap', () => {
       locCache.set(locItem.key, locItem);
 
       // Invalidate primary items
-      locCache.invalidateLocation([]);
+      await locCache.invalidateLocation([]);
 
       // Verify primary item is removed but location item remains
-      expect(cache.get(primaryItem.key)).toBeNull();
-      expect(locCache.get(locItem.key)).toEqual(locItem);
+      expect(await cache.get(primaryItem.key)).toBeNull();
+      expect(await locCache.get(locItem.key)).toEqual(locItem);
     });
 
-    it('should handle invalid keys during location operations', () => {
+    it('should handle invalid keys during location operations', async () => {
       // Store an item with invalid key format
       const storageKey = 'fjell-cache:test:invalid';
       localStorage.setItem(storageKey, JSON.stringify({
@@ -827,7 +827,7 @@ describe('LocalStorageCacheMap', () => {
       locCache.set(validItem.key, validItem);
 
       // Operations should work despite invalid key
-      const items = locCache.allIn(createLocKeys('locA', 'locX'));
+      const items = await locCache.allIn(createLocKeys('locA', 'locX'));
       expect(items).toHaveLength(1);
       expect(items[0]).toEqual(validItem);
     });

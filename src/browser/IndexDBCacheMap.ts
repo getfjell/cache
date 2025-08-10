@@ -104,7 +104,7 @@ export class IndexDBCacheMap<
       // Then sync memory cache changes to IndexedDB
       const memoryKeys = this.memoryCache.keys();
       for (const key of memoryKeys) {
-        const value = this.memoryCache.get(key);
+        const value = await this.memoryCache.get(key);
         if (value) {
           await this.asyncCache.set(key, value);
         }
@@ -260,11 +260,14 @@ export class IndexDBCacheMap<
     });
   }
 
-  public get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): V | null {
-    // Ensure initialization is complete before reading
+  public async get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<V | null> {
+    // Wait for initialization if still in progress
     if (!this.isInitialized && this.initializationPromise) {
-      // For synchronous API, we can't wait for async initialization
-      // Fall back to memory cache only and let background init continue
+      try {
+        await this.initializationPromise;
+      } catch (error) {
+        console.warn('IndexedDB initialization failed, using memory cache only:', error);
+      }
     }
     return this.memoryCache.get(key);
   }
@@ -277,7 +280,15 @@ export class IndexDBCacheMap<
     this.queueForSync(key, value);
   }
 
-  public includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean {
+  public async includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<boolean> {
+    // Wait for initialization if still in progress
+    if (!this.isInitialized && this.initializationPromise) {
+      try {
+        await this.initializationPromise;
+      } catch (error) {
+        console.warn('IndexedDB initialization failed, using memory cache only:', error);
+      }
+    }
     return this.memoryCache.includesKey(key);
   }
 
@@ -289,19 +300,19 @@ export class IndexDBCacheMap<
     this.queueDeleteForSync(key);
   }
 
-  public allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): V[] {
+  public async allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]> {
     return this.memoryCache.allIn(locations);
   }
 
-  public contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): boolean {
+  public async contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<boolean> {
     return this.memoryCache.contains(query, locations);
   }
 
-  public queryIn(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): V[] {
+  public async queryIn(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]> {
     return this.memoryCache.queryIn(query, locations);
   }
 
-  public clone(): IndexDBCacheMap<V, S, L1, L2, L3, L4, L5> {
+  public async clone(): Promise<IndexDBCacheMap<V, S, L1, L2, L3, L4, L5>> {
     return new IndexDBCacheMap<V, S, L1, L2, L3, L4, L5>(this.types);
   }
 
@@ -309,7 +320,7 @@ export class IndexDBCacheMap<
     return this.memoryCache.keys();
   }
 
-  public values(): V[] {
+  public async values(): Promise<V[]> {
     return this.memoryCache.values();
   }
 
@@ -327,7 +338,15 @@ export class IndexDBCacheMap<
     return this.memoryCache.setQueryResult(queryHash, itemKeys);
   }
 
-  public getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null {
+  public async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
+    // Wait for initialization if still in progress
+    if (!this.isInitialized && this.initializationPromise) {
+      try {
+        await this.initializationPromise;
+      } catch (error) {
+        console.warn('IndexedDB initialization failed, using memory cache only:', error);
+      }
+    }
     return this.memoryCache.getQueryResult(queryHash);
   }
 
@@ -343,8 +362,8 @@ export class IndexDBCacheMap<
     return this.memoryCache.invalidateItemKeys(keys);
   }
 
-  public invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): void {
-    return this.memoryCache.invalidateLocation(locations);
+  public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
+    return await this.memoryCache.invalidateLocation(locations);
   }
 
   public clearQueryResults(): void {

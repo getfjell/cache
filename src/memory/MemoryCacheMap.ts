@@ -66,15 +66,24 @@ export class MemoryCacheMap<
     }
   }
 
-  public get(
+  public async get(
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-  ): V | null {
+  ): Promise<V | null> {
     logger.trace('get', { key });
     const hashedKey = this.normalizedHashFunction(key);
     const entry = this.map[hashedKey];
-    // Check if entry exists AND the normalized keys match.
-    // This is crucial for handling number vs string pk/lk values.
-    return entry && this.normalizedHashFunction(entry.originalKey) === hashedKey ? entry.value : null;
+
+    if (entry && this.normalizedHashFunction(entry.originalKey) === hashedKey) {
+      // Update metadata for access tracking
+      const keyStr = JSON.stringify(key);
+      const metadata = this.metadataMap.get(keyStr);
+      if (metadata) {
+        metadata.lastAccessedAt = Date.now();
+        metadata.accessCount++;
+      }
+      return entry.value;
+    }
+    return null;
   }
 
   public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
@@ -105,7 +114,7 @@ export class MemoryCacheMap<
     }
   }
 
-  public includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean {
+  public async includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<boolean> {
     const hashedKey = this.normalizedHashFunction(key);
     const entry = this.map[hashedKey];
     return !!entry && this.normalizedHashFunction(entry.originalKey) === hashedKey;
@@ -136,7 +145,7 @@ export class MemoryCacheMap<
     return Object.values(this.map).map(entry => entry.originalKey);
   }
 
-  public values(): V[] {
+  public async values(): Promise<V[]> {
     return Object.values(this.map).map(entry => entry.value);
   }
 
@@ -147,10 +156,10 @@ export class MemoryCacheMap<
     this.queryResultCache = {};
   }
 
-  public allIn(
+  public async allIn(
     locations: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): V[] {
-    const allValues = this.values();
+  ): Promise<V[]> {
+    const allValues = await this.values();
     if (locations.length === 0) {
       logger.debug('Returning all items, LocKeys is empty');
       return allValues;
@@ -167,30 +176,30 @@ export class MemoryCacheMap<
     }
   }
 
-  public contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): boolean {
+  public async contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<boolean> {
     logger.debug('contains', { query, locations });
-    const items = this.allIn(locations);
+    const items = await this.allIn(locations);
 
     return items.some((item) => isQueryMatch(item, query));
   }
 
-  public queryIn(
+  public async queryIn(
     query: ItemQuery,
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): V[] {
+  ): Promise<V[]> {
     logger.debug('queryIn', { query, locations });
-    const items = this.allIn(locations);
+    const items = await this.allIn(locations);
 
     return items.filter((item) => isQueryMatch(item, query));
   }
 
-  public clone(): MemoryCacheMap<V, S, L1, L2, L3, L4, L5> {
+  public async clone(): Promise<MemoryCacheMap<V, S, L1, L2, L3, L4, L5>> {
     const clone = new MemoryCacheMap<V, S, L1, L2, L3, L4, L5>(this.types);
     // Create an independent copy of the map.
     // This is a shallow copy of the entries, so items themselves are not deep-cloned.
     for (const key of this.keys()) {
       // get() will use the correct normalized retrieval
-      const value = this.get(key);
+      const value = await this.get(key);
       if (value) { // Should handle null/undefined values if they can be set
         clone.set(key, value);
       }
@@ -218,7 +227,7 @@ export class MemoryCacheMap<
     this.queryResultCache[queryHash] = entry;
   }
 
-  public getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null {
+  public async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
     logger.trace('getQueryResult', { queryHash });
     const entry = this.queryResultCache[queryHash];
 
@@ -246,7 +255,7 @@ export class MemoryCacheMap<
     });
   }
 
-  public invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): void {
+  public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
     logger.debug('invalidateLocation', { locations });
 
     if (locations.length === 0) {
@@ -256,7 +265,7 @@ export class MemoryCacheMap<
       this.invalidateItemKeys(primaryKeys);
     } else {
       // For contained items, get all items in the location and invalidate them
-      const itemsInLocation = this.allIn(locations);
+      const itemsInLocation = await this.allIn(locations);
       const keysToInvalidate = itemsInLocation.map(item => item.key);
       this.invalidateItemKeys(keysToInvalidate);
     }
