@@ -317,4 +317,49 @@ describe('get operation', () => {
       expect(resultContext.itemTtl).toBe(300000);
     });
   });
+
+  describe('in-flight request de-duplication', () => {
+    it('should deduplicate API calls for equivalent keys with different property order', async () => {
+      const keyVariant: ComKey<'test', 'container'> = {
+        loc: [{ lk: 'container1' as UUID, kt: 'container' }],
+        pk: '3' as UUID,
+        kt: 'test'
+      };
+
+      let resolveApi: (value: TestItem) => void;
+      const apiPromise = new Promise<TestItem>(resolve => { resolveApi = resolve; });
+      vi.mocked(mockApi.get).mockReturnValue(apiPromise);
+
+      const p1 = get(comKey1, context);
+      const p2 = get(keyVariant, context);
+
+      resolveApi(testItem3);
+
+      const [[, r1], [, r2]] = await Promise.all([p1, p2]);
+
+      expect(mockApi.get).toHaveBeenCalledTimes(1);
+      expect(r1).toEqual(testItem3);
+      expect(r2).toEqual(testItem3);
+    });
+
+    it('should deduplicate API calls for equivalent keys with string/number variations', async () => {
+      const priKeyStr: PriKey<'test'> = { kt: 'test', pk: '1' } as any;
+      const priKeyNum: PriKey<'test'> = { kt: 'test', pk: 1 } as any;
+
+      let resolveApi: (value: TestItem) => void;
+      const apiPromise = new Promise<TestItem>(resolve => { resolveApi = resolve; });
+      vi.mocked(mockApi.get).mockReturnValue(apiPromise);
+
+      const p1 = get(priKeyStr, context);
+      const p2 = get(priKeyNum, context);
+
+      resolveApi(testItem1);
+
+      const [[, r1], [, r2]] = await Promise.all([p1, p2]);
+
+      expect(mockApi.get).toHaveBeenCalledTimes(1);
+      expect(r1).toEqual(testItem1);
+      expect(r2).toEqual(testItem1);
+    });
+  });
 });
