@@ -1,7 +1,11 @@
 // Core cache functionality
 export { createCache, isCache } from './Cache';
-export type { Cache } from './Cache';
+export type { Cache, CacheInfo } from './Cache';
 export { CacheMap } from './CacheMap';
+
+// Cache statistics
+export { CacheStatsManager } from './CacheStats';
+export type { CacheStats } from './CacheStats';
 
 // Cache implementations
 export { MemoryCacheMap } from './memory/MemoryCacheMap';
@@ -53,12 +57,19 @@ export {
   validateSizeConfig
 } from './utils/CacheSize';
 export {
-  createEvictionStrategy
+  createEvictionStrategy,
+  EvictionManager
 } from './eviction';
 export type {
   CacheItemMetadata,
+  CacheMapMetadataProvider,
+  EvictionContext,
   EvictionStrategy
 } from './eviction';
+
+// TTL system
+export { TTLManager } from './ttl';
+export type { TTLConfig, TTLItemMetadata } from './ttl';
 export {
   validateEvictionStrategyConfig,
   validateLFUConfig,
@@ -71,6 +82,11 @@ export {
 export { createOperations } from './Operations';
 export type { Operations } from './Operations';
 
+// Event system
+export * from './events';
+
 // Aggregator functionality
 export { createAggregator, toCacheConfig } from './Aggregator';
 export type { Aggregator, CacheConfig, AggregateConfig } from './Aggregator';
+
+export * from './Registry';

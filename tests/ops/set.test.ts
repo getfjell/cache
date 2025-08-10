@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { set } from '../../src/ops/set';
 import { CacheContext } from '../../src/CacheContext';
 import { CacheMap } from '../../src/CacheMap';
+import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
 import { ClientApi } from '@fjell/client-api';
 import { ComKey, Item, PriKey, UUID } from '@fjell/core';
 
@@ -14,6 +15,7 @@ describe('set operation', () => {
   }
 
   // Test keys with various types
+  const key1: PriKey<'test'> = { kt: 'test', pk: '1' as UUID };
   const priKey1: PriKey<'test'> = { kt: 'test', pk: '1' as UUID };
   const priKey2: PriKey<'test'> = { kt: 'test', pk: 2 as any }; // Number pk for normalization testing
   const priKeyString: PriKey<'test'> = { kt: 'test', pk: 'abc123' as UUID };
@@ -39,7 +41,16 @@ describe('set operation', () => {
 
   let mockApi: ClientApi<TestItem, 'test', 'container'>;
   let mockCacheMap: CacheMap<TestItem, 'test', 'container'>;
+  let cacheMap: CacheMap<TestItem, 'test', 'container'>;
+  let mockEventEmitter: any;
+  let mockTTLManager: any;
+  let mockEvictionManager: any;
   let context: CacheContext<TestItem, 'test', 'container'>;
+
+  // Helper function to create test items
+  function createTestItem(key: PriKey<'test'> | ComKey<'test', 'container'>, id: string, name: string, value: number): TestItem {
+    return { key, id, name, value } as TestItem;
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -56,28 +67,68 @@ describe('set operation', () => {
       findOne: vi.fn()
     } as any;
 
-    // Mock CacheMap
+    // Mock CacheMap with actual storage
+    const mockStorage = new Map();
     mockCacheMap = {
-      get: vi.fn(),
-      getWithTTL: vi.fn(),
-      set: vi.fn(),
-      includesKey: vi.fn(),
-      remove: vi.fn(),
-      delete: vi.fn(),
-      clear: vi.fn(),
-      keys: vi.fn(),
-      values: vi.fn(),
+      get: vi.fn((key) => mockStorage.get(JSON.stringify(key))),
+      set: vi.fn((key, value) => mockStorage.set(JSON.stringify(key), value)),
+      includesKey: vi.fn((key) => mockStorage.has(JSON.stringify(key))),
+      delete: vi.fn((key) => mockStorage.delete(JSON.stringify(key))),
+      clear: vi.fn(() => mockStorage.clear()),
+      keys: vi.fn(() => Array.from(mockStorage.keys()).map(k => JSON.parse(k))),
+      values: vi.fn(() => Array.from(mockStorage.values())),
+      getMetadata: vi.fn(),
+      setMetadata: vi.fn(),
+      deleteMetadata: vi.fn(),
+      getAllMetadata: vi.fn(),
+      clearMetadata: vi.fn(),
+      getCurrentSize: vi.fn(),
+      getSizeLimits: vi.fn(),
       size: 0
     } as any;
+
+    // Mock EventEmitter
+    mockEventEmitter = {
+      emit: vi.fn(),
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+      getSubscriptionCount: vi.fn(),
+      getSubscriptions: vi.fn(),
+      destroy: vi.fn()
+    } as any;
+
+    // Mock TTLManager
+    mockTTLManager = {
+      isTTLEnabled: vi.fn().mockReturnValue(false),
+      getDefaultTTL: vi.fn().mockReturnValue(undefined),
+      validateItem: vi.fn().mockReturnValue(true),
+      onItemAdded: vi.fn(),
+      onItemAccessed: vi.fn(),
+      removeExpiredItems: vi.fn()
+    } as any;
+
+    // Mock EvictionManager
+    mockEvictionManager = {
+      onItemAdded: vi.fn().mockReturnValue([]),
+      onItemAccessed: vi.fn(),
+      onItemRemoved: vi.fn(),
+      getEvictionStrategyName: vi.fn().mockReturnValue(null),
+      isEvictionSupported: vi.fn().mockReturnValue(false),
+      performEviction: vi.fn().mockReturnValue([])
+    } as any;
+
+    // Setup shared cacheMap reference
+    cacheMap = mockCacheMap;
 
     // Setup context
     context = {
       api: mockApi,
       cacheMap: mockCacheMap,
+      eventEmitter: mockEventEmitter,
       pkType: 'test',
       options: {},
-      itemTtl: void 0,
-      queryTtl: void 0
+      ttlManager: mockTTLManager,
+      evictionManager: mockEvictionManager
     } as CacheContext<TestItem, 'test', 'container'>;
   });
 
@@ -281,13 +332,13 @@ describe('set operation', () => {
 
     it('should preserve the original context object', async () => {
       const originalOptions = context.options;
-      const originalTtl = context.itemTtl;
+      const originalTtlManager = context.ttlManager;
 
       const [returnedContext] = await set(priKey1, testItem1, context);
 
       expect(returnedContext).toBe(context);
       expect(returnedContext.options).toBe(originalOptions);
-      expect(returnedContext.itemTtl).toBe(originalTtl);
+      expect(returnedContext.ttlManager).toBe(originalTtlManager);
     });
 
     it('should handle single location key with string values', async () => {
@@ -331,6 +382,405 @@ describe('set operation', () => {
       expect(returnedContext).toBe(context);
       expect(resultItem).toBe(testItem1);
       expect(mockCacheMap.set).toHaveBeenCalledWith(priKey1, testItem1);
+    });
+  });
+
+  // Additional comprehensive tests for enhanced coverage
+  describe('normalization and key matching edge cases', () => {
+    it('should handle complex location normalization scenarios', () => {
+      // Test the private normalizeForComparison function indirectly
+      const compositeKey: ComKey<'test', 'container'> = {
+        kt: 'test',
+        pk: 'item1' as UUID,
+        loc: [{ kt: 'container', lk: 'container1' as UUID }]
+      };
+
+      const item = createTestItem(compositeKey, 'item1', 'Test Item 1', 100);
+
+      expect(() => {
+        set(compositeKey, item, context);
+      }).not.toThrow();
+    });
+
+    it('should handle complex nested location hierarchies', () => {
+      interface NestedItem extends Item<'test', 'container', 'subcategory'> {
+        id: string;
+        name: string;
+        value: number;
+      }
+
+      const nestedKey: ComKey<'test', 'container', 'subcategory'> = {
+        kt: 'test',
+        pk: 'item1' as UUID,
+        loc: [
+          { kt: 'container', lk: 'container1' as UUID },
+          { kt: 'subcategory', lk: 'sub1' as UUID }
+        ]
+      };
+
+      const nestedItem: NestedItem = {
+        key: nestedKey,
+        id: 'item1',
+        name: 'Nested Item 1',
+        value: 100,
+        events: {} as any
+      };
+
+      const nestedCacheMap = new MemoryCacheMap(['test', 'container', 'subcategory']);
+      const nestedContext = { ...context, cacheMap: nestedCacheMap };
+
+      expect(() => {
+        set(nestedKey, nestedItem, nestedContext);
+      }).not.toThrow();
+    });
+
+    it('should normalize keys correctly for comparison', () => {
+      // Test with various key formats that should be normalized equally
+      const key1: PriKey<'test'> = { kt: 'test', pk: 'item1' as UUID };
+      const key2: PriKey<'test'> = { kt: 'test', pk: 'item1' as UUID };
+
+      const item1 = createTestItem(key1, 'item1', 'Test Item 1', 100);
+      const item2 = createTestItem(key2, 'item1', 'Test Item 1 Updated', 200);
+
+      // Both should work without key mismatch errors
+      expect(() => {
+        set(key1, item1, context);
+      }).not.toThrow();
+
+      expect(() => {
+        set(key2, item2, context);
+      }).not.toThrow();
+    });
+
+    it('should handle keys with undefined location arrays', () => {
+      const keyWithUndefinedLoc = {
+        kt: 'test',
+        pk: 'item1' as UUID,
+        loc: undefined
+      } as any;
+
+      const item = createTestItem(keyWithUndefinedLoc, 'item1', 'Test Item 1', 100);
+
+      // Should handle this gracefully during normalization
+      expect(() => {
+        set(keyWithUndefinedLoc, item, context);
+      }).not.toThrow();
+    });
+
+    it('should handle keys with empty location arrays', () => {
+      const keyWithEmptyLoc = {
+        kt: 'test',
+        pk: 'item1' as UUID,
+        loc: []
+      } as any;
+
+      const item = createTestItem(keyWithEmptyLoc, 'item1', 'Test Item 1', 100);
+
+      // Should handle this gracefully during normalization
+      expect(() => {
+        set(keyWithEmptyLoc, item, context);
+      }).not.toThrow();
+    });
+
+    it('should handle location items with various key formats', () => {
+      const compositeKey: ComKey<'test', 'container'> = {
+        kt: 'test',
+        pk: 'item1' as UUID,
+        loc: [{ kt: 'container', lk: 'container1' as UUID }]
+      };
+
+      // Test item with location having extra properties
+      const itemWithExtendedLoc = {
+        key: {
+          kt: 'test',
+          pk: 'item1' as UUID,
+          loc: [{
+            kt: 'container',
+            lk: 'container1' as UUID,
+            extraProp: 'should-be-ignored'
+          }]
+        },
+        id: 'item1',
+        name: 'Test Item 1',
+        value: 100,
+        events: {} as any
+      } as any;
+
+      const compositeContext = { ...context, cacheMap: new MemoryCacheMap(['test', 'container']) };
+
+      expect(() => {
+        set(compositeKey, itemWithExtendedLoc, compositeContext);
+      }).not.toThrow();
+    });
+  });
+
+  describe('TTL manager integration edge cases', () => {
+    it('should handle TTL manager errors by throwing', async () => {
+      const errorTTLManager = {
+        ...mockTTLManager,
+        onItemAdded: vi.fn(() => { throw new Error('TTL Manager error'); })
+      };
+
+      const errorContext = { ...context, ttlManager: errorTTLManager };
+      const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
+
+      // Should throw when TTL manager fails since there's no error handling
+      await expect(set(key1, item, errorContext)).rejects.toThrow('TTL Manager error');
+    });
+
+    it('should call TTL manager with correct parameters', async () => {
+      const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
+      await set(key1, item, context);
+
+      expect(mockTTLManager.onItemAdded).toHaveBeenCalledWith(
+        JSON.stringify(key1),
+        mockCacheMap
+      );
+    });
+
+    it('should handle TTL manager returning undefined', async () => {
+      const undefinedTTLManager = {
+        ...mockTTLManager,
+        onItemAdded: vi.fn(() => undefined)
+      };
+
+      const undefinedContext = { ...context, ttlManager: undefinedTTLManager };
+      const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
+
+      const [returnedContext, returnedItem] = await set(key1, item, undefinedContext);
+
+      expect(returnedContext).toBe(undefinedContext);
+      expect(returnedItem).toBe(item);
+      expect(mockCacheMap.get(key1)).toEqual(item);
+    });
+  });
+
+  describe('eviction manager integration edge cases', () => {
+    it('should handle eviction manager errors by throwing', async () => {
+      const errorEvictionManager = {
+        ...mockEvictionManager,
+        onItemAdded: vi.fn(() => { throw new Error('Eviction Manager error'); })
+      };
+
+      const errorContext = { ...context, evictionManager: errorEvictionManager };
+      const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
+
+      // Should throw when eviction manager fails since there's no error handling
+      await expect(set(key1, item, errorContext)).rejects.toThrow('Eviction Manager error');
+    });
+
+    it('should call eviction manager with correct parameters for new item', async () => {
+      const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
+      await set(key1, item, context);
+
+      expect(mockEvictionManager.onItemAdded).toHaveBeenCalledWith(
+        JSON.stringify(key1),
+        item,
+        mockCacheMap
+      );
+    });
+
+    it('should call eviction manager with correct parameters for item update', async () => {
+      const item1 = createTestItem(key1, 'item1', 'Test Item 1', 100);
+      const item2 = createTestItem(key1, 'item1', 'Test Item 1 Updated', 200);
+
+      // Set initial item
+      await set(key1, item1, context);
+      vi.clearAllMocks();
+
+      // Update item
+      await set(key1, item2, context);
+
+      // Should still call onItemAdded for updates (current implementation behavior)
+      expect(mockEvictionManager.onItemAdded).toHaveBeenCalledWith(
+        JSON.stringify(key1),
+        item2,
+        mockCacheMap
+      );
+    });
+  });
+
+  describe('event emitter integration edge cases', () => {
+    it('should emit correct events for new item', async () => {
+      const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
+      await set(key1, item, context);
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'item_set',
+          key: key1,
+          item: item,
+          previousItem: undefined,
+          source: 'cache'
+        })
+      );
+    });
+
+    it('should emit correct events for item update', async () => {
+      const item1 = createTestItem(key1, 'item1', 'Test Item 1', 100);
+      const item2 = createTestItem(key1, 'item1', 'Test Item 1 Updated', 200);
+
+      // Set initial item
+      await set(key1, item1, context);
+      vi.clearAllMocks();
+
+      // Update item
+      await set(key1, item2, context);
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'item_set',
+          key: key1,
+          item: item2,
+          previousItem: item1,
+          source: 'cache'
+        })
+      );
+    });
+
+    it('should handle event emitter errors by throwing', async () => {
+      const errorEventEmitter = {
+        ...mockEventEmitter,
+        emit: vi.fn(() => { throw new Error('Event Emitter error'); })
+      };
+
+      const errorContext = { ...context, eventEmitter: errorEventEmitter };
+      const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
+
+      // Should throw when event emitter fails since there's no error handling
+      await expect(set(key1, item, errorContext)).rejects.toThrow('Event Emitter error');
+    });
+
+    it('should emit events with null previous for new items', async () => {
+      const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
+      await set(key1, item, context);
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'item_set',
+          key: key1,
+          item: item,
+          previousItem: undefined,
+          source: 'cache'
+        })
+      );
+    });
+  });
+
+  describe('complex integration scenarios', () => {
+    it('should handle all managers throwing errors simultaneously', async () => {
+      const errorTTLManager = {
+        ...mockTTLManager,
+        onItemAdded: vi.fn(() => { throw new Error('TTL error'); })
+      };
+
+      const errorEvictionManager = {
+        ...mockEvictionManager,
+        onItemAdded: vi.fn(() => { throw new Error('Eviction error'); })
+      };
+
+      const errorEventEmitter = {
+        ...mockEventEmitter,
+        emit: vi.fn(() => { throw new Error('Event error'); })
+      };
+
+      const errorContext = {
+        ...context,
+        ttlManager: errorTTLManager,
+        evictionManager: errorEvictionManager,
+        eventEmitter: errorEventEmitter
+      };
+
+      const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
+
+      // Should throw when first manager (TTL) fails
+      await expect(set(key1, item, errorContext)).rejects.toThrow('TTL error');
+    });
+
+    it('should maintain consistency during rapid successive sets', async () => {
+      const items = [];
+      for (let i = 0; i < 100; i++) {
+        const item = createTestItem(key1, 'item1', `Test Item ${i}`, i);
+        items.push(item);
+      }
+
+      // Rapidly set many items with the same key
+      for (const item of items) {
+        await set(key1, item, context);
+      }
+
+      // Should have the last item
+      const finalItem = mockCacheMap.get(key1);
+      expect(finalItem?.name).toBe('Test Item 99');
+      expect(finalItem?.value).toBe(99);
+    });
+
+    it('should handle mixed key types in rapid succession', () => {
+      const priKey: PriKey<'test'> = { kt: 'test', pk: 'primary1' as UUID };
+      const comKey: ComKey<'test', 'container'> = {
+        kt: 'test',
+        pk: 'composite1' as UUID,
+        loc: [{ kt: 'container', lk: 'container1' as UUID }]
+      };
+
+      const priItem = createTestItem(priKey, 'primary1', 'Primary Item', 100);
+      const comItem = createTestItem(comKey, 'composite1', 'Composite Item', 200);
+
+      const compositeContext = { ...context, cacheMap: new MemoryCacheMap(['test', 'container']) };
+
+      // Set both types rapidly
+      expect(() => {
+        set(priKey, priItem, context);
+        set(comKey, comItem, compositeContext);
+        set(priKey, priItem, context);
+        set(comKey, comItem, compositeContext);
+      }).not.toThrow();
+    });
+  });
+
+  describe('memory and performance considerations', () => {
+    it('should handle large items efficiently', async () => {
+      const largeData = 'x'.repeat(100000);
+      const largeItem = createTestItem(key1, 'item1', largeData, 100);
+
+      const startTime = Date.now();
+      await set(key1, largeItem, context);
+      const endTime = Date.now();
+
+      expect(endTime - startTime).toBeLessThan(100); // Should be fast
+      expect(mockCacheMap.get(key1)?.name).toBe(largeData);
+    });
+
+    it('should handle items with complex nested objects', async () => {
+      const complexItem = createTestItem(key1, 'item1', 'Complex Item', 100);
+      (complexItem as any).nested = {
+        level1: {
+          level2: {
+            level3: {
+              data: 'deep data',
+              array: [1, 2, 3, { nested: 'value' }],
+              date: new Date(),
+              regexp: /test/g
+            }
+          }
+        }
+      };
+
+      await set(key1, complexItem, context);
+
+      const retrieved = mockCacheMap.get(key1);
+      expect((retrieved as any).nested.level1.level2.level3.data).toBe('deep data');
+    });
+
+    it('should handle items with circular references gracefully', async () => {
+      const circularItem: any = createTestItem(key1, 'item1', 'Circular Item', 100);
+      circularItem.self = circularItem; // Create circular reference
+
+      await set(key1, circularItem, context);
+
+      const retrieved = mockCacheMap.get(key1);
+      expect(retrieved?.id).toBe('item1');
+      expect((retrieved as any).self).toBe(retrieved);
     });
   });
 });

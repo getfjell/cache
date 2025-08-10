@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 /**
  * Aggregator Example
  *
@@ -128,7 +128,7 @@ const createSupportTicket = (
   priority: 'low' | 'medium' | 'high' | 'urgent',
   status: 'open' | 'in-progress' | 'resolved' | 'closed',
   description: string,
-  // eslint-disable-next-line max-params
+
   orderId?: string): SupportTicket => {
   const ticket: SupportTicket = {
     id, customerId, subject, priority, status, description, orderId,
@@ -216,7 +216,7 @@ export const runAggregatorExample = async (): Promise<void> => {
   console.log('Step 4: Order aggregation with customer data');
   console.log('--------------------------------------------');
 
-  const [, orders] = await orderAggregator.all();
+  const orders = await orderAggregator.all();
   console.log(`📋 Fetched ${orders.length} orders`);
 
   for (const order of orders) {
@@ -238,7 +238,7 @@ export const runAggregatorExample = async (): Promise<void> => {
   console.log('\n\nStep 5: Support ticket aggregation with multiple references');
   console.log('----------------------------------------------------------');
 
-  const [, tickets] = await ticketAggregator.all();
+  const tickets = await ticketAggregator.all();
   console.log(`🎫 Fetched ${tickets.length} support tickets`);
 
   for (const ticket of tickets) {
@@ -270,7 +270,7 @@ export const runAggregatorExample = async (): Promise<void> => {
   console.log('\n\nStep 6: Individual item retrieval with aggregation');
   console.log('-------------------------------------------------');
 
-  const [, specificOrder] = await orderAggregator.get(order1.key);
+  const specificOrder = await orderAggregator.get(order1.key);
   if (specificOrder) {
     console.log(`🔍 Retrieved specific order: ${specificOrder.id}`);
 

@@ -1,4 +1,4 @@
-import { CacheItemMetadata, EvictionStrategy } from '../EvictionStrategy';
+import { CacheItemMetadata, CacheMapMetadataProvider, EvictionContext, EvictionStrategy } from '../EvictionStrategy';
 import { DEFAULT_LFU_CONFIG, LFUConfig } from '../EvictionStrategyConfig';
 import { createValidatedConfig } from '../EvictionStrategyValidation';
 
@@ -114,6 +114,9 @@ class CountMinSketch {
  * When configured with default settings, behaves like traditional LFU for backwards compatibility
  */
 export class LFUEvictionStrategy extends EvictionStrategy {
+  getStrategyName(): string {
+    return 'lfu';
+  }
   private readonly config: LFUConfig;
   private readonly sketch: CountMinSketch | null;
   private lastDecayTime: number;
@@ -134,33 +137,42 @@ export class LFUEvictionStrategy extends EvictionStrategy {
     this.lastDecayTime = Date.now();
   }
 
-  selectForEviction(items: Map<string, CacheItemMetadata>): string | null {
-    if (items.size === 0) return null;
+  selectForEviction(
+    metadataProvider: CacheMapMetadataProvider,
+    context: EvictionContext
+  ): string[] {
+    const allMetadata = metadataProvider.getAllMetadata();
+    if (allMetadata.size === 0) return [];
+
+    if (!this.isEvictionNeeded(context)) {
+      return [];
+    }
+
+    const evictionCount = this.calculateEvictionCount(context);
+    if (evictionCount <= 0) return [];
 
     // Apply periodic decay if needed
     this.applyPeriodicDecay();
 
-    let leastUsedKey: string | null = null;
-    let lowestFrequency = Infinity;
-    let oldestAccessTime = Infinity;
+    // Sort items by frequency (lowest first), then by age (oldest first)
+    const sortedEntries = Array.from(allMetadata.entries()).sort((a, b) => {
+      const freqA = this.getEffectiveFrequency(a[0], a[1]);
+      const freqB = this.getEffectiveFrequency(b[0], b[1]);
 
-    for (const [key, metadata] of items) {
-      const frequency = this.getEffectiveFrequency(key, metadata);
-
-      // Primary criterion: frequency score
-      // Secondary criterion: access time (older items preferred for eviction)
-      if (frequency < lowestFrequency ||
-          (frequency === lowestFrequency && metadata.lastAccessedAt < oldestAccessTime)) {
-        lowestFrequency = frequency;
-        oldestAccessTime = metadata.lastAccessedAt;
-        leastUsedKey = key;
+      if (freqA !== freqB) {
+        return freqA - freqB; // Lower frequency first
       }
-    }
 
-    return leastUsedKey;
+      return a[1].lastAccessedAt - b[1].lastAccessedAt; // Older first
+    });
+
+    return sortedEntries.slice(0, evictionCount).map(([key]) => key);
   }
 
-  onItemAccessed(key: string, metadata: CacheItemMetadata): void {
+  onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): void {
+    const metadata = metadataProvider.getMetadata(key);
+    if (!metadata) return;
+
     const now = Date.now();
     metadata.lastAccessedAt = now;
     metadata.accessCount++;
@@ -173,34 +185,40 @@ export class LFUEvictionStrategy extends EvictionStrategy {
       metadata.rawFrequency = metadata.accessCount; // Use access count in simple mode
     }
 
-    // Calculate decay and update frequency score (only if decay is enabled)
-    if ((this.config.decayFactor ?? 0) > 0) {
-      metadata.frequencyScore = this.calculateFrequencyScore(metadata, now);
-      metadata.lastFrequencyUpdate = now;
-    }
+    // Always calculate frequency score for consistency
+    metadata.frequencyScore = this.calculateFrequencyScore(metadata, now);
+    metadata.lastFrequencyUpdate = now;
+
+    metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemAdded(key: string, metadata: CacheItemMetadata): void {
+  onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): void {
     const now = Date.now();
-    metadata.addedAt = now;
-    metadata.lastAccessedAt = now;
-    metadata.accessCount = 1;
-    metadata.rawFrequency = 1;
+    const metadata: CacheItemMetadata = {
+      key,
+      addedAt: now,
+      lastAccessedAt: now,
+      accessCount: 1,
+      estimatedSize,
+      rawFrequency: 1
+    };
 
-    if ((this.config.decayFactor ?? 0) > 0) {
-      metadata.frequencyScore = 1;
-      metadata.lastFrequencyUpdate = now;
-    }
+    // Always initialize frequencyScore and lastFrequencyUpdate for consistency
+    metadata.frequencyScore = 1;
+    metadata.lastFrequencyUpdate = now;
 
     // Initialize in sketch
     if (this.sketch) {
       this.sketch.increment(key);
     }
+
+    metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemRemoved(): void {
+  onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): void {
     // Note: For Count-Min Sketch, we don't remove entries as it's a probabilistic structure
     // The decay mechanism will naturally reduce the impact of removed items over time
+    metadataProvider.deleteMetadata(key);
   }
 
   /**
@@ -230,6 +248,11 @@ export class LFUEvictionStrategy extends EvictionStrategy {
    */
   private calculateFrequencyScore(metadata: CacheItemMetadata, currentTime: number): number {
     const rawFreq = metadata.rawFrequency || metadata.accessCount;
+
+    // If decay is disabled, just return raw frequency
+    if ((this.config.decayFactor ?? 0) === 0) {
+      return rawFreq;
+    }
 
     if (typeof metadata.lastFrequencyUpdate !== 'number') {
       return rawFreq;

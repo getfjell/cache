@@ -23,14 +23,55 @@ describe('remove operation', () => {
 
     // Setup mock cache map
     mockCacheMap = {
+      get: vi.fn(),
+      set: vi.fn(),
+      includesKey: vi.fn(),
       delete: vi.fn(),
+      clear: vi.fn(),
+      keys: vi.fn(),
+      values: vi.fn(),
+      getMetadata: vi.fn(),
+      setMetadata: vi.fn(),
+      deleteMetadata: vi.fn(),
+      getAllMetadata: vi.fn(),
+      clearMetadata: vi.fn(),
+      getCurrentSize: vi.fn(),
+      getSizeLimits: vi.fn(),
+      size: 0
     };
+
+    // Mock EventEmitter
+    const mockEventEmitter = {
+      emit: vi.fn()
+    };
+
+    // Mock TTLManager
+    const mockTtlManager = {
+      isTTLEnabled: vi.fn().mockReturnValue(false),
+      getDefaultTTL: vi.fn().mockReturnValue(undefined),
+      validateItem: vi.fn().mockReturnValue(true),
+      onItemAdded: vi.fn(),
+      onItemAccessed: vi.fn(),
+      removeExpiredItems: vi.fn()
+    } as any;
+
+    // Mock EvictionManager
+    const mockEvictionManager = {
+      onItemAdded: vi.fn().mockReturnValue([]),
+      onItemAccessed: vi.fn(),
+      getPolicy: vi.fn()
+    } as any;
 
     // Setup context
     context = {
       api: mockApi,
       cacheMap: mockCacheMap,
-    } as CacheContext<TestItem, 'test', 'container'>;
+      eventEmitter: mockEventEmitter,
+      pkType: 'test',
+      options: { cacheType: 'memory' },
+      ttlManager: mockTtlManager,
+      evictionManager: mockEvictionManager
+    } as any;
   });
 
   describe('input validation', () => {
@@ -150,7 +191,7 @@ describe('remove operation', () => {
         ],
       };
 
-      const result = await remove(deepComKey, context);
+      const result = await remove(deepComKey, context as any);
 
       expect(mockApi.remove).toHaveBeenCalledWith(deepComKey);
       expect(mockCacheMap.delete).toHaveBeenCalledWith(deepComKey);
@@ -307,7 +348,7 @@ describe('remove operation', () => {
     });
 
     it('should handle composite key with empty loc array as valid', async () => {
-      const keyWithEmptyLoc: ComKey<'test', 'container'> = {
+      const keyWithEmptyLoc: any = {
         kt: 'test',
         pk: '123e4567-e89b-12d3-a456-426614174000',
         loc: [],
@@ -393,7 +434,7 @@ describe('remove operation', () => {
         kt: 'test',
         pk: '123e4567-e89b-12d3-a456-426614174000',
       };
-      // eslint-disable-next-line no-undefined
+
       mockApi.remove.mockRejectedValue(undefined);
 
       await expect(remove(validKey, context)).rejects.toBeUndefined();

@@ -1,6 +1,12 @@
 // Core eviction strategy interfaces and base class
-export { EvictionStrategy, CacheItemMetadata } from './EvictionStrategy';
+export {
+  EvictionStrategy,
+  CacheItemMetadata,
+  CacheMapMetadataProvider,
+  EvictionContext
+} from './EvictionStrategy';
 export { createEvictionStrategy } from './EvictionStrategyFactory';
+export { EvictionManager } from './EvictionManager';
 
 // Individual eviction strategy implementations
 export { LRUEvictionStrategy } from './strategies/LRUEvictionStrategy';

@@ -4,9 +4,32 @@ import { ClientApi } from "@fjell/client-api";
 import { CacheMap } from "./CacheMap";
 import { createOperations, Operations } from "./Operations";
 import { createCacheMap, createOptions, Options } from "./Options";
+import { EvictionManager } from "./eviction/EvictionManager";
+import { createEvictionStrategy } from "./eviction/EvictionStrategyFactory";
+import { TTLManager } from "./ttl/TTLManager";
 import LibLogger from "./logger";
+import { CacheEventEmitter } from "./events/CacheEventEmitter";
+import { CacheEventListener, CacheSubscription, CacheSubscriptionOptions } from "./events/CacheEventTypes";
+import { CacheEventFactory } from "./events/CacheEventFactory";
+import { CacheStats, CacheStatsManager } from "./CacheStats";
 
 const logger = LibLogger.get('Cache');
+
+/**
+ * Cache configuration information exposed to client applications
+ */
+export interface CacheInfo {
+  /** The implementation type in format "<category>/<implementation>" */
+  implementationType: string;
+  /** The eviction policy being used (if any) */
+  evictionPolicy?: string;
+  /** Default TTL in milliseconds (if configured) */
+  defaultTTL?: number;
+  /** Whether TTL is supported by this implementation */
+  supportsTTL: boolean;
+  /** Whether eviction is supported by this implementation */
+  supportsEviction: boolean;
+}
 
 /**
  * The Cache interface extends the base Instance from @fjell/registry and adds cache operations
@@ -41,6 +64,53 @@ export interface Cache<
 
   /** Cache configuration options */
   options?: Options<V, S, L1, L2, L3, L4, L5>;
+
+  /** Event emitter for cache events */
+  eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>;
+
+  /** Eviction manager for handling cache eviction independently of storage */
+  evictionManager: EvictionManager;
+
+  /** TTL manager for handling time-to-live independently of storage */
+  ttlManager: TTLManager;
+
+  /** Statistics manager for tracking cache metrics */
+  statsManager: CacheStatsManager;
+
+  /**
+   * Get cache configuration information for client applications
+   * Provides visibility into implementation type, eviction policy, TTL settings, and capabilities
+   */
+  getCacheInfo(): CacheInfo;
+
+  /**
+   * Get current cache statistics
+   * @returns Current cache statistics including hits, misses, requests, and subscription counts
+   */
+  getStats(): CacheStats;
+
+  /**
+   * Subscribe to cache events
+   * @param listener Function to call when events occur
+   * @param options Optional filters for which events to receive
+   * @returns Subscription object with unsubscribe method
+   */
+  subscribe(
+    listener: CacheEventListener<V, S, L1, L2, L3, L4, L5>,
+    options?: CacheSubscriptionOptions<S, L1, L2, L3, L4, L5>
+  ): CacheSubscription;
+
+  /**
+   * Unsubscribe from cache events
+   * @param subscription Subscription to cancel
+   * @returns True if subscription was found and cancelled
+   */
+  unsubscribe(subscription: CacheSubscription): boolean;
+
+  /**
+   * Destroy the cache and clean up all resources
+   */
+  destroy(): void;
 }
 
 export const createCache = <
@@ -68,17 +138,107 @@ export const createCache = <
   // Get the primary key type from the coordinate
   const pkType = coordinate.kta[0] as S;
 
-  // Create operations
-  const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions);
+  // Create event emitter
+  const eventEmitter = new CacheEventEmitter<V, S, L1, L2, L3, L4, L5>();
 
-  return {
+  // Create eviction manager
+  const evictionManager = new EvictionManager();
+
+  // Determine eviction configuration - prioritize top-level evictionConfig
+  const evictionConfig = completeOptions.evictionConfig;
+  if (!evictionConfig &&
+    completeOptions.memoryConfig?.size?.evictionPolicy &&
+    (completeOptions.memoryConfig.size.maxItems || completeOptions.memoryConfig.size.maxSizeBytes)) {
+  }
+
+  if (evictionConfig) {
+    // Set eviction strategy from unified config
+    const strategy = createEvictionStrategy(
+      evictionConfig.type || 'lru',
+      completeOptions.memoryConfig?.maxItems,
+      evictionConfig
+    );
+    evictionManager.setEvictionStrategy(strategy);
+  }
+
+  // Create TTL manager with proper configuration priority: memoryConfig.ttl || ttl
+  const ttlManager = new TTLManager({
+    defaultTTL: completeOptions.ttl,
+    autoCleanup: true,
+    validateOnAccess: true
+  });
+
+  // Create statistics manager
+  const statsManager = new CacheStatsManager();
+
+  // Note: EvictionManager operates independently of CacheMap implementations
+  // and is passed through CacheContext to operations for external eviction management
+
+  // Create operations with event emitter, eviction manager, and stats manager
+  const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions, eventEmitter, ttlManager, evictionManager, statsManager);
+
+  const cache: Cache<V, S, L1, L2, L3, L4, L5> = {
     coordinate,
     registry,
     api,
     cacheMap,
     operations,
-    options: completeOptions
+    options: completeOptions,
+    eventEmitter,
+    evictionManager,
+    ttlManager,
+    statsManager,
+    getCacheInfo: () => {
+      const evictionStrategyName = evictionManager.getEvictionStrategyName();
+      const cacheInfo: CacheInfo = {
+        implementationType: cacheMap.implementationType,
+        defaultTTL: ttlManager.getDefaultTTL(),
+        // Cache supports TTL if the CacheMap supports it OR if TTL is configured
+        supportsTTL: (cacheMap as any).supportsTTL?.() || !!ttlManager.getDefaultTTL(),
+        supportsEviction: evictionManager.isEvictionSupported()
+      };
+
+      if (evictionStrategyName) {
+        cacheInfo.evictionPolicy = evictionStrategyName;
+      }
+
+      return cacheInfo;
+    },
+    getStats: () => statsManager.getStats(),
+    subscribe: (listener, options) => {
+      statsManager.incrementSubscriptions();
+      return eventEmitter.subscribe(listener, options);
+    },
+    unsubscribe: (subscription) => {
+      const result = eventEmitter.unsubscribe(subscription.id);
+      if (result) {
+        statsManager.incrementUnsubscriptions();
+      }
+      return result;
+    },
+    destroy: () => {
+      // Clean up event emitter
+      eventEmitter.destroy();
+
+      // Clean up TTL manager
+      if (ttlManager && typeof ttlManager.destroy === 'function') {
+        ttlManager.destroy();
+      }
+
+      // Clean up eviction manager (EvictionManager doesn't need explicit cleanup)
+      // evictionManager is stateless and doesn't require destruction
+
+      // Clean up cache map if it has a destroy method
+      if (cacheMap && typeof (cacheMap as any).destroy === 'function') {
+        (cacheMap as any).destroy();
+      }
+
+      // Notify CacheEventFactory that an instance is being destroyed
+      CacheEventFactory.destroyInstance();
+    }
   };
+
+  return cache;
 };
 
 export const isCache = (cache: any): cache is Cache<any, any, any, any, any, any, any> => {

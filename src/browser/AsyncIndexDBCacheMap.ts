@@ -10,6 +10,7 @@ import {
 } from "@fjell/core";
 import { createNormalizedHashFunction, isLocKeyArrayEqual } from "../normalization";
 import LibLogger from "../logger";
+import safeStringify from 'fast-safe-stringify';
 
 const logger = LibLogger.get("AsyncIndexDBCacheMap");
 
@@ -347,8 +348,8 @@ export class AsyncIndexDBCacheMap<
 
   // Async Query result caching methods
 
-  async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], ttl?: number): Promise<void> {
-    logger.trace('setQueryResult', { queryHash, itemKeys, ttl });
+  async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
+    logger.trace('setQueryResult', { queryHash, itemKeys });
     try {
       return new Promise((resolve, reject) => {
         const request = indexedDB.open(this.dbName, this.version);
@@ -364,12 +365,11 @@ export class AsyncIndexDBCacheMap<
           const store = transaction.objectStore(this.storeName);
 
           const entry = {
-            itemKeys,
-            expiresAt: ttl ? Date.now() + ttl : null
+            itemKeys
           };
 
           const queryKey = `query:${queryHash}`;
-          const putRequest = store.put(JSON.stringify(entry), queryKey);
+          const putRequest = store.put(safeStringify(entry), queryKey);
 
           putRequest.onerror = () => {
             logger.error('Failed to store query result', { queryHash, error: putRequest.error });
@@ -421,23 +421,14 @@ export class AsyncIndexDBCacheMap<
 
               const entry = JSON.parse(result);
 
-              // Handle both old format (just array) and new format (with expiration)
+              // Handle both old format (just array) and new format
               if (Array.isArray(entry)) {
-                // Old format without expiration - return as is
+                // Old format - return as is
                 resolve(entry);
                 return;
               }
 
-              // New format with expiration
-              if (entry.expiresAt && Date.now() > entry.expiresAt) {
-                logger.trace('Query result expired, removing', { queryHash, expiresAt: entry.expiresAt });
-                // Remove expired entry
-                const deleteTransaction = db.transaction([this.storeName], 'readwrite');
-                const deleteStore = deleteTransaction.objectStore(this.storeName);
-                deleteStore.delete(queryKey);
-                resolve(null);
-                return;
-              }
+              // New format
 
               resolve(entry.itemKeys || null);
             } catch (parseError) {

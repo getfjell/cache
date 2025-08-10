@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   ARCEvictionStrategy,
   CacheItemMetadata,
+  CacheMapMetadataProvider,
   createEvictionStrategy,
+  EvictionContext,
   FIFOEvictionStrategy,
   LFUEvictionStrategy,
   LRUEvictionStrategy,
@@ -13,10 +15,26 @@ import {
 
 describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
   let mockMetadata: Map<string, CacheItemMetadata>;
+  let mockMetadataProvider: CacheMapMetadataProvider;
+  let mockContext: EvictionContext;
   const baseTime = Date.now();
 
   beforeEach(() => {
     mockMetadata = new Map();
+    mockMetadataProvider = {
+      getMetadata: (key: string) => mockMetadata.get(key) || null,
+      setMetadata: (key: string, metadata: CacheItemMetadata) => mockMetadata.set(key, metadata),
+      deleteMetadata: (key: string) => mockMetadata.delete(key),
+      getAllMetadata: () => mockMetadata,
+      clearMetadata: () => mockMetadata.clear(),
+      getCurrentSize: () => ({ itemCount: mockMetadata.size, sizeBytes: Array.from(mockMetadata.values()).reduce((sum, m) => sum + m.estimatedSize, 0) }),
+      getSizeLimits: () => ({ maxItems: 100, maxSizeBytes: 10000 })
+    };
+    mockContext = {
+      currentSize: { itemCount: 0, sizeBytes: 0 },
+      limits: { maxItems: 100, maxSizeBytes: 10000 },
+      newItemSize: 100
+    };
   });
 
   const createMockMetadata = (
@@ -41,12 +59,18 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
     });
 
     it('should handle empty metadata map', () => {
-      expect(strategy.selectForEviction(mockMetadata)).toBeNull();
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result).toEqual([]);
     });
 
     it('should handle single item', () => {
       mockMetadata.set('item1', createMockMetadata('item1', 0, 100, 5));
-      expect(strategy.selectForEviction(mockMetadata)).toBe('item1');
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 1;
+      mockContext.limits.maxItems = 0;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result).toContain('item1');
     });
 
     it('should handle items with identical access times', () => {
@@ -54,8 +78,13 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       mockMetadata.set('item2', createMockMetadata('item2', 10, 100, 3)); // Same lastAccessedAt
       mockMetadata.set('item3', createMockMetadata('item3', 20, 200, 1));
 
-      const selected = strategy.selectForEviction(mockMetadata);
-      expect(['item1', 'item2']).toContain(selected); // Either could be selected
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 3;
+      mockContext.limits.maxItems = 2;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result.length).toBeGreaterThan(0);
+      expect(['item1', 'item2']).toContain(result[0]); // Either could be selected
     });
 
     it('should handle very large time differences', () => {
@@ -63,31 +92,43 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       mockMetadata.set('item1', createMockMetadata('item1', 0, 100, 5));
       mockMetadata.set('item2', createMockMetadata('item2', 0, farFuture - baseTime, 1));
 
-      expect(strategy.selectForEviction(mockMetadata)).toBe('item1');
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 2;
+      mockContext.limits.maxItems = 1;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result).toContain('item1');
     });
 
     it('should handle zero and negative access counts gracefully', () => {
       const metadata = createMockMetadata('item1', 0, 100, 0);
-      strategy.onItemAccessed('item1', metadata);
-      expect(metadata.accessCount).toBe(1);
+      mockMetadata.set('item1', metadata);
+
+      strategy.onItemAccessed('item1', mockMetadataProvider);
+      let updatedMetadata = mockMetadataProvider.getMetadata('item1')!;
+      expect(updatedMetadata.accessCount).toBe(1);
 
       // Test negative count (shouldn't happen in practice)
-      metadata.accessCount = -5;
-      strategy.onItemAccessed('item1', metadata);
-      expect(metadata.accessCount).toBe(-4);
+      updatedMetadata.accessCount = -5;
+      mockMetadata.set('item1', updatedMetadata);
+      strategy.onItemAccessed('item1', mockMetadataProvider);
+      updatedMetadata = mockMetadataProvider.getMetadata('item1')!;
+      expect(updatedMetadata.accessCount).toBe(-4);
     });
 
     it('should update timestamps correctly on rapid access', () => {
       const metadata = createMockMetadata('item1', 0, 100, 5);
+      mockMetadata.set('item1', metadata);
 
       // Access multiple times rapidly
       for (let i = 0; i < 10; i++) {
-        strategy.onItemAccessed('item1', metadata);
+        strategy.onItemAccessed('item1', mockMetadataProvider);
       }
 
       // Just check that access count is updated correctly - timestamp checks are flaky
-      expect(metadata.accessCount).toBe(15); // 5 + 10
-      expect(typeof metadata.lastAccessedAt).toBe('number');
+      const updatedMetadata = mockMetadataProvider.getMetadata('item1')!;
+      expect(updatedMetadata.accessCount).toBe(15); // 5 + 10
+      expect(typeof updatedMetadata.lastAccessedAt).toBe('number');
     });
   });
 
@@ -103,7 +144,12 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       mockMetadata.set('item2', createMockMetadata('item2', 10, 200, 1));
       mockMetadata.set('item3', createMockMetadata('item3', 20, 300, 5));
 
-      expect(strategy.selectForEviction(mockMetadata)).toBe('item1');
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 3;
+      mockContext.limits.maxItems = 2;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result).toContain('item1');
     });
 
     it('should handle items with identical access counts', () => {
@@ -111,8 +157,13 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       mockMetadata.set('item2', createMockMetadata('item2', 10, 200, 3)); // Same access count
       mockMetadata.set('item3', createMockMetadata('item3', 20, 300, 5));
 
-      const selected = strategy.selectForEviction(mockMetadata);
-      expect(['item1', 'item2']).toContain(selected);
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 3;
+      mockContext.limits.maxItems = 2;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result.length).toBeGreaterThan(0);
+      expect(['item1', 'item2']).toContain(result[0]);
     });
 
     it('should handle very high access counts', () => {
@@ -120,7 +171,12 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       mockMetadata.set('item2', createMockMetadata('item2', 10, 200, 999999));
       mockMetadata.set('item3', createMockMetadata('item3', 20, 300, 1));
 
-      expect(strategy.selectForEviction(mockMetadata)).toBe('item3');
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 3;
+      mockContext.limits.maxItems = 2;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result).toContain('item3');
     });
   });
 
@@ -138,7 +194,12 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       mockMetadata.set('item1', metadata1);
       mockMetadata.set('item2', metadata2);
 
-      expect(strategy.selectForEviction(mockMetadata)).toBe('item1'); // Oldest added
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 2;
+      mockContext.limits.maxItems = 1;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result).toContain('item1'); // Oldest added
     });
 
     it('should handle items added at exactly the same time', () => {
@@ -146,8 +207,13 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       mockMetadata.set('item2', createMockMetadata('item2', 100, 300, 3)); // Same addedAt
       mockMetadata.set('item3', createMockMetadata('item3', 200, 150, 1));
 
-      const selected = strategy.selectForEviction(mockMetadata);
-      expect(['item1', 'item2']).toContain(selected);
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 3;
+      mockContext.limits.maxItems = 2;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result.length).toBeGreaterThan(0);
+      expect(['item1', 'item2']).toContain(result[0]);
     });
   });
 
@@ -163,7 +229,12 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       mockMetadata.set('item2', createMockMetadata('item2', 10, 200, 3));
       mockMetadata.set('item3', createMockMetadata('item3', 20, 300, 1)); // Most recent
 
-      expect(strategy.selectForEviction(mockMetadata)).toBe('item3');
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 3;
+      mockContext.limits.maxItems = 2;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result).toContain('item3');
     });
 
     it('should handle future timestamps gracefully', () => {
@@ -177,7 +248,12 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
         key: 'item2'
       });
 
-      expect(strategy.selectForEviction(mockMetadata)).toBe('item2');
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 2;
+      mockContext.limits.maxItems = 1;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result).toContain('item2');
     });
   });
 
@@ -195,12 +271,16 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       mockMetadata.set('item4', createMockMetadata('item4', 30, 400, 10));
       mockMetadata.set('item5', createMockMetadata('item5', 40, 500, 2));
 
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 5;
+      mockContext.limits.maxItems = 4;
+
       const selected = new Set<string>();
 
       // Run many iterations to get statistical coverage
       for (let i = 0; i < 1000; i++) {
-        const item = strategy.selectForEviction(mockMetadata);
-        if (item) selected.add(item);
+        const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+        if (result.length > 0) selected.add(result[0]);
       }
 
       // Should have selected all items at least once
@@ -215,8 +295,13 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
     it('should handle single item consistently', () => {
       mockMetadata.set('item1', createMockMetadata('item1', 0, 100, 5));
 
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 1;
+      mockContext.limits.maxItems = 0;
+
       for (let i = 0; i < 100; i++) {
-        expect(strategy.selectForEviction(mockMetadata)).toBe('item1');
+        const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+        expect(result).toContain('item1');
       }
     });
   });
@@ -233,13 +318,15 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       mockMetadata.set('item2', createMockMetadata('item2', 10, 200, 1));
 
       // Remove item and test ghost behavior
-      strategy.onItemRemoved('item1');
+      strategy.onItemRemoved('item1', mockMetadataProvider);
 
       // Access removed item (should hit ghost list)
       const metadata = createMockMetadata('item1', 0, 100, 1);
-      strategy.onItemAccessed('item1', metadata);
+      mockMetadata.set('item1', metadata);
+      strategy.onItemAccessed('item1', mockMetadataProvider);
 
-      expect(metadata.accessCount).toBe(2);
+      const updatedMetadata = mockMetadataProvider.getMetadata('item1');
+      expect(updatedMetadata?.accessCount).toBe(2);
     });
 
     it('should adapt target sizes based on access patterns', () => {
@@ -252,27 +339,42 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       // Simulate various access patterns
       items.forEach((metadata, i) => {
         for (let j = 0; j < i + 1; j++) {
-          strategy.onItemAccessed(`item${i}`, metadata);
+          strategy.onItemAccessed(`item${i}`, mockMetadataProvider);
         }
       });
 
-      const selected = strategy.selectForEviction(mockMetadata);
-      expect(selected).toBeTruthy();
-      expect(mockMetadata.has(selected!)).toBe(true);
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 5;
+      mockContext.limits.maxItems = 4;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result.length).toBeGreaterThan(0);
+      expect(mockMetadata.has(result[0])).toBe(true);
     });
 
     it('should handle maximum ghost list size', () => {
       const smallStrategy = new ARCEvictionStrategy(3);
+      const testMetadataProvider = {
+        getMetadata: (key: string) => mockMetadata.get(key) || null,
+        setMetadata: (key: string, metadata: CacheItemMetadata) => mockMetadata.set(key, metadata),
+        deleteMetadata: (key: string) => mockMetadata.delete(key),
+        getAllMetadata: () => mockMetadata,
+        clearMetadata: () => mockMetadata.clear(),
+        getCurrentSize: () => ({ itemCount: mockMetadata.size, sizeBytes: 0 }),
+        getSizeLimits: () => ({ maxItems: 100, maxSizeBytes: 10000 })
+      };
 
       // Add many items to ghost lists
       for (let i = 0; i < 10; i++) {
-        smallStrategy.onItemRemoved(`item${i}`);
+        smallStrategy.onItemRemoved(`item${i}`, testMetadataProvider);
       }
 
       // Ghost lists should be limited
       const metadata = createMockMetadata('test', 0, 100, 1);
-      smallStrategy.onItemAccessed('test', metadata);
-      expect(metadata.accessCount).toBe(2);
+      mockMetadata.set('test', metadata);
+      smallStrategy.onItemAccessed('test', testMetadataProvider);
+      const updatedMetadata = testMetadataProvider.getMetadata('test');
+      expect(updatedMetadata?.accessCount).toBe(2);
     });
   });
 
@@ -291,51 +393,56 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
     });
 
     it('should manage queue transitions correctly', () => {
-      const metadata1 = createMockMetadata('item1', 0, 100, 1);
-      const metadata2 = createMockMetadata('item2', 10, 200, 1);
-
       // Add items (should go to recent queue)
-      strategy.onItemAdded('item1', metadata1);
-      strategy.onItemAdded('item2', metadata2);
-
-      mockMetadata.set('item1', metadata1);
-      mockMetadata.set('item2', metadata2);
+      strategy.onItemAdded('item1', 100, mockMetadataProvider);
+      strategy.onItemAdded('item2', 100, mockMetadataProvider);
 
       // Access item1 (should move to hot queue)
-      strategy.onItemAccessed('item1', metadata1);
+      strategy.onItemAccessed('item1', mockMetadataProvider);
+
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 2;
+      mockContext.limits.maxItems = 1;
 
       // When evicting, should prefer item2 from recent queue (item1 was promoted to hot queue)
-      const selected = strategy.selectForEviction(mockMetadata);
-      expect(selected).toBe('item2');
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result).toContain('item2');
     });
 
     it('should handle ghost queue promotions', () => {
-      const metadata = createMockMetadata('item1', 0, 100, 1);
-
       // Add item
-      strategy.onItemAdded('item1', metadata);
+      strategy.onItemAdded('item1', 100, mockMetadataProvider);
 
       // Remove item (goes to ghost)
-      strategy.onItemRemoved('item1');
+      strategy.onItemRemoved('item1', mockMetadataProvider);
 
       // Re-add same item (should be promoted)
-      strategy.onItemAdded('item1', metadata);
+      strategy.onItemAdded('item1', 100, mockMetadataProvider);
 
+      const metadata = mockMetadataProvider.getMetadata('item1')!;
       expect(metadata.accessCount).toBe(1);
     });
 
     it('should handle queue size limits', () => {
       const smallStrategy = new TwoQueueEvictionStrategy(4); // Very small cache
+      const testMetadataProvider = {
+        getMetadata: (key: string) => mockMetadata.get(key) || null,
+        setMetadata: (key: string, metadata: CacheItemMetadata) => mockMetadata.set(key, metadata),
+        deleteMetadata: (key: string) => mockMetadata.delete(key),
+        getAllMetadata: () => mockMetadata,
+        clearMetadata: () => mockMetadata.clear(),
+        getCurrentSize: () => ({ itemCount: mockMetadata.size, sizeBytes: 0 }),
+        getSizeLimits: () => ({ maxItems: 100, maxSizeBytes: 10000 })
+      };
 
       // Add many items
       for (let i = 0; i < 10; i++) {
-        const metadata = createMockMetadata(`item${i}`, i, 100 + i, 1);
-        smallStrategy.onItemAdded(`item${i}`, metadata);
+        smallStrategy.onItemAdded(`item${i}`, 100, testMetadataProvider);
       }
 
       // Should maintain size limits
-      const testMetadata = createMockMetadata('test', 0, 100, 1);
-      smallStrategy.onItemAdded('test', testMetadata);
+      smallStrategy.onItemAdded('test', 100, testMetadataProvider);
+      const testMetadata = testMetadataProvider.getMetadata('test')!;
       expect(testMetadata.accessCount).toBe(1);
     });
   });
@@ -446,6 +553,20 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
     it('should handle large numbers of items efficiently', () => {
       const strategy = new LRUEvictionStrategy();
       const largeMetadataMap = new Map<string, CacheItemMetadata>();
+      const largeMetadataProvider = {
+        getMetadata: (key: string) => largeMetadataMap.get(key) || null,
+        setMetadata: (key: string, metadata: CacheItemMetadata) => largeMetadataMap.set(key, metadata),
+        deleteMetadata: (key: string) => largeMetadataMap.delete(key),
+        getAllMetadata: () => largeMetadataMap,
+        clearMetadata: () => largeMetadataMap.clear(),
+        getCurrentSize: () => ({ itemCount: largeMetadataMap.size, sizeBytes: 0 }),
+        getSizeLimits: () => ({ maxItems: 9999, maxSizeBytes: 10000 })
+      };
+      const largeContext = {
+        currentSize: { itemCount: 10000, sizeBytes: 0 },
+        limits: { maxItems: 9999, maxSizeBytes: 10000 },
+        newItemSize: 100
+      };
 
       // Create a large number of items
       for (let i = 0; i < 10000; i++) {
@@ -453,10 +574,10 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       }
 
       const start = Date.now();
-      const selected = strategy.selectForEviction(largeMetadataMap);
+      const result = strategy.selectForEviction(largeMetadataProvider, largeContext);
       const end = Date.now();
 
-      expect(selected).toBe('item0'); // Oldest accessed
+      expect(result).toContain('item0'); // Oldest accessed
       expect(end - start).toBeLessThan(100); // Should be fast
     });
 
@@ -465,21 +586,28 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       const metadata1 = createMockMetadata('item1', 0, 100, 0);
       const metadata2 = createMockMetadata('item2', 10, 200, 0);
 
-      // Rapidly change access patterns
-      for (let i = 0; i < 1000; i++) {
-        strategy.onItemAccessed('item1', metadata1);
-        if (i % 2 === 0) {
-          strategy.onItemAccessed('item2', metadata2);
-        }
-      }
-
-      expect(metadata1.accessCount).toBe(1000);
-      expect(metadata2.accessCount).toBe(500);
-
       mockMetadata.set('item1', metadata1);
       mockMetadata.set('item2', metadata2);
 
-      expect(strategy.selectForEviction(mockMetadata)).toBe('item2');
+      // Rapidly change access patterns
+      for (let i = 0; i < 1000; i++) {
+        strategy.onItemAccessed('item1', mockMetadataProvider);
+        if (i % 2 === 0) {
+          strategy.onItemAccessed('item2', mockMetadataProvider);
+        }
+      }
+
+      const updatedMetadata1 = mockMetadataProvider.getMetadata('item1')!;
+      const updatedMetadata2 = mockMetadataProvider.getMetadata('item2')!;
+      expect(updatedMetadata1.accessCount).toBe(1000);
+      expect(updatedMetadata2.accessCount).toBe(500);
+
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 2;
+      mockContext.limits.maxItems = 1;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result).toContain('item2');
     });
 
     it('should handle memory-intensive metadata correctly', () => {
@@ -489,12 +617,16 @@ describe('Eviction Strategies Edge Cases and Comprehensive Tests', () => {
       for (let i = 0; i < 100; i++) {
         const metadata = createMockMetadata(`item${i}`, i, 100 + i, 1, 1024 * 1024); // 1MB each
         mockMetadata.set(`item${i}`, metadata);
-        strategy.onItemAdded(`item${i}`, metadata);
+        strategy.onItemAdded(`item${i}`, 1024 * 1024, mockMetadataProvider);
       }
 
-      const selected = strategy.selectForEviction(mockMetadata);
-      expect(selected).toBeTruthy();
-      expect(mockMetadata.has(selected!)).toBe(true);
+      // Update context to require eviction
+      mockContext.currentSize.itemCount = 100;
+      mockContext.limits.maxItems = 99;
+
+      const result = strategy.selectForEviction(mockMetadataProvider, mockContext);
+      expect(result.length).toBeGreaterThan(0);
+      expect(mockMetadata.has(result[0])).toBe(true);
     });
   });
 });

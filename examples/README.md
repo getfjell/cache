@@ -56,6 +56,17 @@ Perfect for understanding how to optimize cache behavior for your specific use c
 
 Perfect for implementing production-ready cache configurations tailored to your specific needs.
 
+### 6. `cache-stats-example.ts` 📊 **Cache Statistics and Monitoring**
+**Performance monitoring and metrics!** Demonstrates cache statistics tracking functionality:
+- **Cache performance metrics**: Track requests, hits, misses for performance monitoring
+- **Subscription tracking**: Monitor active subscriptions and subscription lifecycle
+- **Hit ratio calculation**: Measure cache effectiveness and optimize performance
+- **Real-time statistics**: Get current cache metrics for monitoring and debugging
+- **Statistics management**: Reset, track, and analyze cache usage patterns
+- **Performance insights**: Understand cache behavior and identify optimization opportunities
+
+Perfect for monitoring cache performance and optimizing cache strategies in production.
+
 ## Key Concepts Demonstrated
 
 ### Basic Caching Operations (basic-cache-example.ts)
@@ -156,6 +167,9 @@ npx tsx examples/aggregator-example.ts
 # Run the cache map example
 npx tsx examples/cache-map-example.ts
 
+# Run the cache statistics example
+npx tsx examples/cache-stats-example.ts
+
 # Or with Node.js
 node -r esbuild-register examples/basic-cache-example.ts
 ```
@@ -219,6 +233,12 @@ const options = {
 - **delete()**: Remove item from cache
 - **clear()**: Clear all cache contents
 
+### Cache Statistics
+- **getStats()**: Get current cache performance metrics
+- **subscribe()**: Track subscription count and activity
+- **unsubscribe()**: Monitor subscription lifecycle
+- **Hit/Miss tracking**: Automatic tracking of cache effectiveness
+
 ### Business Operations
 ```typescript
 // Cache with business logic integration
@@ -259,6 +279,13 @@ const cache = await createCache(api, 'order', {
 - Require maximum performance and minimal overhead
 - Implementing cache-based data structures
 
+**Use `cache-stats-example.ts` approach when:**
+- Need to monitor cache performance and effectiveness
+- Optimizing cache strategies for production applications
+- Troubleshooting cache hit/miss ratios
+- Tracking subscription activity and resource usage
+- Building monitoring dashboards for cache metrics
+
 ## Advanced Features
 
 ### Cache Aggregation
@@ -279,6 +306,32 @@ const ticketAggregator = await createAggregator(ticketCache, {
 
 // Automatic population includes all available references
 const populatedTicket = await ticketAggregator.populate(ticket);
+```
+
+### Cache Statistics Monitoring
+```typescript
+// Monitor cache performance with built-in statistics
+const cache = await createCache(api, createCoordinate('user'), registry);
+
+// Track subscriptions for monitoring resource usage
+const subscription = cache.subscribe((event) => {
+  console.log(`Cache event: ${event.type}`);
+});
+
+// Perform cache operations
+await cache.operations.get(userKey);  // Request + potential miss
+await cache.operations.retrieve(userKey);  // Request + hit
+
+// Get current statistics
+const stats = cache.getStats();
+console.log(`Hit Ratio: ${(stats.numHits / stats.numRequests * 100).toFixed(1)}%`);
+console.log(`Total Requests: ${stats.numRequests}`);
+console.log(`Cache Hits: ${stats.numHits}`);
+console.log(`Cache Misses: ${stats.numMisses}`);
+console.log(`Active Subscriptions: ${stats.activeSubscriptions}`);
+
+// Clean up subscription
+cache.unsubscribe(subscription);
 ```
 
 ### Performance Optimization

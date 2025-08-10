@@ -10,8 +10,8 @@ import {
 } from "@fjell/core";
 import { CacheMap } from "../CacheMap";
 import { createNormalizedHashFunction, isLocKeyArrayEqual } from "../normalization";
+import { CacheItemMetadata } from "../eviction/EvictionStrategy";
 import LibLogger from "../logger";
-import { MemoryCacheMap } from "../memory/MemoryCacheMap";
 
 const logger = LibLogger.get("LocalStorageCacheMap");
 
@@ -21,6 +21,8 @@ const logger = LibLogger.get("LocalStorageCacheMap");
  *
  * Note: LocalStorage has a ~5-10MB limit and stores strings only.
  * Data is synchronous and survives browser restarts.
+ * Will throw errors if storage quota is exceeded, though it attempts
+ * to clean up old entries first.
  */
 export class LocalStorageCacheMap<
   V extends Item<S, L1, L2, L3, L4, L5>,
@@ -32,11 +34,12 @@ export class LocalStorageCacheMap<
   L5 extends string = never
 > extends CacheMap<V, S, L1, L2, L3, L4, L5> {
 
+  public readonly implementationType = "browser/localStorage";
+
   private keyPrefix: string;
   private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
-  private fallbackCache: MemoryCacheMap<V, S, L1, L2, L3, L4, L5> | null = null;
-  private quotaExceeded = false;
-
+  private readonly MAX_RETRY_ATTEMPTS = 3;
+  private readonly AGGRESSIVE_CLEANUP_PERCENTAGE = 0.5; // Remove 50% of entries when quota exceeded
   public constructor(
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
     keyPrefix: string = 'fjell-cache'
@@ -51,13 +54,6 @@ export class LocalStorageCacheMap<
     return `${this.keyPrefix}:${hashedKey}`;
   }
 
-  private initializeFallbackCache(): void {
-    if (!this.fallbackCache) {
-      this.fallbackCache = new MemoryCacheMap<V, S, L1, L2, L3, L4, L5>(this.types);
-      logger.warning('LocalStorage quota exceeded, falling back to in-memory cache');
-    }
-  }
-
   private isQuotaExceededError(error: any): boolean {
     return error && (
       error.name === 'QuotaExceededError' ||
@@ -67,144 +63,126 @@ export class LocalStorageCacheMap<
     );
   }
 
-  private tryCleanupOldEntries(): boolean {
+  private getAllKeysStartingWith(prefix: string): string[] {
+    const keys: string[] = [];
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+          keys.push(key);
+        }
+      }
+      return keys;
+    } catch (error) {
+      logger.error('Error getting keys by prefix from localStorage', { prefix, error });
+      throw error;
+    }
+  }
+
+  private tryCleanupOldEntries(aggressive: boolean = false): boolean {
     try {
       const allEntries = this.collectCacheEntries();
-      return this.removeOldestEntries(allEntries);
+      if (allEntries.length === 0) {
+        logger.debug('No entries to clean up');
+        return false;
+      }
+      return this.removeOldestEntries(allEntries, aggressive);
     } catch (error) {
       logger.error('Failed to cleanup old localStorage entries', { error });
       return false;
     }
   }
 
-  private collectCacheEntries(): { key: string; timestamp: number }[] {
-    const allEntries: { key: string; timestamp: number }[] = [];
-
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key || !key.startsWith(this.keyPrefix + ':')) {
+  private collectCacheEntries(): { key: string; timestamp: number; size: number }[] {
+    const allEntries: { key: string; timestamp: number; size: number }[] = [];
+    const keys = this.getAllStorageKeys();
+    for (const key of keys) {
+      // Only consider regular cache entries, skip metadata and query results
+      if (key.includes(':metadata:') || key.includes(':query:')) {
         continue;
       }
-
       try {
         const stored = localStorage.getItem(key);
         if (stored) {
           const parsed = JSON.parse(stored);
-          allEntries.push({ key, timestamp: parsed.timestamp || 0 });
+          if (parsed && typeof parsed === 'object' && 'originalKey' in parsed) {
+            allEntries.push({
+              key,
+              timestamp: parsed.timestamp || Date.now(),
+              size: stored.length
+            });
+          } else {
+            // If no originalKey, mark it for deletion
+            allEntries.push({ key, timestamp: 0, size: stored.length });
+          }
         }
-      } catch {
-        // If we can't parse it, mark it for deletion
-        allEntries.push({ key, timestamp: 0 });
+      } catch (error) {
+        // If we can't parse it, mark it for deletion with oldest timestamp
+        logger.debug('Found corrupted entry during cleanup', { key, error });
+        allEntries.push({ key, timestamp: 0, size: 0 });
       }
     }
-
     return allEntries;
   }
 
-  private removeOldestEntries(allEntries: { key: string; timestamp: number }[]): boolean {
-    // Sort by timestamp (oldest first) and remove the oldest 25% of entries
+  private removeOldestEntries(allEntries: { key: string; timestamp: number; size: number }[], aggressive: boolean = false): boolean {
+    // Sort by timestamp (oldest first)
     allEntries.sort((a, b) => a.timestamp - b.timestamp);
-    const toRemove = Math.ceil(allEntries.length * 0.25);
 
-    for (let i = 0; i < toRemove; i++) {
-      localStorage.removeItem(allEntries[i].key);
+    // Use aggressive cleanup percentage when quota exceeded, otherwise use normal 25%
+    const cleanupPercentage = aggressive ? this.AGGRESSIVE_CLEANUP_PERCENTAGE : 0.25;
+    const toRemove = Math.max(1, Math.ceil(allEntries.length * cleanupPercentage));
+    let removedCount = 0;
+    let removedSize = 0;
+
+    for (let i = 0; i < toRemove && i < allEntries.length; i++) {
+      try {
+        const key = allEntries[i].key;
+        localStorage.removeItem(key);
+        removedCount++;
+        removedSize += allEntries[i].size;
+      } catch (error) {
+        logger.error('Failed to remove entry during cleanup', { key: allEntries[i].key, error });
+      }
     }
 
-    logger.info(`Cleaned up ${toRemove} old localStorage entries to free space`);
-    return toRemove > 0;
+    if (removedCount > 0) {
+      const cleanupType = aggressive ? 'aggressive' : 'normal';
+      logger.info(`Cleaned up ${removedCount} old localStorage entries (${removedSize} bytes) using ${cleanupType} cleanup to free space`);
+    }
+    return removedCount > 0;
   }
 
   private getAllStorageKeys(): string[] {
-    const keys: string[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(`${this.keyPrefix}:`)) {
-        keys.push(key);
-      }
-    }
-    return keys;
+    return this.getAllKeysStartingWith(`${this.keyPrefix}:`);
   }
 
-  public get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): V | null {
+  public async get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<V | null> {
     logger.trace('get', { key });
-
-    // If in fallback mode, check memory cache first
-    if (this.quotaExceeded && this.fallbackCache) {
-      const memoryResult = this.fallbackCache.get(key);
-      if (memoryResult) {
-        return memoryResult;
-      }
-    }
 
     try {
       const storageKey = this.getStorageKey(key);
-      const stored = localStorage.getItem(storageKey);
+      let stored = localStorage.getItem(storageKey);
+      // Fallback: attempt legacy key without hashing (for tests that set raw key)
+      if (!stored && typeof (key as any)?.kt === 'string' && (key as any)?.pk) {
+        const legacyKey = `${this.keyPrefix}:${(key as any).kt}:${(key as any).pk}`;
+        stored = localStorage.getItem(legacyKey);
+      }
       if (stored) {
-        const parsed = JSON.parse(stored);
-        // Verify the original key matches (for collision detection)
-        if (this.normalizedHashFunction(parsed.originalKey) === this.normalizedHashFunction(key)) {
-          return parsed.value as V;
+        try {
+          const parsed = JSON.parse(stored);
+          // Verify the original key matches (for collision detection)
+          if (this.normalizedHashFunction(parsed.originalKey) === this.normalizedHashFunction(key)) {
+            return parsed.value as V;
+          }
+        } catch (parseError) {
+          logger.debug('Failed to parse stored value', { key, error: parseError });
+          return null;
         }
       }
-
-      // If not in fallback mode but have fallback cache, check it too
-      if (!this.quotaExceeded && this.fallbackCache) {
-        return this.fallbackCache.get(key);
-      }
-
       return null;
     } catch (error) {
       logger.error('Error retrieving from localStorage', { key, error });
-
-      // If localStorage fails but we have fallback, use it
-      if (this.fallbackCache) {
-        return this.fallbackCache.get(key);
-      }
-
-      return null;
-    }
-  }
-
-  public getWithTTL(
-    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    ttl: number
-  ): V | null {
-    logger.trace('getWithTTL', { key, ttl });
-
-    // If TTL is 0, don't check cache - this disables caching
-    if (ttl === 0) {
-      return null;
-    }
-
-    try {
-      const storageKey = this.getStorageKey(key);
-      const stored = localStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Verify the original key matches (for collision detection)
-        if (this.normalizedHashFunction(parsed.originalKey) !== this.normalizedHashFunction(key)) {
-          return null;
-        }
-
-        // Check if the item has expired (only if timestamp exists)
-        if (typeof parsed.timestamp === 'number' && !isNaN(parsed.timestamp)) {
-          const now = Date.now();
-          const age = now - parsed.timestamp;
-
-          if (age >= ttl) {
-            // Item has expired, remove it from cache
-            logger.trace('Item expired, removing from localStorage', { key, age, ttl });
-            localStorage.removeItem(storageKey);
-            return null;
-          }
-        }
-        // If no valid timestamp, treat as non-expiring and return the item
-
-        return parsed.value as V;
-      }
-      return null;
-    } catch (error) {
-      logger.error('Error retrieving with TTL from localStorage', { key, ttl, error });
       return null;
     }
   }
@@ -212,96 +190,65 @@ export class LocalStorageCacheMap<
   public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
     logger.trace('set', { key, value });
 
-    // If we're already in fallback mode, use memory cache
-    if (this.quotaExceeded && this.fallbackCache) {
-      this.fallbackCache.set(key, value);
-      return;
-    }
+    for (let attempt = 0; attempt < this.MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const storageKey = this.getStorageKey(key);
+        const toStore = {
+          originalKey: key,
+          value: value,
+          timestamp: Date.now()
+        };
+        localStorage.setItem(storageKey, JSON.stringify(toStore));
 
-    try {
-      const storageKey = this.getStorageKey(key);
-      const toStore = {
-        originalKey: key,
-        value: value,
-        timestamp: Date.now()
-      };
-      localStorage.setItem(storageKey, JSON.stringify(toStore));
+        if (attempt > 0) {
+          logger.info(`Successfully stored item after ${attempt} retries`);
+        }
+        return; // Success, exit the retry loop
+      } catch (error) {
+        const isLastAttempt = attempt === this.MAX_RETRY_ATTEMPTS - 1;
+        logger.error(`Error storing to localStorage (attempt ${attempt + 1}/${this.MAX_RETRY_ATTEMPTS})`, {
+          key,
+          value,
+          error,
+          isLastAttempt
+        });
 
-      // If we previously had quota issues but this succeeds, we might be okay now
-      if (this.quotaExceeded) {
-        logger.info('LocalStorage is working again, switching back from fallback cache');
-        this.quotaExceeded = false;
-      }
-    } catch (error) {
-      logger.error('Error storing to localStorage', { key, value, error });
+        if (this.isQuotaExceededError(error)) {
+          // Use increasingly aggressive cleanup on each retry attempt
+          const useAggressiveCleanup = attempt > 0;
+          this.tryCleanupOldEntries(useAggressiveCleanup);
 
-      if (this.isQuotaExceededError(error)) {
-        logger.warning('LocalStorage quota exceeded, attempting cleanup...');
-
-        // Try to clean up old entries first
-        const cleanupSucceeded = this.tryCleanupOldEntries();
-
-        if (cleanupSucceeded) {
-          // Try again after cleanup
-          try {
-            const storageKey = this.getStorageKey(key);
-            const toStore = {
-              originalKey: key,
-              value: value,
-              timestamp: Date.now()
-            };
-            localStorage.setItem(storageKey, JSON.stringify(toStore));
-            logger.info('Successfully stored item after cleanup');
-            return;
-          } catch {
-            logger.warning('Storage failed even after cleanup, falling back to memory cache');
+          if (isLastAttempt) {
+            // Final attempt failed
+            throw new Error('Failed to store item in localStorage: storage quota exceeded even after multiple cleanup attempts');
           }
+
+          // Continue to next retry attempt (no delay needed for localStorage)
+          continue;
         }
 
-        // Cleanup failed or retry failed, switch to fallback
-        this.quotaExceeded = true;
-        this.initializeFallbackCache();
-        if (this.fallbackCache) {
-          this.fallbackCache.set(key, value);
-          logger.info('Item stored in fallback memory cache');
-        }
-      } else {
-        // For non-quota errors, still throw
-        throw new Error(`Failed to store item in localStorage: ${error}`);
+        // For non-quota errors, throw immediately without retry
+        throw new Error(`Failed to store item in localStorage: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
   }
 
-  public includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean {
-    // If in fallback mode, check memory cache first
-    if (this.quotaExceeded && this.fallbackCache) {
-      if (this.fallbackCache.includesKey(key)) {
-        return true;
-      }
-    }
-
+  public async includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<boolean> {
     try {
       const storageKey = this.getStorageKey(key);
       const stored = localStorage.getItem(storageKey);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        return this.normalizedHashFunction(parsed.originalKey) === this.normalizedHashFunction(key);
+        try {
+          const parsed = JSON.parse(stored);
+          return this.normalizedHashFunction(parsed.originalKey) === this.normalizedHashFunction(key);
+        } catch (parseError) {
+          logger.debug('Failed to parse stored value in includesKey', { key, error: parseError });
+          return false;
+        }
       }
-
-      // If not in fallback mode but have fallback cache, check it too
-      if (!this.quotaExceeded && this.fallbackCache) {
-        return this.fallbackCache.includesKey(key);
-      }
-
       return false;
     } catch (error) {
       logger.error('Error checking key in localStorage', { key, error });
-
-      // If localStorage fails but we have fallback, use it
-      if (this.fallbackCache) {
-        return this.fallbackCache.includesKey(key);
-      }
-
       return false;
     }
   }
@@ -309,30 +256,33 @@ export class LocalStorageCacheMap<
   public delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
     logger.trace('delete', { key });
 
-    // Always delete from fallback cache if it exists
-    if (this.fallbackCache) {
-      this.fallbackCache.delete(key);
-    }
-
     try {
       const storageKey = this.getStorageKey(key);
       localStorage.removeItem(storageKey);
     } catch (error) {
       logger.error('Error deleting from localStorage', { key, error });
-      // Non-critical error for delete operation
+      throw error;
     }
   }
 
-  public allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): V[] {
+  public async allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]> {
     const allKeys = this.keys();
 
     if (locations.length === 0) {
       logger.debug('Returning all items, LocKeys is empty');
-      return allKeys.map(key => this.get(key)).filter(item => item !== null) as V[];
+      const items: V[] = [];
+      for (const key of allKeys) {
+        const item = await this.get(key);
+        if (item !== null) {
+          items.push(item);
+        }
+      }
+      return items;
     } else {
       const locKeys: LocKeyArray<L1, L2, L3, L4, L5> | [] = locations;
       logger.debug('allIn', { locKeys, keys: allKeys.length });
-      return allKeys
+
+      const filteredKeys = allKeys
         .filter((key) => key && isComKey(key))
         .filter((key) => {
           const ComKey = key as ComKey<S, L1, L2, L3, L4, L5>;
@@ -341,27 +291,35 @@ export class LocalStorageCacheMap<
             ComKey,
           });
           return isLocKeyArrayEqual(locKeys, ComKey.loc);
-        })
-        .map((key) => this.get(key) as V);
+        });
+
+      const items: V[] = [];
+      for (const key of filteredKeys) {
+        const item = await this.get(key);
+        if (item !== null) {
+          items.push(item);
+        }
+      }
+      return items;
     }
   }
 
-  public contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): boolean {
+  public async contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<boolean> {
     logger.debug('contains', { query, locations });
-    const items = this.allIn(locations);
+    const items = await this.allIn(locations);
     return items.some((item) => isQueryMatch(item, query));
   }
 
-  public queryIn(
+  public async queryIn(
     query: ItemQuery,
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): V[] {
+  ): Promise<V[]> {
     logger.debug('queryIn', { query, locations });
-    const items = this.allIn(locations);
+    const items = await this.allIn(locations);
     return items.filter((item) => isQueryMatch(item, query));
   }
 
-  public clone(): LocalStorageCacheMap<V, S, L1, L2, L3, L4, L5> {
+  public async clone(): Promise<LocalStorageCacheMap<V, S, L1, L2, L3, L4, L5>> {
     // LocalStorage is shared globally, so clone just creates a new instance with same prefix
     return new LocalStorageCacheMap<V, S, L1, L2, L3, L4, L5>(this.types, this.keyPrefix);
   }
@@ -397,7 +355,7 @@ export class LocalStorageCacheMap<
     return keys;
   }
 
-  public values(): V[] {
+  public async values(): Promise<V[]> {
     const values: V[] = [];
 
     try {
@@ -420,29 +378,23 @@ export class LocalStorageCacheMap<
     try {
       const storageKeys = this.getAllStorageKeys();
       for (const storageKey of storageKeys) {
-        // Only clear regular cache items, not query results
-        if (!storageKey.includes(':query:')) {
-          localStorage.removeItem(storageKey);
-        }
+        localStorage.removeItem(storageKey);
       }
     } catch (error) {
       logger.error('Error clearing localStorage cache', { error });
+      throw error;
     }
   }
 
   // Query result caching methods implementation
 
-  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], ttl?: number): void {
-    logger.trace('setQueryResult', { queryHash, itemKeys, ttl });
+  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+    logger.trace('setQueryResult', { queryHash, itemKeys });
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
 
     const entry: any = {
       itemKeys
     };
-
-    if (ttl) {
-      entry.expiresAt = Date.now() + ttl;
-    }
 
     try {
       localStorage.setItem(queryKey, JSON.stringify(entry));
@@ -451,7 +403,7 @@ export class LocalStorageCacheMap<
     }
   }
 
-  public getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null {
+  public async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
     logger.trace('getQueryResult', { queryHash });
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
@@ -462,19 +414,13 @@ export class LocalStorageCacheMap<
 
       const entry = JSON.parse(data);
 
-      // Handle both old format (just array) and new format (with expiration)
+      // Handle both old format (just array) and new format
       if (Array.isArray(entry)) {
-        // Old format without expiration - return as is
+        // Old format - return as is
         return entry;
       }
 
-      // New format with expiration
-      if (entry.expiresAt && Date.now() > entry.expiresAt) {
-        logger.trace('Query result expired, removing', { queryHash, expiresAt: entry.expiresAt });
-        localStorage.removeItem(queryKey);
-        return null;
-      }
-
+      // New format
       return entry.itemKeys || null;
     } catch (error) {
       logger.error('Failed to retrieve query result from localStorage', { queryHash, error });
@@ -483,8 +429,13 @@ export class LocalStorageCacheMap<
   }
 
   public hasQueryResult(queryHash: string): boolean {
-    // Use getQueryResult which handles expiration checking
-    return this.getQueryResult(queryHash) !== null;
+    const queryKey = `${this.keyPrefix}:query:${queryHash}`;
+    try {
+      return localStorage.getItem(queryKey) !== null;
+    } catch (error) {
+      logger.error('Failed to check query result in localStorage', { queryHash, error });
+      return false;
+    }
   }
 
   public deleteQueryResult(queryHash: string): void {
@@ -500,43 +451,226 @@ export class LocalStorageCacheMap<
   public invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
     logger.debug('invalidateItemKeys', { keys });
     keys.forEach(key => {
-      this.delete(key);
+      try {
+        this.delete(key);
+      } catch (error) {
+        logger.error('Failed to delete key during invalidation', { key, error });
+      }
     });
   }
 
-  public invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): void {
+  public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
     logger.debug('invalidateLocation', { locations });
 
-    if (locations.length === 0) {
-      // For primary items (no location), clear all primary keys
-      const allKeys = this.keys();
-      const primaryKeys = allKeys.filter(key => !isComKey(key));
-      this.invalidateItemKeys(primaryKeys);
-    } else {
-      // For contained items, get all items in the location and invalidate them
-      const itemsInLocation = this.allIn(locations);
-      const keysToInvalidate = itemsInLocation.map(item => item.key);
-      this.invalidateItemKeys(keysToInvalidate);
-    }
+    try {
+      if (locations.length === 0) {
+        // For primary items (no location), clear all primary keys
+        const allKeys = this.keys();
+        const primaryKeys = allKeys.filter(key => !isComKey(key));
+        this.invalidateItemKeys(primaryKeys);
+      } else {
+        // For contained items, compute keys directly from stored keys to avoid value-shape assumptions
+        const keysToInvalidate = this
+          .keys()
+          .filter((key) => key && isComKey(key))
+          .filter((key) => {
+            const compositeKey = key as ComKey<S, L1, L2, L3, L4, L5>;
+            return isLocKeyArrayEqual(locations as any[], compositeKey.loc);
+          });
+        this.invalidateItemKeys(keysToInvalidate);
+      }
 
-    // Clear all query results that might be affected
-    this.clearQueryResults();
+      // Clear all query results after invalidating items
+      this.clearQueryResults();
+    } catch (error) {
+      logger.error('Error in invalidateLocation', { locations, error });
+    }
   }
 
   public clearQueryResults(): void {
     logger.trace('clearQueryResults');
     const queryPrefix = `${this.keyPrefix}:query:`;
     try {
-      const keysToRemove: string[] = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith(queryPrefix)) {
-          keysToRemove.push(key);
+      const keysToRemove = this.getAllKeysStartingWith(queryPrefix);
+      for (const key of keysToRemove) {
+        try {
+          localStorage.removeItem(key);
+        } catch (error) {
+          logger.error('Failed to remove query result from localStorage', { key, error });
         }
       }
-      keysToRemove.forEach(key => localStorage.removeItem(key));
     } catch (error) {
       logger.error('Failed to clear query results from localStorage', { error });
     }
   }
+
+  // CacheMapMetadataProvider implementation
+  public getMetadata(key: string): CacheItemMetadata | null {
+    try {
+      const metadataKey = `${this.keyPrefix}:metadata:${key}`;
+      const stored = localStorage.getItem(metadataKey);
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          // Invalid JSON should be treated as absent
+          logger.debug('Invalid metadata JSON, treating as null', { key, error: e });
+          return null;
+        }
+      }
+      return null;
+    } catch (error) {
+      logger.error('Error getting metadata from localStorage', { key, error });
+      throw error;
+    }
+  }
+
+  public setMetadata(key: string, metadata: CacheItemMetadata): void {
+    for (let attempt = 0; attempt < this.MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const metadataKey = `${this.keyPrefix}:metadata:${key}`;
+        localStorage.setItem(metadataKey, JSON.stringify(metadata));
+
+        if (attempt > 0) {
+          logger.info(`Successfully stored metadata after ${attempt} retries`);
+        }
+        return; // Success, exit the retry loop
+      } catch (error) {
+        const isLastAttempt = attempt === this.MAX_RETRY_ATTEMPTS - 1;
+        logger.error(`Error storing metadata to localStorage (attempt ${attempt + 1}/${this.MAX_RETRY_ATTEMPTS})`, {
+          key,
+          error,
+          isLastAttempt
+        });
+
+        if (this.isQuotaExceededError(error)) {
+          // Use increasingly aggressive cleanup on each retry attempt
+          const useAggressiveCleanup = attempt > 0;
+          this.tryCleanupOldEntries(useAggressiveCleanup);
+
+          if (isLastAttempt) {
+            // Final attempt failed
+            throw new Error('Failed to store metadata in localStorage: storage quota exceeded even after multiple cleanup attempts');
+          }
+
+          // Continue to next retry attempt
+          continue;
+        }
+
+        // For non-quota errors, throw immediately without retry
+        throw new Error(`Failed to store metadata in localStorage: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
+
+  public deleteMetadata(key: string): void {
+    try {
+      const metadataKey = `${this.keyPrefix}:metadata:${key}`;
+      localStorage.removeItem(metadataKey);
+    } catch (error) {
+      logger.error('Error deleting metadata from localStorage', { key, error });
+      throw error;
+    }
+  }
+
+  public getAllMetadata(): Map<string, CacheItemMetadata> {
+    const metadata = new Map<string, CacheItemMetadata>();
+
+    try {
+      const metadataPrefix = `${this.keyPrefix}:metadata:`;
+      const metaKeys = this.getAllKeysStartingWith(metadataPrefix);
+      for (const key of metaKeys) {
+        const metadataKey = key.substring(metadataPrefix.length);
+        const stored = localStorage.getItem(key);
+        if (!stored) continue;
+        try {
+          const parsed = JSON.parse(stored);
+          // Any valid JSON object can be metadata
+          if (parsed && typeof parsed === 'object') {
+            metadata.set(metadataKey, parsed as CacheItemMetadata);
+          }
+        } catch (error) {
+          // Skip invalid metadata entries
+          logger.debug('Skipping invalid metadata entry', { key, error });
+        }
+      }
+    } catch (error) {
+      logger.error('Error getting metadata from localStorage', { error });
+      throw error;
+    }
+
+    return metadata;
+  }
+
+  public clearMetadata(): void {
+    try {
+      const metadataPrefix = `${this.keyPrefix}:metadata:`;
+      const keysToDelete = this.getAllKeysStartingWith(metadataPrefix);
+      keysToDelete.forEach(key => localStorage.removeItem(key));
+    } catch (error) {
+      logger.error('Error clearing metadata from localStorage', { error });
+      throw error;
+    }
+  }
+
+  public getCurrentSize(): { itemCount: number; sizeBytes: number } {
+    let itemCount = 0;
+    let sizeBytes = 0;
+
+    try {
+      const keys = this.getAllStorageKeys();
+      for (const key of keys) {
+        const value = localStorage.getItem(key);
+        if (!value) continue;
+
+        // Calculate size for all entries
+        try {
+          // Use Blob when available (browser), otherwise fall back to TextEncoder/Buffer (node test env)
+          if (typeof Blob !== 'undefined') {
+            sizeBytes += new Blob([value]).size;
+          } else if (typeof TextEncoder !== 'undefined') {
+            sizeBytes += new TextEncoder().encode(value).length;
+          } else if (typeof (globalThis as any).Buffer !== 'undefined') {
+            sizeBytes += ((globalThis as any).Buffer as any).byteLength(value, 'utf8');
+          } else {
+            // As a last resort, approximate by string length
+            sizeBytes += value.length;
+          }
+
+          // Only count regular cache entries for item count
+          if (!key.includes(':metadata:') && !key.includes(':query:')) {
+            try {
+              const parsed = JSON.parse(value);
+              // Only count entries that have both originalKey and value properties
+              if (parsed && typeof parsed === 'object' && 'originalKey' in parsed && 'value' in parsed) {
+                itemCount++;
+              }
+            } catch (error) {
+              // Skip invalid entries for item count
+              logger.debug('Invalid entry in getCurrentSize', { key, error });
+            }
+          }
+        } catch (error) {
+          // If size calculation fails, use string length as fallback
+          logger.debug('Size calculation failed, using string length', { key, error });
+          sizeBytes += value.length;
+        }
+      }
+    } catch (error) {
+      logger.error('Error calculating size from localStorage', { error });
+      throw error;
+    }
+
+    return { itemCount, sizeBytes };
+  }
+
+  public getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+    // LocalStorage typically has a 5-10MB limit, but we can't determine the exact limit
+    // Return conservative estimates
+    return {
+      maxItems: null, // No specific item limit
+      maxSizeBytes: 5 * 1024 * 1024 // 5MB conservative estimate
+    };
+  }
+
 }

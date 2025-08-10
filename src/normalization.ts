@@ -44,8 +44,8 @@ export const createNormalizedHashFunction = <T>() => {
       // Normalize loc array lk values
       if ('loc' in normalizedKey && Array.isArray(normalizedKey.loc)) {
         normalizedKey.loc = normalizedKey.loc.map((locItem: any) => {
-          if (locItem && 'lk' in locItem && locItem.lk !== null) {
-            return { ...locItem, lk: normalizeKeyValue(locItem.lk) };
+          if (typeof locItem === 'object' && locItem !== null && 'lk' in locItem && (locItem as any).lk !== null) {
+            return { ...locItem, lk: normalizeKeyValue((locItem as any).lk) };
           }
           return locItem;
         });
@@ -94,11 +94,10 @@ export const normalizeLocKeyItem = (item: any): any => {
 // Query result cache utilities
 
 /**
- * Interface for storing query results with expiration
+ * Interface for storing query results
  */
 export interface QueryCacheEntry {
   itemKeys: (any)[];
-  expiresAt?: number; // Timestamp when this entry expires
 }
 
 /**

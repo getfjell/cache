@@ -309,8 +309,7 @@ describe('Options', () => {
         { maxRetries: -5 },
         { retryDelay: -100 },
         { ttl: -1 },
-        { memoryConfig: { maxItems: -10 } },
-        { memoryConfig: { ttl: -500 } }
+        { memoryConfig: { maxItems: -10 } }
       ];
 
       invalidOptions.forEach(opts => {

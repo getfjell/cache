@@ -42,5 +42,25 @@ export const action = async <
   logger.debug('Caching action result', { updatedKey: updated.key });
   cacheMap.set(updated.key, updated);
 
+  // Set TTL metadata for the newly cached item
+  const keyStr = JSON.stringify(updated.key);
+  context.ttlManager.onItemAdded(keyStr, cacheMap);
+
+  // Handle eviction for the newly cached item
+  const evictedKeys = context.evictionManager.onItemAdded(keyStr, updated, cacheMap);
+  // Remove evicted items from cache
+  evictedKeys.forEach(evictedKey => {
+    try {
+      const parsedKey = JSON.parse(evictedKey);
+      cacheMap.delete(parsedKey);
+    } catch (error) {
+      logger.error('Failed to parse evicted key during deletion', {
+        evictedKey,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      // Continue processing other keys rather than failing completely
+    }
+  });
+
   return [context, validatePK(updated, pkType) as V];
 };

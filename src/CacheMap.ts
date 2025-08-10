@@ -6,6 +6,8 @@ import {
   LocKeyArray,
   PriKey
 } from "@fjell/core";
+import { CacheItemMetadata, CacheMapMetadataProvider } from "./eviction/EvictionStrategy";
+import { CacheInfo } from "./Cache";
 
 /**
  * Abstract base interface for cache map implementations.
@@ -23,8 +25,14 @@ export abstract class CacheMap<
   L3 extends string = never,
   L4 extends string = never,
   L5 extends string = never
-> {
+> implements CacheMapMetadataProvider {
   protected types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>;
+
+  /**
+   * The implementation type identifier in the format "<category>/<implementation>"
+   * Examples: "memory/memory", "memory/enhanced", "browser/localStorage"
+   */
+  public abstract readonly implementationType: string;
 
   public constructor(types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>) {
     this.types = types;
@@ -33,13 +41,7 @@ export abstract class CacheMap<
   /**
    * Retrieve an item by its key
    */
-  public abstract get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): V | null;
-
-  /**
-   * Retrieve an item by its key with TTL awareness
-   * Returns null if item doesn't exist or has expired based on the provided TTL
-   */
-  public abstract getWithTTL(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, ttl: number): V | null;
+  public abstract get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<V | null>;
 
   /**
    * Store an item with its key
@@ -49,7 +51,7 @@ export abstract class CacheMap<
   /**
    * Check if a key exists in the cache
    */
-  public abstract includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean;
+  public abstract includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<boolean>;
 
   /**
    * Delete an item by its key
@@ -59,22 +61,22 @@ export abstract class CacheMap<
   /**
    * Get all items in the specified locations
    */
-  public abstract allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): V[];
+  public abstract allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]>;
 
   /**
    * Check if any items match the query in the specified locations
    */
-  public abstract contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): boolean;
+  public abstract contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<boolean>;
 
   /**
    * Get all items that match the query in the specified locations
    */
-  public abstract queryIn(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): V[];
+  public abstract queryIn(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]>;
 
   /**
    * Create a clone of this cache map
    */
-  public abstract clone(): CacheMap<V, S, L1, L2, L3, L4, L5>;
+  public abstract clone(): Promise<CacheMap<V, S, L1, L2, L3, L4, L5>>;
 
   /**
    * Get all keys in the cache
@@ -84,7 +86,7 @@ export abstract class CacheMap<
   /**
    * Get all values in the cache
    */
-  public abstract values(): V[];
+  public abstract values(): Promise<V[]>;
 
   /**
    * Clear all items from the cache
@@ -96,12 +98,12 @@ export abstract class CacheMap<
   /**
    * Set a query result as a collection of item keys
    */
-  public abstract setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], ttl?: number): void;
+  public abstract setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void;
 
   /**
    * Get a query result as a collection of item keys
    */
-  public abstract getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null;
+  public abstract getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null>;
 
   /**
    * Check if a query result exists in cache
@@ -121,10 +123,62 @@ export abstract class CacheMap<
   /**
    * Invalidate all items in specified locations and clear related query results
    */
-  public abstract invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): void;
+  public abstract invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void>;
 
   /**
    * Clear all query result cache entries
    */
   public abstract clearQueryResults(): void;
+
+  // CacheMapMetadataProvider implementation
+  // These methods must be implemented by all CacheMap implementations to support eviction
+
+  /**
+   * Get metadata for a specific item
+   * @param key - Item key
+   * @returns Metadata if exists, null otherwise
+   */
+  public abstract getMetadata(key: string): CacheItemMetadata | null;
+
+  /**
+   * Set metadata for a specific item
+   * @param key - Item key
+   * @param metadata - Metadata to store
+   */
+  public abstract setMetadata(key: string, metadata: CacheItemMetadata): void;
+
+  /**
+   * Delete metadata for a specific item
+   * @param key - Item key
+   */
+  public abstract deleteMetadata(key: string): void;
+
+  /**
+   * Get all metadata entries
+   * @returns Map of all metadata entries
+   */
+  public abstract getAllMetadata(): Map<string, CacheItemMetadata>;
+
+  /**
+   * Clear all metadata
+   */
+  public abstract clearMetadata(): void;
+
+  /**
+   * Get current cache size information
+   * @returns Object with current size metrics
+   */
+  public abstract getCurrentSize(): {
+    itemCount: number;
+    sizeBytes: number;
+  };
+
+  /**
+   * Get cache size limits
+   * @returns Object with size limits (null means unlimited)
+   */
+  public abstract getSizeLimits(): {
+    maxItems: number | null;
+    maxSizeBytes: number | null;
+  };
 }

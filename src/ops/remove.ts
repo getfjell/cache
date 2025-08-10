@@ -5,6 +5,7 @@ import {
   PriKey
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
+import { CacheEventFactory } from "../events/CacheEventFactory";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('remove');
@@ -30,9 +31,19 @@ export const remove = async <
   }
 
   try {
+    // Get item before removal for event
+    const previousItem = await cacheMap.get(key);
+
     // First remove from API, then from cache to maintain consistency
     await api.remove(key);
     cacheMap.delete(key);
+
+    // Emit event
+    if (previousItem) {
+      const event = CacheEventFactory.itemRemoved(key, previousItem, 'api');
+      context.eventEmitter.emit(event);
+    }
+
     logger.debug('Successfully removed item from API and cache', { key });
   } catch (e) {
     logger.error("Error deleting item", { error: e });

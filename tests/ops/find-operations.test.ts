@@ -6,6 +6,7 @@ import { ComKey, Item, PriKey, UUID } from '@fjell/core';
 import { CacheContext, createCacheContext } from '../../src/CacheContext';
 import { Options } from '../../src/Options';
 import { createFinderHash } from '../../src/normalization';
+import { CacheStatsManager } from '../../src/CacheStats';
 
 describe('Find Operations', () => {
   interface TestItem extends Item<'test', 'container'> {
@@ -30,6 +31,9 @@ describe('Find Operations', () => {
 
   let cacheMap: MemoryCacheMap<TestItem, 'test', 'container'>;
   let mockApi: any;
+  let mockEventEmitter: any;
+  let mockTtlManager: any;
+  let mockEvictionManager: any;
   let context: CacheContext<TestItem, 'test', 'container'>;
 
   beforeEach(() => {
@@ -46,7 +50,38 @@ describe('Find Operations', () => {
       ttl: 300000
     };
 
-    context = createCacheContext(mockApi, cacheMap, 'test', options);
+    // Mock EventEmitter
+    mockEventEmitter = {
+      emit: vi.fn(),
+      subscribe: vi.fn(),
+      unsubscribe: vi.fn(),
+      getSubscriptionCount: vi.fn(),
+      getSubscriptions: vi.fn(),
+      destroy: vi.fn()
+    } as any;
+
+    // Mock TTLManager
+    mockTtlManager = {
+      isTTLEnabled: vi.fn().mockReturnValue(true),
+      getDefaultTTL: vi.fn().mockReturnValue(300000),
+      validateItem: vi.fn().mockReturnValue(true),
+      onItemAdded: vi.fn(),
+      onItemAccessed: vi.fn(),
+      removeExpiredItems: vi.fn()
+    } as any;
+
+    // Mock EvictionManager
+    mockEvictionManager = {
+      onItemAdded: vi.fn().mockReturnValue([]),
+      onItemAccessed: vi.fn(),
+      onItemRemoved: vi.fn(),
+      getEvictionStrategyName: vi.fn().mockReturnValue(null),
+      isEvictionSupported: vi.fn().mockReturnValue(false),
+      performEviction: vi.fn().mockReturnValue([])
+    } as any;
+
+    const mockStatsManager = new CacheStatsManager();
+    context = createCacheContext(mockApi, cacheMap, 'test', options, mockEventEmitter, mockTtlManager, mockEvictionManager, mockStatsManager);
   });
 
   describe('find operation', () => {
@@ -66,7 +101,7 @@ describe('Find Operations', () => {
 
       expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
       expect(results).toEqual([testItems[0]]);
-      expect(updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
+      expect(await updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
 
       // Query result should be cached
       expect(updatedContext.cacheMap.hasQueryResult).toBeDefined();
@@ -120,8 +155,8 @@ describe('Find Operations', () => {
 
       expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
       expect(results).toEqual([testItems[0], testItems[1]]);
-      expect(updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
-      expect(updatedContext.cacheMap.get(priKey2)).toEqual(testItems[1]);
+      expect(await updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
+      expect(await updatedContext.cacheMap.get(priKey2)).toEqual(testItems[1]);
     });
 
     it('should handle empty results from API', async () => {
@@ -183,7 +218,7 @@ describe('Find Operations', () => {
 
       expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
       expect(results).toEqual([testItems[2]]);
-      expect(updatedContext.cacheMap.get(comKey1)).toEqual(testItems[2]);
+      expect(await updatedContext.cacheMap.get(comKey1)).toEqual(testItems[2]);
     });
 
     it('should handle API errors gracefully', async () => {
@@ -281,7 +316,7 @@ describe('Find Operations', () => {
 
       expect(mockApi.findOne).toHaveBeenCalledWith(finder, finderParams, locations);
       expect(result).toEqual(testItems[0]);
-      expect(updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
+      expect(await updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
     });
 
     it('should use cached query result when available and item exists', async () => {
@@ -328,7 +363,7 @@ describe('Find Operations', () => {
 
       expect(mockApi.findOne).toHaveBeenCalledWith(finder, finderParams, locations);
       expect(result).toEqual(testItems[0]);
-      expect(updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
+      expect(await updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
     });
 
     it('should handle findOne operations with complex parameters', async () => {
@@ -371,7 +406,7 @@ describe('Find Operations', () => {
 
       expect(mockApi.findOne).toHaveBeenCalledWith(finder, finderParams, locations);
       expect(result).toEqual(testItems[2]);
-      expect(updatedContext.cacheMap.get(comKey1)).toEqual(testItems[2]);
+      expect(await updatedContext.cacheMap.get(comKey1)).toEqual(testItems[2]);
     });
 
     it('should handle API errors gracefully', async () => {

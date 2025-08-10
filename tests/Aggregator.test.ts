@@ -84,6 +84,29 @@ describe('Aggregator', () => {
       registry: {},
       api: {},
       cacheMap: cacheMapMock,
+      evictionManager: {
+        getEvictionStrategyName: vi.fn().mockReturnValue('lru'),
+        isEvictionSupported: vi.fn().mockReturnValue(true),
+      },
+      ttlManager: {
+        getDefaultTTL: vi.fn().mockReturnValue(null),
+        isTTLEnabled: vi.fn().mockReturnValue(false),
+      },
+      getCacheInfo: vi.fn().mockReturnValue({
+        implementationType: 'memory/test',
+        evictionPolicy: 'lru',
+        defaultTTL: null,
+        supportsTTL: false,
+        supportsEviction: true,
+      }),
+      getStats: vi.fn().mockReturnValue({
+        numRequests: 0,
+        numMisses: 0,
+        numHits: 0,
+        numSubscriptions: 0,
+        numUnsubscriptions: 0,
+        activeSubscriptions: 0
+      }),
     } as unknown as Mocked<Cache<Item<"test">, "test">>;
     otherCacheMock = {
       operations: {
@@ -93,6 +116,14 @@ describe('Aggregator', () => {
       registry: {},
       api: {},
       cacheMap: {},
+      getStats: vi.fn().mockReturnValue({
+        numRequests: 0,
+        numMisses: 0,
+        numHits: 0,
+        numSubscriptions: 0,
+        numUnsubscriptions: 0,
+        activeSubscriptions: 0
+      }),
     } as unknown as Mocked<Cache<Item<"other">, "other">>;
 
     aggregator = await createAggregator(itemCacheMock, {
@@ -106,7 +137,7 @@ describe('Aggregator', () => {
 
   it('should populate an item with references', async () => {
 
-    (otherCacheMock.operations.retrieve as any).mockReturnValue([null, otherItems[0]]);
+    (otherCacheMock.operations.retrieve as any).mockReturnValue(otherItems[0]);
 
     const populatedItem = await aggregator.populate(items[0]);
 
@@ -221,7 +252,7 @@ describe('Aggregator', () => {
       }
     } as unknown as Item<"test">;
 
-    (eventCacheMock.operations.retrieve as any).mockReturnValue([null, otherItems[0]]);
+    (eventCacheMock.operations.retrieve as any).mockReturnValue(otherItems[0]);
 
     const populatedItem = await aggregator.populate(itemWithEvent);
 
@@ -250,7 +281,7 @@ describe('Aggregator', () => {
       }
     } as Item<"test">;
 
-    (eventCacheMock.operations.retrieve as any).mockReturnValue([null, otherItems[0]]);
+    (eventCacheMock.operations.retrieve as any).mockReturnValue(otherItems[0]);
 
     await expect(
       aggregator.populate(itemWithEvent)
@@ -280,7 +311,7 @@ describe('Aggregator', () => {
       }
     } as Item<"test">;
 
-    (eventCacheMock.operations.retrieve as any).mockReturnValue([null, otherItems[0]]);
+    (eventCacheMock.operations.retrieve as any).mockReturnValue(otherItems[0]);
 
     await expect(
       aggregator.populate(itemWithEvent)
@@ -387,100 +418,100 @@ describe('Aggregator', () => {
     ];
 
     it('all', async () => {
-      (itemCacheMock.operations.all as any).mockResolvedValue([cacheMapMock, items]);
-      (otherCacheMock.operations.retrieve as any).mockResolvedValue([cacheMapMock, otherItems[0]]);
+      (itemCacheMock.operations.all as any).mockResolvedValue(items);
+      (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const [,aggregatedItems] = await aggregator.all();
+      const aggregatedItems = await aggregator.all();
 
       expect(aggregatedItems[0].aggs?.other.item).toEqual(otherItems[0]);
     });
 
     it('one', async () => {
-      (itemCacheMock.operations.one as any).mockResolvedValue([cacheMapMock, items[0]]);
-      (otherCacheMock.operations.retrieve as any).mockResolvedValue([null, otherItems[0]]);
+      (itemCacheMock.operations.one as any).mockResolvedValue(items[0]);
+      (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const [,item] = await aggregator.one();
+      const item = await aggregator.one();
 
       expect(item?.aggs?.other.item).toEqual(otherItems[0]);
     });
 
     it('actions', async () => {
-      (itemCacheMock.operations.action as any).mockResolvedValue([cacheMapMock, items[0]]);
-      (otherCacheMock.operations.retrieve as any).mockResolvedValue([null, otherItems[0]]);
+      (itemCacheMock.operations.action as any).mockResolvedValue(items[0]);
+      (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const [,item] = await aggregator.action(items[0].key, 'doSomething');
+      const item = await aggregator.action(items[0].key, 'doSomething');
 
       expect(item?.aggs?.other.item).toEqual(otherItems[0]);
     });
 
     it('allActions', async () => {
-      (itemCacheMock.operations.allAction as any).mockResolvedValue([cacheMapMock, items]);
-      (otherCacheMock.operations.retrieve as any).mockResolvedValue([null, otherItems[0]]);
+      (itemCacheMock.operations.allAction as any).mockResolvedValue(items);
+      (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const [,aggregatedItems] = await aggregator.allAction('doSomethingToAll');
+      const aggregatedItems = await aggregator.allAction('doSomethingToAll');
 
       expect(aggregatedItems[0].aggs?.other.item).toEqual(otherItems[0]);
     });
 
     it('create', async () => {
-      (itemCacheMock.operations.create as any).mockResolvedValue([cacheMapMock, items[0]]);
-      (otherCacheMock.operations.retrieve as any).mockResolvedValue([null, otherItems[0]]);
+      (itemCacheMock.operations.create as any).mockResolvedValue(items[0]);
+      (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const [,item] = await aggregator.create(items[0]);
+      const item = await aggregator.create(items[0]);
 
       expect(item?.aggs?.other.item).toEqual(otherItems[0]);
     });
 
     it('get', async () => {
-      (itemCacheMock.operations.get as any).mockResolvedValue([cacheMapMock, items[0]]);
-      (otherCacheMock.operations.retrieve as any).mockResolvedValue([null, otherItems[0]]);
+      (itemCacheMock.operations.get as any).mockResolvedValue(items[0]);
+      (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const [,item] = await aggregator.get(items[0].key);
+      const item = await aggregator.get(items[0].key);
 
       expect(item?.aggs?.other.item).toEqual(otherItems[0]);
     });
 
     it('retrieve', async () => {
-      (itemCacheMock.operations.retrieve as any).mockResolvedValue([cacheMapMock, items[0]]);
-      (otherCacheMock.operations.retrieve as any).mockResolvedValue([null, otherItems[0]]);
+      (itemCacheMock.operations.retrieve as any).mockResolvedValue(items[0]);
+      (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const [,item] = await aggregator.retrieve(items[0].key);
+      const item = await aggregator.retrieve(items[0].key);
 
       expect(item?.aggs?.other.item).toEqual(otherItems[0]);
     });
 
     it('remove', async () => {
-      (itemCacheMock.operations.remove as any).mockResolvedValue(cacheMapMock);
-      (otherCacheMock.operations.retrieve as any).mockReturnValue([null, otherItems[0]]);
+      (itemCacheMock.operations.remove as any).mockResolvedValue(undefined);
+      (otherCacheMock.operations.retrieve as any).mockReturnValue(otherItems[0]);
 
       const result = await aggregator.remove(items[0].key);
 
-      expect(result).toEqual(cacheMapMock);
+      expect(result).toBeUndefined();
     });
 
     it('update', async () => {
-      (itemCacheMock.operations.update as any).mockResolvedValue([cacheMapMock, items[0]]);
-      (otherCacheMock.operations.retrieve as any).mockResolvedValue([null, otherItems[0]]);
+      (itemCacheMock.operations.update as any).mockResolvedValue(items[0]);
+      (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const [,item] = await aggregator.update(items[0].key, items[0]);
+      const item = await aggregator.update(items[0].key, items[0]);
 
       expect(item?.aggs?.other.item).toEqual(otherItems[0]);
     });
 
     it('find', async () => {
-      (itemCacheMock.operations.find as any).mockResolvedValue([cacheMapMock, items]);
-      (otherCacheMock.operations.retrieve as any).mockResolvedValue([null, otherItems[0]]);
+      (itemCacheMock.operations.find as any).mockResolvedValue(items);
+      (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const [,aggregatedItems] = await aggregator.find('findAll');
+      const aggregatedItems = await aggregator.find('findAll');
 
       expect(aggregatedItems[0]?.aggs?.other.item).toEqual(otherItems[0]);
     });
 
     it('set', async () => {
-      (itemCacheMock.operations.set as any).mockResolvedValue([cacheMapMock, items[0]]);
-      (otherCacheMock.operations.retrieve as any).mockResolvedValue([null, otherItems[0]]);
+      (itemCacheMock.operations.set as any).mockResolvedValue(items[0]);
+      (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const [,item] = await aggregator.set(items[0].key, items[0]);
+      const item = await aggregator.set(items[0].key, items[0]);
 
       expect(item?.aggs?.other.item).toEqual(otherItems[0]);
     });
