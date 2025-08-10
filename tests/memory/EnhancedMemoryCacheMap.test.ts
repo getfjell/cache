@@ -387,6 +387,17 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(statsAfterClear.currentSizeBytes).toBe(0);
     });
 
+    it('should clear query results when cache is cleared', () => {
+      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
+      cache.set(key1, item1);
+      cache.setQueryResult('query1', [key1]);
+      expect(cache.hasQueryResult('query1')).toBe(true);
+
+      cache.clear();
+
+      expect(cache.hasQueryResult('query1')).toBe(false);
+    });
+
     it('should update stats when items are deleted', () => {
       const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
       const item2: TestItem = createTestItem(key2, 'item2', 'test2', 200);
@@ -404,6 +415,22 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(statsAfterDelete.currentSizeBytes).toBeLessThan(statsBeforeDelete.currentSizeBytes);
       expect(cache.get(key1)).toBeNull();
       expect(cache.get(key2)).toBeTruthy();
+    });
+
+    it('should remove deleted items from cached query results', () => {
+      const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
+      const item2: TestItem = createTestItem(key2, 'item2', 'test2', 200);
+
+      cache.set(key1, item1);
+      cache.set(key2, item2);
+      const queryHash = 'query1';
+      cache.setQueryResult(queryHash, [key1, key2]);
+
+      cache.delete(key1);
+      expect(cache.getQueryResult(queryHash)).toEqual([key2]);
+
+      cache.delete(key2);
+      expect(cache.hasQueryResult(queryHash)).toBe(false);
     });
   });
 
