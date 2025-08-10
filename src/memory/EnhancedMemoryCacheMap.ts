@@ -165,10 +165,10 @@ export class EnhancedMemoryCacheMap<
   }
 
   public delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
-    this.deleteInternal(key, true);
+    this.deleteInternal(key, true, 'filter');
   }
 
-  private deleteInternal(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, invalidateQueries: boolean = false): void {
+  private deleteInternal(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, invalidateQueries: boolean = false, invalidationMode: 'filter' | 'remove' = 'remove'): void {
     logger.trace('delete', { key });
     const hashedKey = this.normalizedHashFunction(key);
     const entry = this.map[hashedKey];
@@ -187,7 +187,11 @@ export class EnhancedMemoryCacheMap<
 
       // Invalidate queries that reference this key only if requested
       if (invalidateQueries) {
-        this.invalidateQueriesReferencingKeys([key]);
+        if (invalidationMode === 'filter') {
+          this.filterQueriesReferencingKeys([key]);
+        } else {
+          this.invalidateQueriesReferencingKeys([key]);
+        }
       }
     }
   }
@@ -213,8 +217,8 @@ export class EnhancedMemoryCacheMap<
     this.map = {};
     this.currentSizeBytes = 0;
     this.currentItemCount = 0;
-    // Also clear any cached query results to prevent stale references
-    this.clearQueryResults();
+    // Note: Query results are preserved when clearing cache items
+    // Use clearQueryResults() separately if you need to clear query cache as well
   }
 
   public allIn(
@@ -369,8 +373,41 @@ export class EnhancedMemoryCacheMap<
       this.deleteInternal(key, false);
     });
 
-    // Invalidate queries that reference any of the deleted keys (do this once at the end)
+    // For bulk invalidation, remove entire queries (don't filter)
     this.invalidateQueriesReferencingKeys(keys);
+  }
+
+  private filterQueriesReferencingKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+    if (keys.length === 0) {
+      return;
+    }
+
+    // Convert keys to their hashed form for comparison
+    const hashedKeysToInvalidate = new Set(keys.map(key => this.normalizedHashFunction(key)));
+
+    // Filter invalidated keys from query results instead of removing entire queries
+    const queriesToRemove: string[] = [];
+    for (const [queryHash, entry] of Object.entries(this.queryResultCache)) {
+      // Filter out invalidated keys from the query result
+      const filteredKeys = entry.itemKeys.filter(itemKey => {
+        const hashedItemKey = this.normalizedHashFunction(itemKey);
+        return !hashedKeysToInvalidate.has(hashedItemKey);
+      });
+
+      if (filteredKeys.length === 0) {
+        // If no keys remain after filtering, remove the entire query
+        queriesToRemove.push(queryHash);
+      } else if (filteredKeys.length !== entry.itemKeys.length) {
+        // If some keys were filtered out, update the query with remaining keys
+        this.setQueryResult(queryHash, filteredKeys);
+      }
+      // If filteredKeys.length === entry.itemKeys.length, no changes needed
+    }
+
+    // Remove queries that have no valid keys remaining
+    queriesToRemove.forEach(queryHash => {
+      this.deleteQueryResult(queryHash);
+    });
   }
 
   private invalidateQueriesReferencingKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {

@@ -387,7 +387,7 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(statsAfterClear.currentSizeBytes).toBe(0);
     });
 
-    it('should clear query results when cache is cleared', () => {
+    it('should preserve query results when cache is cleared', () => {
       const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
       cache.set(key1, item1);
       cache.setQueryResult('query1', [key1]);
@@ -395,7 +395,8 @@ describe('EnhancedMemoryCacheMap', () => {
 
       cache.clear();
 
-      expect(cache.hasQueryResult('query1')).toBe(false);
+      // Query results should still exist (clear doesn't clear queries)
+      expect(cache.hasQueryResult('query1')).toBe(true);
     });
 
     it('should update stats when items are deleted', () => {
@@ -1951,9 +1952,11 @@ describe('EnhancedMemoryCacheMap', () => {
       const afterDeleteSize = cache.getCurrentSize();
       expect(afterDeleteSize.itemCount).toBe(initialSize.itemCount - 1);
 
-      // Queries should be invalidated
+      // Query1 should be completely removed (it only contained key1)
       expect(cache.hasQueryResult('query1')).toBe(false);
-      expect(cache.hasQueryResult('query2')).toBe(false);
+      // Query2 should be filtered to only contain key2
+      expect(cache.hasQueryResult('query2')).toBe(true);
+      expect(cache.getQueryResult('query2')).toEqual([key2]);
     });
   });
 
