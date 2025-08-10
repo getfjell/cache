@@ -124,6 +124,22 @@ describe('MemoryCacheMap', () => {
         expect(cacheMap.get(comKey1)).toEqual(testItems[2]);
         expect(cacheMap.get(comKey2)).toEqual(testItems[3]);
       });
+
+      it('should remove associated metadata when deleting items', () => {
+        const keyStr = JSON.stringify(priKey1);
+        expect(cacheMap.getMetadata(keyStr)).not.toBeNull();
+        cacheMap.delete(priKey1);
+        expect(cacheMap.getMetadata(keyStr)).toBeNull();
+      });
+
+      it('should remove query results referencing deleted items', () => {
+        cacheMap.setQueryResult('test_query', [priKey1, priKey2]);
+        cacheMap.delete(priKey1);
+        expect(cacheMap.getQueryResult('test_query')).toEqual([priKey2]);
+
+        cacheMap.delete(priKey2);
+        expect(cacheMap.hasQueryResult('test_query')).toBe(false);
+      });
     });
 
     describe('keys() and values()', () => {
@@ -158,6 +174,18 @@ describe('MemoryCacheMap', () => {
         cacheMap.clear();
         cacheMap.set(priKey1, testItems[0]);
         expect(cacheMap.get(priKey1)).toEqual(testItems[0]);
+      });
+
+      it('should clear metadata and query results when cleared', () => {
+        const keyStr = JSON.stringify(priKey1);
+        cacheMap.setQueryResult('query1', [priKey1]);
+        expect(cacheMap.hasQueryResult('query1')).toBe(true);
+        expect(cacheMap.getMetadata(keyStr)).not.toBeNull();
+
+        cacheMap.clear();
+
+        expect(cacheMap.hasQueryResult('query1')).toBe(false);
+        expect(cacheMap.getMetadata(keyStr)).toBeNull();
       });
     });
   });

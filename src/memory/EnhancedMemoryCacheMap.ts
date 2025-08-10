@@ -213,6 +213,8 @@ export class EnhancedMemoryCacheMap<
     this.map = {};
     this.currentSizeBytes = 0;
     this.currentItemCount = 0;
+    // Also clear any cached query results to prevent stale references
+    this.clearQueryResults();
   }
 
   public allIn(
