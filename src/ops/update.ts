@@ -38,7 +38,7 @@ export const update = async <
 
   try {
     // Get previous item for event
-    const previousItem = cacheMap.get(key);
+    const previousItem = await cacheMap.get(key);
 
     const updated = await api.update(key, v);
 

@@ -32,7 +32,7 @@ export const remove = async <
 
   try {
     // Get item before removal for event
-    const previousItem = cacheMap.get(key);
+    const previousItem = await cacheMap.get(key);
 
     // First remove from API, then from cache to maintain consistency
     await api.remove(key);

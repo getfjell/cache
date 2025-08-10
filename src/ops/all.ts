@@ -33,7 +33,7 @@ export const all = async <
   logger.debug('Generated query hash for all', { queryHash });
 
   // Check if we have cached query results
-  const cachedItemKeys = cacheMap.getQueryResult(queryHash);
+  const cachedItemKeys = await cacheMap.getQueryResult(queryHash);
   if (cachedItemKeys) {
     logger.debug('Using cached query results', { cachedKeyCount: cachedItemKeys.length });
 
@@ -42,7 +42,7 @@ export const all = async <
     let allItemsAvailable = true;
 
     for (const itemKey of cachedItemKeys) {
-      const item = cacheMap.get(itemKey);
+      const item = await cacheMap.get(itemKey);
       if (item) {
         cachedItems.push(item);
       } else {

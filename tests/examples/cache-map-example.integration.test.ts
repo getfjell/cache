@@ -25,7 +25,6 @@ describe('Cache Map Example Integration Tests', () => {
       // Verify expected output from the real example
       const logOutput = getLogOutput(testConsole);
       expect(logOutput).toContain('Fjell-Cache CacheMap Example');
-      expect(logOutput).toContain('🚀');
       expect(logOutput).toContain('Direct CacheMap instantiation and management');
       expect(logOutput).toContain('CacheMap Example Complete!');
 

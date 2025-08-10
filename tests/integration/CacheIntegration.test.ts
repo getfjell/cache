@@ -66,12 +66,12 @@ describe('Cache Integration Tests', () => {
       expect(cache.operations.remove).toBeDefined();
     });
 
-    it('should allow direct cache map operations', () => {
+    it('should allow direct cache map operations', async () => {
       const testKey: PriKey<'test'> = { kt: 'test', pk: '1' as UUID };
       const testItem: TestItem = { key: testKey, id: '1', name: 'Test Item', value: 100 } as TestItem;
 
       cache.cacheMap.set(testKey, testItem);
-      const retrieved = cache.cacheMap.get(testKey);
+      const retrieved = await cache.cacheMap.get(testKey);
 
       expect(retrieved).toEqual(testItem);
     });
@@ -84,8 +84,8 @@ describe('Cache Integration Tests', () => {
       cache.cacheMap.set(testKey, testItem);
 
       // Should be accessible via operations
-      expect(cache.cacheMap.get(testKey)).toEqual(testItem);
-      expect(cache.cacheMap.includesKey(testKey)).toBe(true);
+      expect(await cache.cacheMap.get(testKey)).toEqual(testItem);
+      expect(await cache.cacheMap.includesKey(testKey)).toBe(true);
     });
   });
 
@@ -122,7 +122,7 @@ describe('Cache Integration Tests', () => {
       };
     };
 
-    it('should work with MemoryCacheMap', () => {
+    it('should work with MemoryCacheMap', async () => {
       const cache = createTestCache<TestItem, 'test'>('memory', ['test']);
 
       expect(cache.cacheMap).toBeInstanceOf(MemoryCacheMap);
@@ -131,10 +131,10 @@ describe('Cache Integration Tests', () => {
       const testItem: TestItem = { key: testKey, id: '1', name: 'Test Item', value: 100 } as TestItem;
 
       cache.cacheMap.set(testKey, testItem);
-      expect(cache.cacheMap.get(testKey)).toEqual(testItem);
+      expect(await cache.cacheMap.get(testKey)).toEqual(testItem);
     });
 
-    it('should work with LocalStorageCacheMap', () => {
+    it('should work with LocalStorageCacheMap', async () => {
       const cache = createTestCache<TestItem, 'test'>('localStorage', ['test']);
 
       expect(cache.cacheMap).toBeInstanceOf(LocalStorageCacheMap);
@@ -143,10 +143,10 @@ describe('Cache Integration Tests', () => {
       const testItem: TestItem = { key: testKey, id: '1', name: 'Test Item', value: 100 } as TestItem;
 
       cache.cacheMap.set(testKey, testItem);
-      expect(cache.cacheMap.get(testKey)).toEqual(testItem);
+      expect(await cache.cacheMap.get(testKey)).toEqual(testItem);
     });
 
-    it('should work with SessionStorageCacheMap', () => {
+    it('should work with SessionStorageCacheMap', async () => {
       const cache = createTestCache<TestItem, 'test'>('sessionStorage', ['test']);
 
       expect(cache.cacheMap).toBeInstanceOf(SessionStorageCacheMap);
@@ -155,17 +155,17 @@ describe('Cache Integration Tests', () => {
       const testItem: TestItem = { key: testKey, id: '1', name: 'Test Item', value: 100 } as TestItem;
 
       cache.cacheMap.set(testKey, testItem);
-      expect(cache.cacheMap.get(testKey)).toEqual(testItem);
+      expect(await cache.cacheMap.get(testKey)).toEqual(testItem);
     });
   });
 
   describe('Cross-Implementation Compatibility', () => {
-    it('should maintain same behavior across different implementations', () => {
+    it('should maintain same behavior across different implementations', async () => {
       const implementations = ['memory', 'localStorage', 'sessionStorage'] as const;
       const testKey: PriKey<'test'> = { kt: 'test', pk: '123' as UUID };
       const testItem: TestItem = { key: testKey, id: '123', name: 'Test Item', value: 100 } as TestItem;
 
-      implementations.forEach(impl => {
+      for (const impl of implementations) {
         let cacheMap;
         switch (impl) {
           case 'memory':
@@ -181,18 +181,18 @@ describe('Cache Integration Tests', () => {
 
         // All implementations should support the same basic operations
         cacheMap.set(testKey, testItem);
-        expect(cacheMap.get(testKey)).toEqual(testItem);
-        expect(cacheMap.includesKey(testKey)).toBe(true);
-        expect(cacheMap.keys().some(k => JSON.stringify(k) === JSON.stringify(testKey))).toBe(true);
-        expect(cacheMap.values().some(v => JSON.stringify(v) === JSON.stringify(testItem))).toBe(true);
+        expect(await cacheMap.get(testKey)).toEqual(testItem);
+        expect(await cacheMap.includesKey(testKey)).toBe(true);
+        expect((await cacheMap.keys()).some(k => JSON.stringify(k) === JSON.stringify(testKey))).toBe(true);
+        expect((await cacheMap.values()).some(v => JSON.stringify(v) === JSON.stringify(testItem))).toBe(true);
 
         cacheMap.delete(testKey);
-        expect(cacheMap.get(testKey)).toBeNull();
-        expect(cacheMap.includesKey(testKey)).toBe(false);
-      });
+        expect(await cacheMap.get(testKey)).toBeNull();
+        expect(await cacheMap.includesKey(testKey)).toBe(false);
+      }
     });
 
-    it('should handle key normalization consistently across implementations', () => {
+    it('should handle key normalization consistently across implementations', async () => {
       const implementations = [
         () => new MemoryCacheMap<TestItem, 'test'>(['test']),
         () => new LocalStorageCacheMap<TestItem, 'test'>(['test'], 'norm-test-local'),
@@ -204,22 +204,22 @@ describe('Cache Integration Tests', () => {
       const stringItem: TestItem = { key: stringKey, id: '1', name: 'String Key', value: 100 } as TestItem;
       const numberItem: TestItem = { key: numberKey, id: '2', name: 'Number Key', value: 200 } as TestItem;
 
-      implementations.forEach(createCacheMap => {
+      for (const createCacheMap of implementations) {
         const cacheMap = createCacheMap();
 
         cacheMap.set(stringKey, stringItem);
         cacheMap.set(numberKey, numberItem);
 
         // Due to normalization, the number key should overwrite the string key
-        expect(cacheMap.get(stringKey)).toEqual(numberItem);
-        expect(cacheMap.get(numberKey)).toEqual(numberItem);
-        expect(cacheMap.keys()).toHaveLength(1);
-      });
+        expect(await cacheMap.get(stringKey)).toEqual(numberItem);
+        expect(await cacheMap.get(numberKey)).toEqual(numberItem);
+        expect(await cacheMap.keys()).toHaveLength(1);
+      }
     });
   });
 
   describe('Complex Location-based Operations', () => {
-    it('should work consistently across implementations for composite keys', () => {
+    it('should work consistently across implementations for composite keys', async () => {
       const implementations = [
         () => new MemoryCacheMap<ContainerItem, 'item', 'container'>(['item', 'container']),
         () => new LocalStorageCacheMap<ContainerItem, 'item', 'container'>(['item', 'container'], 'comp-test-local'),
@@ -241,31 +241,31 @@ describe('Cache Integration Tests', () => {
       const item1: ContainerItem = { key: containerKey1, id: '1', title: 'Item 1', containerId: 'container-1' } as ContainerItem;
       const item2: ContainerItem = { key: containerKey2, id: '2', title: 'Item 2', containerId: 'container-2' } as ContainerItem;
 
-      implementations.forEach(createCacheMap => {
+      for (const createCacheMap of implementations) {
         const cacheMap = createCacheMap();
 
         cacheMap.set(containerKey1, item1);
         cacheMap.set(containerKey2, item2);
 
         // Test location-based queries
-        const container1Items = cacheMap.allIn([{ kt: 'container', lk: 'container-1' as UUID }]);
+        const container1Items = await cacheMap.allIn([{ kt: 'container', lk: 'container-1' as UUID }]);
         expect(container1Items).toHaveLength(1);
         expect(container1Items[0]).toEqual(item1);
 
-        const container2Items = cacheMap.allIn([{ kt: 'container', lk: 'container-2' as UUID }]);
+        const container2Items = await cacheMap.allIn([{ kt: 'container', lk: 'container-2' as UUID }]);
         expect(container2Items).toHaveLength(1);
         expect(container2Items[0]).toEqual(item2);
 
-        const allItems = cacheMap.allIn([]);
+        const allItems = await cacheMap.allIn([]);
         expect(allItems).toHaveLength(2);
         expect(allItems.some(item => JSON.stringify(item) === JSON.stringify(item1))).toBe(true);
         expect(allItems.some(item => JSON.stringify(item) === JSON.stringify(item2))).toBe(true);
-      });
+      }
     });
   });
 
   describe('Migration and Compatibility', () => {
-    it('should maintain backward compatibility with existing cache usage', () => {
+    it('should maintain backward compatibility with existing cache usage', async () => {
       // This test ensures that existing code using createCache still works
       const coordinate = createCoordinate(['test']);
       const registry = createRegistry('cache');
@@ -283,7 +283,7 @@ describe('Cache Integration Tests', () => {
       expect(cache.cacheMap).toBeInstanceOf(MemoryCacheMap);
     });
 
-    it('should allow easy migration to different cache implementations', () => {
+    it('should allow easy migration to different cache implementations', async () => {
       // Example migration pattern
       const coordinate = createCoordinate(['test']);
       const registry = createRegistry('cache');
@@ -306,13 +306,13 @@ describe('Cache Integration Tests', () => {
       memoryCache.cacheMap.set(testKey, testItem);
       localStorageCache.cacheMap.set(testKey, testItem);
 
-      expect(memoryCache.cacheMap.get(testKey)).toEqual(testItem);
-      expect(localStorageCache.cacheMap.get(testKey)).toEqual(testItem);
+      expect(await memoryCache.cacheMap.get(testKey)).toEqual(testItem);
+      expect(await localStorageCache.cacheMap.get(testKey)).toEqual(testItem);
     });
   });
 
   describe('Performance and Scalability', () => {
-    it('should handle large datasets efficiently across implementations', () => {
+    it('should handle large datasets efficiently across implementations', async () => {
       const createLargeDataset = (size: number) => {
         return Array.from({ length: size }, (_, i) => {
           const key: PriKey<'test'> = { kt: 'test', pk: `item-${i}` as UUID };
@@ -328,7 +328,8 @@ describe('Cache Integration Tests', () => {
         () => new SessionStorageCacheMap<TestItem, 'test'>(['test'], 'perf-test-session')
       ];
 
-      implementations.forEach((createCacheMap, index) => {
+      for (let index = 0; index < implementations.length; index++) {
+        const createCacheMap = implementations[index];
         const cacheMap = createCacheMap();
         const startTime = Date.now();
 
@@ -342,22 +343,22 @@ describe('Cache Integration Tests', () => {
         });
 
         // Verify all items
-        dataset.forEach(({ key, item }) => {
-          expect(cacheMap.get(key)).toEqual(item);
-        });
+        for (const { key, item } of dataset) {
+          expect(await cacheMap.get(key)).toEqual(item);
+        }
 
         const endTime = Date.now();
         const duration = endTime - startTime;
 
         // Should complete within reasonable time
         expect(duration).toBeLessThan(1000); // 1 second
-        expect(cacheMap.keys()).toHaveLength(100);
-      });
+        expect(await cacheMap.keys()).toHaveLength(100);
+      }
     });
   });
 
   describe('Error Handling and Edge Cases', () => {
-    it('should handle storage errors gracefully in browser implementations', () => {
+    it('should handle storage errors gracefully in browser implementations', async () => {
       // Test localStorage quota exceeded scenario
       const localCache = new LocalStorageCacheMap<TestItem, 'test'>(['test'], 'error-test');
 
@@ -378,7 +379,7 @@ describe('Cache Integration Tests', () => {
       localStorage.setItem = originalSetItem;
     });
 
-    it('should maintain cache integrity during partial failures', () => {
+    it('should maintain cache integrity during partial failures', async () => {
       const cacheMap = new MemoryCacheMap<TestItem, 'test'>(['test']);
 
       const testKey1: PriKey<'test'> = { kt: 'test', pk: '1' as UUID };
@@ -388,15 +389,15 @@ describe('Cache Integration Tests', () => {
 
       // Insert first item successfully
       cacheMap.set(testKey1, testItem1);
-      expect(cacheMap.get(testKey1)).toEqual(testItem1);
+      expect(await cacheMap.get(testKey1)).toEqual(testItem1);
 
       // Second item should also work (no partial failure in memory cache)
       cacheMap.set(testKey2, testItem2);
-      expect(cacheMap.get(testKey2)).toEqual(testItem2);
+      expect(await cacheMap.get(testKey2)).toEqual(testItem2);
 
       // Both items should still be available
-      expect(cacheMap.keys()).toHaveLength(2);
-      expect(cacheMap.get(testKey1)).toEqual(testItem1);
+      expect(await cacheMap.keys()).toHaveLength(2);
+      expect(await cacheMap.get(testKey1)).toEqual(testItem1);
     });
   });
 });

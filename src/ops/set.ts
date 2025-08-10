@@ -118,7 +118,7 @@ export const set = async <
   }
 
   // Get previous item if it exists
-  const previousItem = cacheMap.get(key);
+  const previousItem = await cacheMap.get(key);
 
   cacheMap.set(key, v as V);
 

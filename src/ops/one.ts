@@ -32,7 +32,7 @@ export const one = async <
   logger.debug('Generated query hash for one', { queryHash });
 
   // Check if we have cached query results
-  const cachedItemKeys = cacheMap.getQueryResult(queryHash);
+  const cachedItemKeys = await cacheMap.getQueryResult(queryHash);
   if (cachedItemKeys) {
     logger.debug('Using cached query results', { cachedKeyCount: cachedItemKeys.length });
 
@@ -42,7 +42,7 @@ export const one = async <
     }
 
     // Retrieve the first cached item - if missing, invalidate the query cache
-    const item = cacheMap.get(cachedItemKeys[0]);
+    const item = await cacheMap.get(cachedItemKeys[0]);
     if (item) {
       return [context, validatePK(item, pkType) as V];
     } else {

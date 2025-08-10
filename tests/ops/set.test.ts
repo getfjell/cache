@@ -528,9 +528,9 @@ describe('set operation', () => {
       await expect(set(key1, item, errorContext)).rejects.toThrow('TTL Manager error');
     });
 
-    it('should call TTL manager with correct parameters', () => {
+    it('should call TTL manager with correct parameters', async () => {
       const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
-      set(key1, item, context);
+      await set(key1, item, context);
 
       expect(mockTTLManager.onItemAdded).toHaveBeenCalledWith(
         JSON.stringify(key1),
@@ -569,9 +569,9 @@ describe('set operation', () => {
       await expect(set(key1, item, errorContext)).rejects.toThrow('Eviction Manager error');
     });
 
-    it('should call eviction manager with correct parameters for new item', () => {
+    it('should call eviction manager with correct parameters for new item', async () => {
       const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
-      set(key1, item, context);
+      await set(key1, item, context);
 
       expect(mockEvictionManager.onItemAdded).toHaveBeenCalledWith(
         JSON.stringify(key1),
@@ -580,16 +580,16 @@ describe('set operation', () => {
       );
     });
 
-    it('should call eviction manager with correct parameters for item update', () => {
+    it('should call eviction manager with correct parameters for item update', async () => {
       const item1 = createTestItem(key1, 'item1', 'Test Item 1', 100);
       const item2 = createTestItem(key1, 'item1', 'Test Item 1 Updated', 200);
 
       // Set initial item
-      set(key1, item1, context);
+      await set(key1, item1, context);
       vi.clearAllMocks();
 
       // Update item
-      set(key1, item2, context);
+      await set(key1, item2, context);
 
       // Should still call onItemAdded for updates (current implementation behavior)
       expect(mockEvictionManager.onItemAdded).toHaveBeenCalledWith(
@@ -601,9 +601,9 @@ describe('set operation', () => {
   });
 
   describe('event emitter integration edge cases', () => {
-    it('should emit correct events for new item', () => {
+    it('should emit correct events for new item', async () => {
       const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
-      set(key1, item, context);
+      await set(key1, item, context);
 
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -616,16 +616,16 @@ describe('set operation', () => {
       );
     });
 
-    it('should emit correct events for item update', () => {
+    it('should emit correct events for item update', async () => {
       const item1 = createTestItem(key1, 'item1', 'Test Item 1', 100);
       const item2 = createTestItem(key1, 'item1', 'Test Item 1 Updated', 200);
 
       // Set initial item
-      set(key1, item1, context);
+      await set(key1, item1, context);
       vi.clearAllMocks();
 
       // Update item
-      set(key1, item2, context);
+      await set(key1, item2, context);
 
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -651,9 +651,9 @@ describe('set operation', () => {
       await expect(set(key1, item, errorContext)).rejects.toThrow('Event Emitter error');
     });
 
-    it('should emit events with null previous for new items', () => {
+    it('should emit events with null previous for new items', async () => {
       const item = createTestItem(key1, 'item1', 'Test Item 1', 100);
-      set(key1, item, context);
+      await set(key1, item, context);
 
       expect(mockEventEmitter.emit).toHaveBeenCalledWith(
         expect.objectContaining({

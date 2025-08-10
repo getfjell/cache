@@ -34,14 +34,14 @@ export const retrieve = async <
     throw new Error('Key for Retrieve is not a valid ItemKey');
   }
 
-  const containsItemKey = cacheMap.includesKey(key);
+  const containsItemKey = await cacheMap.includesKey(key);
 
   let retrieved: V | null;
   let contextToReturn: CacheContext<V, S, L1, L2, L3, L4, L5> | null;
 
   if (containsItemKey) {
     logger.default('Looking for Object in Cache', key);
-    retrieved = cacheMap.get(key);
+    retrieved = await cacheMap.get(key);
     contextToReturn = null;
     statsManager.incrementHits();
   } else {

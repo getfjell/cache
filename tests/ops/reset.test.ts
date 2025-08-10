@@ -47,7 +47,7 @@ describe("reset operation", () => {
       const [newCacheMap] = await reset<TestItem, "test">(coordinate, options);
 
       // Verify the cache map is empty by checking includesKey() method
-      const hasAny = newCacheMap.includesKey({ kt: "test", pk: "test-key" });
+      const hasAny = await newCacheMap.includesKey({ kt: "test", pk: "test-key" });
       expect(hasAny).toBe(false);
     });
 

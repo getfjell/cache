@@ -98,7 +98,7 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): V | null {
+  public async get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<V | null> {
     logger.trace('get', { key });
     try {
       const currentHash = this.normalizedHashFunction(key);
@@ -144,7 +144,7 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean {
+  public async includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<boolean> {
     try {
       const currentHash = this.normalizedHashFunction(key);
       if (this.hasCollisionForHash(currentHash)) {
@@ -176,16 +176,23 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): V[] {
+  public async allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]> {
     const allKeys = this.keys();
 
     if (locations.length === 0) {
       logger.debug('Returning all items, LocKeys is empty');
-      return allKeys.map(key => this.get(key)).filter(item => item !== null) as V[];
+      const items: V[] = [];
+      for (const key of allKeys) {
+        const item = await this.get(key);
+        if (item !== null) {
+          items.push(item);
+        }
+      }
+      return items;
     } else {
       const locKeys: LocKeyArray<L1, L2, L3, L4, L5> | [] = locations;
       logger.debug('allIn', { locKeys, keys: allKeys.length });
-      return allKeys
+      const filteredKeys = allKeys
         .filter((key) => key && isComKey(key))
         .filter((key) => {
           const ComKey = key as ComKey<S, L1, L2, L3, L4, L5>;
@@ -194,27 +201,35 @@ export class SessionStorageCacheMap<
             ComKey,
           });
           return isLocKeyArrayEqual(locKeys, ComKey.loc);
-        })
-        .map((key) => this.get(key) as V);
+        });
+
+      const items: V[] = [];
+      for (const key of filteredKeys) {
+        const item = await this.get(key);
+        if (item !== null) {
+          items.push(item);
+        }
+      }
+      return items;
     }
   }
 
-  public contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): boolean {
+  public async contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<boolean> {
     logger.debug('contains', { query, locations });
-    const items = this.allIn(locations);
+    const items = await this.allIn(locations);
     return items.some((item) => isQueryMatch(item, query));
   }
 
-  public queryIn(
+  public async queryIn(
     query: ItemQuery,
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): V[] {
+  ): Promise<V[]> {
     logger.debug('queryIn', { query, locations });
-    const items = this.allIn(locations);
+    const items = await this.allIn(locations);
     return items.filter((item) => isQueryMatch(item, query));
   }
 
-  public clone(): SessionStorageCacheMap<V, S, L1, L2, L3, L4, L5> {
+  public async clone(): Promise<SessionStorageCacheMap<V, S, L1, L2, L3, L4, L5>> {
     // SessionStorage is shared globally for the tab, so clone just creates a new instance with same prefix
     return new SessionStorageCacheMap<V, S, L1, L2, L3, L4, L5>(this.types, this.keyPrefix);
   }
@@ -245,7 +260,7 @@ export class SessionStorageCacheMap<
     return keys;
   }
 
-  public values(): V[] {
+  public async values(): Promise<V[]> {
     const values: V[] = [];
 
     try {
@@ -301,7 +316,7 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null {
+  public async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
     logger.trace('getQueryResult', { queryHash });
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
@@ -328,8 +343,13 @@ export class SessionStorageCacheMap<
   }
 
   public hasQueryResult(queryHash: string): boolean {
-    // Use getQueryResult to check if result exists
-    return this.getQueryResult(queryHash) !== null;
+    const queryKey = `${this.keyPrefix}:query:${queryHash}`;
+    try {
+      return sessionStorage.getItem(queryKey) !== null;
+    } catch (error) {
+      logger.error('Failed to check query result in sessionStorage', { queryHash, error });
+      return false;
+    }
   }
 
   public deleteQueryResult(queryHash: string): void {
@@ -349,7 +369,7 @@ export class SessionStorageCacheMap<
     });
   }
 
-  public invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): void {
+  public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
     logger.debug('invalidateLocation', { locations });
 
     if (locations.length === 0) {
@@ -359,7 +379,7 @@ export class SessionStorageCacheMap<
       this.invalidateItemKeys(primaryKeys);
     } else {
       // For contained items, get all items in the location and invalidate them
-      const itemsInLocation = this.allIn(locations);
+      const itemsInLocation = await this.allIn(locations);
       const keysToInvalidate = itemsInLocation.map(item => item.key);
       this.invalidateItemKeys(keysToInvalidate);
     }

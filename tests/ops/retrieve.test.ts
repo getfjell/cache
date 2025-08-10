@@ -476,7 +476,7 @@ describe('retrieve operation', () => {
       await retrieve(key1, context);
 
       // We can't directly test logger calls due to mocking, but we verify the operation completed
-      expect(cacheMap.get(key1)).toEqual(item1);
+      expect(await cacheMap.get(key1)).toEqual(item1);
     });
 
     it('should log cache miss path', async () => {
