@@ -2,6 +2,10 @@ import { Item } from "@fjell/core";
 import { ClientApi } from "@fjell/client-api";
 import { CacheMap } from "./CacheMap";
 import { Options } from "./Options";
+import { CacheEventEmitter } from "./events/CacheEventEmitter";
+import { TTLManager } from "./ttl/TTLManager";
+import { EvictionManager } from "./eviction/EvictionManager";
+import { CacheStatsManager } from "./CacheStats";
 
 /**
  * Context object that consolidates all cache-related parameters
@@ -29,11 +33,17 @@ export interface CacheContext<
   /** Cache options including TTL configuration */
   options: Options<V, S, L1, L2, L3, L4, L5>;
 
-  /** TTL for individual items (from memoryConfig.ttl or ttl) */
-  itemTtl?: number;
+  /** Event emitter for cache events */
+  eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>;
 
-  /** TTL for query results (from ttl) */
-  queryTtl?: number;
+  /** TTL manager for handling time-to-live independently of storage */
+  ttlManager: TTLManager;
+
+  /** Eviction manager for handling cache eviction independently of storage */
+  evictionManager: EvictionManager;
+
+  /** Statistics manager for tracking cache metrics */
+  statsManager: CacheStatsManager;
 }
 
 /**
@@ -51,14 +61,20 @@ export const createCacheContext = <
     api: ClientApi<V, S, L1, L2, L3, L4, L5>,
     cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
     pkType: S,
-    options: Options<V, S, L1, L2, L3, L4, L5>
+    options: Options<V, S, L1, L2, L3, L4, L5>,
+    eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>,
+    ttlManager: TTLManager,
+    evictionManager: EvictionManager,
+    statsManager: CacheStatsManager
   ): CacheContext<V, S, L1, L2, L3, L4, L5> => {
   return {
     api,
     cacheMap,
     pkType,
     options,
-    itemTtl: options.memoryConfig?.ttl || options.ttl,
-    queryTtl: options.memoryConfig?.ttl || options.ttl
+    eventEmitter,
+    ttlManager,
+    evictionManager,
+    statsManager
   };
 };

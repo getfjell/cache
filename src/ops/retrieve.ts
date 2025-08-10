@@ -23,27 +23,35 @@ export const retrieve = async <
   key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5> | null, V | null]> => {
-  const { cacheMap, pkType } = context;
+  const { cacheMap, pkType, statsManager } = context;
   logger.default('retrieve', { key });
+
+  // Track cache request
+  statsManager.incrementRequests();
 
   if (!isValidItemKey(key)) {
     logger.error('Key for Retrieve is not a valid ItemKey: %j', key);
     throw new Error('Key for Retrieve is not a valid ItemKey');
   }
 
-  const containsItemKey = cacheMap.includesKey(key);
+  const containsItemKey = await cacheMap.includesKey(key);
 
   let retrieved: V | null;
+  let contextToReturn: CacheContext<V, S, L1, L2, L3, L4, L5> | null;
+
   if (containsItemKey) {
     logger.default('Looking for Object in Cache', key);
-    retrieved = cacheMap.get(key);
+    retrieved = await cacheMap.get(key);
+    contextToReturn = null;
+    statsManager.incrementHits();
   } else {
     logger.default('Object Not Found in Cache, Retrieving from Server API', { key });
-    [, retrieved] = await get(key, context);
+    statsManager.incrementMisses();
+    [contextToReturn, retrieved] = await get(key, context);
   }
 
   const retValue: [CacheContext<V, S, L1, L2, L3, L4, L5> | null, V | null] = [
-    containsItemKey ? null : context,
+    contextToReturn,
     retrieved ?
       validatePK(retrieved, pkType) as V :
       null

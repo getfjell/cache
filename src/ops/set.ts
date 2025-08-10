@@ -7,6 +7,7 @@ import {
   validatePK
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
+import { CacheEventFactory } from "../events/CacheEventFactory";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('set');
@@ -100,7 +101,7 @@ export const set = async <
   v: Item<S, L1, L2, L3, L4, L5>,
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
-  const { cacheMap, pkType } = context;
+  const { cacheMap, pkType, ttlManager, evictionManager, eventEmitter } = context;
   logger.default('set', { key, v });
 
   if (!isValidItemKey(key)) {
@@ -116,6 +117,26 @@ export const set = async <
     throw new Error('Key does not match item key');
   }
 
+  // Get previous item if it exists
+  const previousItem = await cacheMap.get(key);
+
   cacheMap.set(key, v as V);
+
+  // Set TTL metadata for the newly cached item
+  const keyStr = JSON.stringify(key);
+  ttlManager.onItemAdded(keyStr, cacheMap);
+
+  // Handle eviction for the newly cached item
+  const evictedKeys = evictionManager.onItemAdded(keyStr, v, cacheMap);
+  // Remove evicted items from cache
+  evictedKeys.forEach(evictedKey => {
+    const parsedKey = JSON.parse(evictedKey);
+    cacheMap.delete(parsedKey);
+  });
+
+  // Emit event
+  const event = CacheEventFactory.itemSet(key, v as V, previousItem);
+  eventEmitter.emit(event);
+
   return [context, validatePK(v, pkType) as V];
 };

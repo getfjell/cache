@@ -1,6 +1,45 @@
 import { createEvictionStrategy } from '../src/eviction/EvictionStrategyFactory';
-import { CacheItemMetadata } from '../src/eviction/EvictionStrategy';
+import { CacheItemMetadata, CacheMapMetadataProvider } from '../src/eviction/EvictionStrategy';
 import { ARCConfig } from '../src/eviction/EvictionStrategyConfig';
+
+/**
+ * Simple metadata provider for examples
+ */
+class SimpleMetadataProvider implements CacheMapMetadataProvider {
+  private metadata = new Map<string, CacheItemMetadata>();
+
+  getMetadata(key: string): CacheItemMetadata | null {
+    return this.metadata.get(key) || null;
+  }
+
+  setMetadata(key: string, metadata: CacheItemMetadata): void {
+    this.metadata.set(key, metadata);
+  }
+
+  deleteMetadata(key: string): void {
+    this.metadata.delete(key);
+  }
+
+  getAllMetadata(): Map<string, CacheItemMetadata> {
+    return new Map(this.metadata);
+  }
+
+  clearMetadata(): void {
+    this.metadata.clear();
+  }
+
+  getCurrentSize(): { itemCount: number; sizeBytes: number } {
+    let sizeBytes = 0;
+    for (const metadata of this.metadata.values()) {
+      sizeBytes += metadata.estimatedSize;
+    }
+    return { itemCount: this.metadata.size, sizeBytes };
+  }
+
+  getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+    return { maxItems: null, maxSizeBytes: null };
+  }
+}
 
 /**
  * Example demonstrating the enhanced ARC eviction strategy with sophisticated frequency tracking
@@ -64,7 +103,7 @@ function demonstrateEnhancedARC() {
 }
 
 function demonstrateARCStrategy(strategy: any, name: string) {
-  const items = new Map<string, CacheItemMetadata>();
+  const metadataProvider = new SimpleMetadataProvider();
 
   // Create items representing different access patterns
   const itemData = [
@@ -84,19 +123,25 @@ function demonstrateARCStrategy(strategy: any, name: string) {
       estimatedSize: 1024
     };
 
-    // Add item to ARC
-    strategy.onItemAdded(key, metadata);
+    // Add item through metadata provider
+    metadataProvider.setMetadata(key, metadata);
+    strategy.onItemAdded(key, metadata.estimatedSize, metadataProvider);
 
     // Simulate access pattern
     for (let i = 1; i < accessCount; i++) {
-      strategy.onItemAccessed(key, metadata);
+      metadata.accessCount++;
+      metadata.lastAccessedAt = Date.now();
+      metadataProvider.setMetadata(key, metadata);
+      strategy.onItemAccessed(key, metadataProvider);
     }
-
-    items.set(key, metadata);
   });
 
   // Show eviction decision
-  const evictKey = strategy.selectForEviction(items);
+  const context = {
+    currentSize: metadataProvider.getCurrentSize(),
+    limits: metadataProvider.getSizeLimits()
+  };
+  const evictKey = strategy.selectForEviction(metadataProvider, context);
   console.log(`  ${name} would evict: ${evictKey}`);
 
   // Show adaptive state
@@ -107,7 +152,8 @@ function demonstrateARCStrategy(strategy: any, name: string) {
 
   // Show item classification and scores
   console.log('  Item analysis:');
-  for (const [key, metadata] of items) {
+  const allMetadata = metadataProvider.getAllMetadata();
+  for (const [key, metadata] of allMetadata) {
     const freq = metadata.rawFrequency || metadata.accessCount;
     const score = metadata.frequencyScore ? ` (score: ${metadata.frequencyScore.toFixed(2)})` : '';
     const age = Math.round((Date.now() - metadata.addedAt) / 1000);
@@ -117,7 +163,7 @@ function demonstrateARCStrategy(strategy: any, name: string) {
 }
 
 function demonstrateDecayARC(strategy: any, name: string) {
-  const items = new Map<string, CacheItemMetadata>();
+  const metadataProvider = new SimpleMetadataProvider();
 
   // Create items with different temporal patterns to show adaptive behavior
   const oldTime = Date.now() - 1800000; // 30 minutes ago
@@ -140,23 +186,31 @@ function demonstrateDecayARC(strategy: any, name: string) {
       estimatedSize: 1024
     };
 
-    strategy.onItemAdded(key, metadata);
+    // Add item through metadata provider
+    metadataProvider.setMetadata(key, metadata);
+    strategy.onItemAdded(key, metadata.estimatedSize, metadataProvider);
 
     // Simulate access pattern over time
     for (let i = 1; i < accessCount; i++) {
-      strategy.onItemAccessed(key, metadata);
+      metadata.accessCount++;
+      metadata.lastAccessedAt = Date.now();
+      metadataProvider.setMetadata(key, metadata);
+      strategy.onItemAccessed(key, metadataProvider);
     }
-
-    items.set(key, metadata);
   });
 
   // Show adaptive eviction decision
-  const evictKey = strategy.selectForEviction(items);
+  const context = {
+    currentSize: metadataProvider.getCurrentSize(),
+    limits: metadataProvider.getSizeLimits()
+  };
+  const evictKey = strategy.selectForEviction(metadataProvider, context);
   console.log(`  ${name} would evict: ${evictKey}`);
 
   // Show how decay affects frequency analysis
   console.log('  Decay-adjusted frequency analysis:');
-  for (const [key, metadata] of items) {
+  const allMetadata = metadataProvider.getAllMetadata();
+  for (const [key, metadata] of allMetadata) {
     const rawFreq = metadata.rawFrequency || metadata.accessCount;
     const effectiveScore = metadata.frequencyScore || rawFreq;
     const age = Math.round((Date.now() - metadata.addedAt) / 60000); // Age in minutes

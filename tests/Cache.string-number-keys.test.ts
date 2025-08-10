@@ -51,7 +51,7 @@ describe('Cache String/Number Key Normalization', () => {
     await cache.operations.set(stringKey, testItem);
 
     // Try to retrieve with number key - should find the same item
-    const [, retrievedItem] = await cache.operations.retrieve(numberKey);
+    const retrievedItem = await cache.operations.retrieve(numberKey);
 
     expect(retrievedItem).not.toBeNull();
     expect(retrievedItem?.key).toEqual(stringKey);
@@ -84,13 +84,13 @@ describe('Cache String/Number Key Normalization', () => {
     await cache.operations.set(stringComKey, testItem);
 
     // Try to retrieve with number keys - should find the same item
-    const [, retrievedItem] = await cache.operations.retrieve(numberComKey);
+    const retrievedItem = await cache.operations.retrieve(numberComKey);
 
     expect(retrievedItem).not.toBeNull();
     expect(retrievedItem?.key).toEqual(stringComKey);
   });
 
-  it('should normalize keys consistently in CacheMap operations', () => {
+  it('should normalize keys consistently in CacheMap operations', async () => {
     const cacheMap = new MemoryCacheMap<TestItem, 'test'>(['test']);
 
     // Test with string key
@@ -108,13 +108,13 @@ describe('Cache String/Number Key Normalization', () => {
 
     // Test with number key - should find the same item
     const numberKey: PriKey<'test'> = { kt: 'test', pk: 123 };
-    const retrievedItem = cacheMap.get(numberKey);
+    const retrievedItem = await cacheMap.get(numberKey);
 
     expect(retrievedItem).not.toBeNull();
     expect(retrievedItem?.key).toEqual(stringKey);
   });
 
-  it('should handle location key arrays with mixed string/number keys', () => {
+  it('should handle location key arrays with mixed string/number keys', async () => {
     const cacheMap = new MemoryCacheMap<TestItem, 'test', 'location'>(['test', 'location']);
 
     // Create items with different key types
@@ -137,7 +137,7 @@ describe('Cache String/Number Key Normalization', () => {
 
     // Query with number location key - should find the same item
     const numberLocations = [{ kt: 'location', lk: 456 }] as [{ kt: 'location', lk: number }];
-    const items = cacheMap.allIn(numberLocations);
+    const items = await cacheMap.allIn(numberLocations);
 
     expect(items).toHaveLength(1);
     expect(items[0].key).toEqual(stringComKey);

@@ -1,6 +1,6 @@
 import { beforeAll, vi } from 'vitest'
 
-beforeAll(() => {
+beforeAll(async () => {
   // Enable source maps for better error reporting
   process.env.NODE_OPTIONS = '--enable-source-maps'
 
@@ -17,7 +17,10 @@ beforeAll(() => {
       reason.message.includes('Not found:') ||
       reason.message.includes('API failure') ||
       reason.message.includes('Network error') ||
-      reason.message.includes('Detailed API error')
+      reason.message.includes('Detailed API error') ||
+      reason.message.includes('Null error test') ||
+      reason.message.includes('Undefined error test') ||
+      reason.message.includes('Edge case item not found:')
     )) {
       // These are expected test errors that are handled by test assertions
       return;
@@ -28,50 +31,39 @@ beforeAll(() => {
 
   // Mock browser globals for browser cache tests
   if (typeof globalThis.window === 'undefined') {
-    // Mock window object
-    globalThis.window = {} as any;
+    // Mock window object with document for browser environment validation
+    globalThis.window = {
+      document: {
+        createElement: vi.fn(() => ({}))
+      }
+    } as any;
 
-    // Mock localStorage
-    const createStorageMock = () => {
-      const storeWrapper = { data: {} as Record<string, string> };
+    // Import the proper storage mock
+    const { StorageMock } = await import('./browser/storage-mock');
 
-      const getItem = vi.fn((key: string) => storeWrapper.data[key] || null);
-      const setItem = vi.fn((key: string, value: string) => {
-        storeWrapper.data[key] = value;
-      });
-      const removeItem = vi.fn((key: string) => {
-        delete storeWrapper.data[key];
-      });
-      const clear = vi.fn(() => {
-        storeWrapper.data = {};
-      });
-      const key = vi.fn((index: number) => Object.keys(storeWrapper.data)[index] || null);
+    // Create mock instances with vi.fn wrappers for spying
+    const createSpiedStorage = () => {
+      const storageMock = new StorageMock();
 
-      return {
-        getItem,
-        setItem,
-        removeItem,
-        clear,
-        key,
+      // Wrap methods with vi.fn for test spying
+      const spiedStorage = {
+        getItem: vi.fn((key: string) => storageMock.getItem(key)),
+        setItem: vi.fn((key: string, value: string) => storageMock.setItem(key, value)),
+        removeItem: vi.fn((key: string) => storageMock.removeItem(key)),
+        clear: vi.fn(() => storageMock.clear()),
+        key: vi.fn((index: number) => storageMock.key(index)),
         get length() {
-          return Object.keys(storeWrapper.data).length;
+          return storageMock.length;
         },
-        // Add store property for direct access (for testing purposes)
-        get store() {
-          return storeWrapper.data;
-        },
-        set store(newStore: Record<string, string>) {
-          storeWrapper.data = newStore;
-        },
-        // Add a method to reset the store for testing
-        __resetStore() {
-          storeWrapper.data = {};
-        }
+        // Helper for tests - not part of standard API
+        __reset: () => storageMock.__reset()
       };
+
+      return spiedStorage;
     };
 
-    globalThis.window.localStorage = createStorageMock();
-    globalThis.window.sessionStorage = createStorageMock();
+    globalThis.window.localStorage = createSpiedStorage();
+    globalThis.window.sessionStorage = createSpiedStorage();
 
     // Also assign to global scope for direct access
     globalThis.localStorage = globalThis.window.localStorage;
@@ -195,7 +187,7 @@ beforeAll(() => {
     globalThis.indexedDB = mockIndexedDB as any;
 
     // Mock Storage constructor for prototype tests
-    globalThis.Storage = function Storage() {} as any;
+    globalThis.Storage = function Storage() { } as any;
     const storagePrototype = {
       setItem: vi.fn(),
       getItem: vi.fn(),

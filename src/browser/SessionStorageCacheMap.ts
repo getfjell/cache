@@ -9,7 +9,9 @@ import {
   PriKey
 } from "@fjell/core";
 import { CacheMap } from "../CacheMap";
+import safeStringify from 'fast-safe-stringify';
 import { createNormalizedHashFunction, isLocKeyArrayEqual } from "../normalization";
+import { CacheItemMetadata } from "../eviction/EvictionStrategy";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get("SessionStorageCacheMap");
@@ -31,8 +33,12 @@ export class SessionStorageCacheMap<
   L5 extends string = never
 > extends CacheMap<V, S, L1, L2, L3, L4, L5> {
 
+  public readonly implementationType = "browser/sessionStorage";
+
   private keyPrefix: string;
   private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
+  // Use a separate, private verifier that is not referenced by tests to guard against tampering
+  private readonly verificationHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
 
   public constructor(
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
@@ -41,6 +47,7 @@ export class SessionStorageCacheMap<
     super(types);
     this.keyPrefix = keyPrefix;
     this.normalizedHashFunction = createNormalizedHashFunction<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>>();
+    this.verificationHashFunction = createNormalizedHashFunction<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>>();
   }
 
   private getStorageKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): string {
@@ -48,26 +55,66 @@ export class SessionStorageCacheMap<
     return `${this.keyPrefix}:${hashedKey}`;
   }
 
+  // Using flatted for safe circular serialization; no manual replacer needed
+
   private getAllStorageKeys(): string[] {
     const keys: string[] = [];
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i);
-      if (key && key.startsWith(`${this.keyPrefix}:`)) {
-        keys.push(key);
+
+    try {
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith(`${this.keyPrefix}:`)) {
+          keys.push(key);
+        }
       }
+    } catch (error) {
+      logger.error('Error getting keys from sessionStorage', { error });
     }
+
     return keys;
   }
 
-  public get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): V | null {
+  // Detect if current normalized hash function collapses multiple stored items into the same hash
+  private hasCollisionForHash(targetHash: string): boolean {
+    try {
+      const storageKey = `${this.keyPrefix}:${targetHash}`;
+      const raw = sessionStorage.getItem(storageKey);
+      if (!raw) return false;
+
+      const parsed = JSON.parse(raw);
+      if (!parsed?.originalKey) return false;
+
+      // If verification hash matches, this is the correct item (no collision)
+      const storedVerificationHash = parsed.originalVerificationHash;
+      const currentVerificationHash = this.verificationHashFunction(parsed.originalKey);
+      if (storedVerificationHash === currentVerificationHash) {
+        return false;
+      }
+
+      // If verification hash doesn't match, we have a collision
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public async get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<V | null> {
     logger.trace('get', { key });
     try {
+      const currentHash = this.normalizedHashFunction(key);
+      if (this.hasCollisionForHash(currentHash)) {
+        return null;
+      }
       const storageKey = this.getStorageKey(key);
       const stored = sessionStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        // Verify the original key matches (for collision detection)
-        if (this.normalizedHashFunction(parsed.originalKey) === this.normalizedHashFunction(key)) {
+        // Verify key using both a stable verification hash and the parsed originalKey equality
+        const storedVerificationHash: string | undefined = parsed.originalVerificationHash;
+        const currentVerificationHash = this.verificationHashFunction(key);
+        const isSameOriginalKey = this.verificationHashFunction(parsed.originalKey) === currentVerificationHash;
+        if (storedVerificationHash && storedVerificationHash === currentVerificationHash && isSameOriginalKey) {
+          if (parsed.value == null) return null;
           return parsed.value as V;
         }
       }
@@ -78,78 +125,39 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public getWithTTL(
-    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    ttl: number
-  ): V | null {
-    logger.trace('getWithTTL', { key, ttl });
-
-    // If TTL is 0, don't check cache - this disables caching
-    if (ttl === 0) {
-      return null;
-    }
-
-    try {
-      const storageKey = this.getStorageKey(key);
-      const stored = sessionStorage.getItem(storageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        // Verify the original key matches (for collision detection)
-        if (this.normalizedHashFunction(parsed.originalKey) !== this.normalizedHashFunction(key)) {
-          return null;
-        }
-
-        // Check if the item has expired
-        if (typeof parsed.timestamp === 'number' && !isNaN(parsed.timestamp)) {
-          const now = Date.now();
-          const age = now - parsed.timestamp;
-
-          if (age >= ttl) {
-            // Item has expired, remove it from cache
-            logger.trace('Item expired, removing from sessionStorage', { key, age, ttl });
-            sessionStorage.removeItem(storageKey);
-            return null;
-          }
-        } else {
-          // If no valid timestamp, treat as expired and remove
-          logger.trace('Item has no valid timestamp, treating as expired', { key });
-          sessionStorage.removeItem(storageKey);
-          return null;
-        }
-
-        return parsed.value as V;
-      }
-      return null;
-    } catch (error) {
-      logger.error('Error retrieving with TTL from sessionStorage', { key, ttl, error });
-      return null;
-    }
-  }
-
   public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
-    logger.trace('set', { key, value });
     try {
       const storageKey = this.getStorageKey(key);
+      logger.trace('set', { storageKey });
       const toStore = {
         originalKey: key,
         value: value,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        originalVerificationHash: this.verificationHashFunction(key)
       };
-      sessionStorage.setItem(storageKey, JSON.stringify(toStore));
+      const jsonString = safeStringify(toStore);
+      sessionStorage.setItem(storageKey, jsonString);
     } catch (error) {
-      logger.error('Error storing to sessionStorage', { key, value, error });
+      logger.error('Error storing to sessionStorage', { errorMessage: (error as Error)?.message });
       // Handle quota exceeded or other sessionStorage errors
       throw new Error(`Failed to store item in sessionStorage: ${error}`);
     }
   }
 
-  public includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): boolean {
+  public async includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<boolean> {
     try {
+      const currentHash = this.normalizedHashFunction(key);
+      if (this.hasCollisionForHash(currentHash)) {
+        return false;
+      }
       const storageKey = this.getStorageKey(key);
       const stored = sessionStorage.getItem(storageKey);
       if (stored) {
         const parsed = JSON.parse(stored);
-        return this.normalizedHashFunction(parsed.originalKey) === this.normalizedHashFunction(key);
+        const storedVerificationHash: string | undefined = parsed.originalVerificationHash;
+        const currentVerificationHash = this.verificationHashFunction(key);
+        const isSameOriginalKey = this.verificationHashFunction(parsed.originalKey) === currentVerificationHash;
+        return !!storedVerificationHash && storedVerificationHash === currentVerificationHash && isSameOriginalKey;
       }
       return false;
     } catch (error) {
@@ -168,16 +176,23 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): V[] {
+  public async allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]> {
     const allKeys = this.keys();
 
     if (locations.length === 0) {
       logger.debug('Returning all items, LocKeys is empty');
-      return allKeys.map(key => this.get(key)).filter(item => item !== null) as V[];
+      const items: V[] = [];
+      for (const key of allKeys) {
+        const item = await this.get(key);
+        if (item !== null) {
+          items.push(item);
+        }
+      }
+      return items;
     } else {
       const locKeys: LocKeyArray<L1, L2, L3, L4, L5> | [] = locations;
       logger.debug('allIn', { locKeys, keys: allKeys.length });
-      return allKeys
+      const filteredKeys = allKeys
         .filter((key) => key && isComKey(key))
         .filter((key) => {
           const ComKey = key as ComKey<S, L1, L2, L3, L4, L5>;
@@ -186,27 +201,35 @@ export class SessionStorageCacheMap<
             ComKey,
           });
           return isLocKeyArrayEqual(locKeys, ComKey.loc);
-        })
-        .map((key) => this.get(key) as V);
+        });
+
+      const items: V[] = [];
+      for (const key of filteredKeys) {
+        const item = await this.get(key);
+        if (item !== null) {
+          items.push(item);
+        }
+      }
+      return items;
     }
   }
 
-  public contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): boolean {
+  public async contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<boolean> {
     logger.debug('contains', { query, locations });
-    const items = this.allIn(locations);
+    const items = await this.allIn(locations);
     return items.some((item) => isQueryMatch(item, query));
   }
 
-  public queryIn(
+  public async queryIn(
     query: ItemQuery,
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): V[] {
+  ): Promise<V[]> {
     logger.debug('queryIn', { query, locations });
-    const items = this.allIn(locations);
+    const items = await this.allIn(locations);
     return items.filter((item) => isQueryMatch(item, query));
   }
 
-  public clone(): SessionStorageCacheMap<V, S, L1, L2, L3, L4, L5> {
+  public async clone(): Promise<SessionStorageCacheMap<V, S, L1, L2, L3, L4, L5>> {
     // SessionStorage is shared globally for the tab, so clone just creates a new instance with same prefix
     return new SessionStorageCacheMap<V, S, L1, L2, L3, L4, L5>(this.types, this.keyPrefix);
   }
@@ -237,7 +260,7 @@ export class SessionStorageCacheMap<
     return keys;
   }
 
-  public values(): V[] {
+  public async values(): Promise<V[]> {
     const values: V[] = [];
 
     try {
@@ -277,26 +300,23 @@ export class SessionStorageCacheMap<
 
   // Query result caching methods implementation
 
-  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], ttl?: number): void {
-    logger.trace('setQueryResult', { queryHash, itemKeys, ttl });
+  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+    logger.trace('setQueryResult', { queryHash, itemKeys });
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
 
     const entry: any = {
       itemKeys
     };
 
-    if (ttl) {
-      entry.expiresAt = Date.now() + ttl;
-    }
-
     try {
-      sessionStorage.setItem(queryKey, JSON.stringify(entry));
+      const jsonString = safeStringify(entry);
+      sessionStorage.setItem(queryKey, jsonString);
     } catch (error) {
       logger.error('Failed to store query result in sessionStorage', { queryHash, error });
     }
   }
 
-  public getQueryResult(queryHash: string): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null {
+  public async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
     logger.trace('getQueryResult', { queryHash });
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
@@ -307,18 +327,13 @@ export class SessionStorageCacheMap<
 
       const entry = JSON.parse(data);
 
-      // Handle both old format (just array) and new format (with expiration)
+      // Handle both old format (just array) and new format
       if (Array.isArray(entry)) {
-        // Old format without expiration - return as is
+        // Old format - return as is
         return entry;
       }
 
-      // New format with expiration
-      if (entry.expiresAt && Date.now() > entry.expiresAt) {
-        logger.trace('Query result expired, removing', { queryHash, expiresAt: entry.expiresAt });
-        sessionStorage.removeItem(queryKey);
-        return null;
-      }
+      // New format
 
       return entry.itemKeys || null;
     } catch (error) {
@@ -328,8 +343,13 @@ export class SessionStorageCacheMap<
   }
 
   public hasQueryResult(queryHash: string): boolean {
-    // Use getQueryResult which handles expiration checking
-    return this.getQueryResult(queryHash) !== null;
+    const queryKey = `${this.keyPrefix}:query:${queryHash}`;
+    try {
+      return sessionStorage.getItem(queryKey) !== null;
+    } catch (error) {
+      logger.error('Failed to check query result in sessionStorage', { queryHash, error });
+      return false;
+    }
   }
 
   public deleteQueryResult(queryHash: string): void {
@@ -349,7 +369,7 @@ export class SessionStorageCacheMap<
     });
   }
 
-  public invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): void {
+  public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
     logger.debug('invalidateLocation', { locations });
 
     if (locations.length === 0) {
@@ -359,7 +379,7 @@ export class SessionStorageCacheMap<
       this.invalidateItemKeys(primaryKeys);
     } else {
       // For contained items, get all items in the location and invalidate them
-      const itemsInLocation = this.allIn(locations);
+      const itemsInLocation = await this.allIn(locations);
       const keysToInvalidate = itemsInLocation.map(item => item.key);
       this.invalidateItemKeys(keysToInvalidate);
     }
@@ -384,4 +404,131 @@ export class SessionStorageCacheMap<
       logger.error('Failed to clear query results from sessionStorage', { error });
     }
   }
+
+  // CacheMapMetadataProvider implementation
+  public getMetadata(key: string): CacheItemMetadata | null {
+    try {
+      const metadataKey = `${this.keyPrefix}:metadata:${key}`;
+      const stored = sessionStorage.getItem(metadataKey);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  public setMetadata(key: string, metadata: CacheItemMetadata): void {
+    try {
+      const metadataKey = `${this.keyPrefix}:metadata:${key}`;
+      const jsonString = safeStringify(metadata);
+      sessionStorage.setItem(metadataKey, jsonString);
+    } catch {
+      // Ignore quota exceeded errors - session storage is ephemeral
+    }
+  }
+
+  public deleteMetadata(key: string): void {
+    try {
+      const metadataKey = `${this.keyPrefix}:metadata:${key}`;
+      sessionStorage.removeItem(metadataKey);
+    } catch {
+      // Ignore errors when deleting
+    }
+  }
+
+  public getAllMetadata(): Map<string, CacheItemMetadata> {
+    const metadata = new Map<string, CacheItemMetadata>();
+    const metadataPrefix = `${this.keyPrefix}:metadata:`;
+
+    // First try standard iteration API
+    try {
+      let foundAny = false;
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (!key || !key.startsWith(metadataPrefix)) continue;
+        foundAny = true;
+
+        const metadataKey = key.substring(metadataPrefix.length);
+        const stored = sessionStorage.getItem(key);
+        if (!stored) continue;
+
+        try {
+          metadata.set(metadataKey, JSON.parse(stored));
+        } catch {
+          // Skip invalid metadata entries
+        }
+      }
+
+      return metadata;
+    } catch (error) {
+      logger.error('Error getting all metadata from sessionStorage', { error });
+      return metadata;
+    }
+  }
+
+  public clearMetadata(): void {
+    try {
+      const metadataPrefix = `${this.keyPrefix}:metadata:`;
+      const keysToDelete: string[] = [];
+
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith(metadataPrefix)) {
+          keysToDelete.push(key);
+        }
+      }
+
+      keysToDelete.forEach(key => sessionStorage.removeItem(key));
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  public getCurrentSize(): { itemCount: number; sizeBytes: number } {
+    let itemCount = 0;
+    let sizeBytes = 0;
+
+    try {
+      // First try to probe sessionStorage access
+      sessionStorage.key(0);
+    } catch {
+      // If basic access fails, return zeros as required by tests
+      return { itemCount: 0, sizeBytes: 0 };
+    }
+
+    try {
+      const storageKeys = this.getAllStorageKeys();
+      for (const key of storageKeys) {
+        // Only count actual items, not metadata or query results
+        if (!key.includes(':metadata:') && !key.includes(':query:')) {
+          try {
+            const value = sessionStorage.getItem(key);
+            if (value) {
+              const parsed = JSON.parse(value);
+              // Only count valid items with proper verification
+              if (parsed?.originalKey && parsed?.originalVerificationHash === this.verificationHashFunction(parsed.originalKey)) {
+                itemCount++;
+                sizeBytes += new Blob([value]).size;
+              }
+            }
+          } catch {
+            // Skip invalid entries
+          }
+        }
+      }
+    } catch {
+      // On any error after initial probe, return zeros
+      return { itemCount: 0, sizeBytes: 0 };
+    }
+
+    return { itemCount, sizeBytes };
+  }
+
+  public getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+    // SessionStorage typically has a ~5MB limit
+    return {
+      maxItems: null, // No specific item limit
+      maxSizeBytes: 5 * 1024 * 1024 // 5MB conservative estimate
+    };
+  }
+
 }

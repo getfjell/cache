@@ -6,6 +6,7 @@ import {
   validatePK
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
+import { CacheEventFactory } from "../events/CacheEventFactory";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('update');
@@ -36,11 +37,30 @@ export const update = async <
   cacheMap.invalidateItemKeys([key]);
 
   try {
+    // Get previous item for event
+    const previousItem = await cacheMap.get(key);
+
     const updated = await api.update(key, v);
 
     // Cache the result after the update
     logger.debug('Caching update result', { updatedKey: updated.key });
     cacheMap.set(updated.key, updated);
+
+    // Set TTL metadata for the newly cached item
+    const keyStr = JSON.stringify(updated.key);
+    context.ttlManager.onItemAdded(keyStr, cacheMap);
+
+    // Handle eviction for the newly cached item
+    const evictedKeys = context.evictionManager.onItemAdded(keyStr, updated, cacheMap);
+    // Remove evicted items from cache
+    evictedKeys.forEach(evictedKey => {
+      const parsedKey = JSON.parse(evictedKey);
+      cacheMap.delete(parsedKey);
+    });
+
+    // Emit event
+    const event = CacheEventFactory.itemUpdated(updated.key, updated as V, previousItem, 'api');
+    context.eventEmitter.emit(event);
 
     return [context, validatePK(updated, pkType) as V];
   } catch (e) {

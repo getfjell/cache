@@ -401,15 +401,15 @@ describe('AsyncIndexDBCacheMap', () => {
       }
     });
 
-    it('should create a new instance with same database configuration', () => {
-      const cloned = cacheMap.clone();
+    it('should create a new instance with same database configuration', async () => {
+      const cloned = await cacheMap.clone();
 
       expect(cloned).toBeInstanceOf(AsyncIndexDBCacheMap);
       expect(cloned).not.toBe(cacheMap);
     });
 
     it('should share data through IndexedDB', async () => {
-      const cloned = cacheMap.clone();
+      const cloned = await cacheMap.clone();
 
       // Clone should see the same data (shared database)
       expect((await cloned.keys())).toHaveLength(3);
@@ -417,7 +417,7 @@ describe('AsyncIndexDBCacheMap', () => {
     });
 
     it('should share modifications through IndexedDB', async () => {
-      const cloned = cacheMap.clone();
+      const cloned = await cacheMap.clone();
 
       // Modify through clone
       const newItem: TestItem = { key: { kt: 'test', pk: 'new' as UUID }, id: 'new', name: 'New Item', value: 999 } as TestItem;
@@ -494,9 +494,9 @@ describe('AsyncIndexDBCacheMap', () => {
       const operations = [
         cacheMap.set(priKey1, testItems[0]),
         cacheMap.set(priKey2, testItems[1]),
-        cacheMap.get(priKey1),
-        cacheMap.get(priKey2),
-        cacheMap.includesKey(priKey1)
+        await cacheMap.get(priKey1),
+        await cacheMap.get(priKey2),
+        await cacheMap.includesKey(priKey1)
       ];
 
       const results = await Promise.all(operations);

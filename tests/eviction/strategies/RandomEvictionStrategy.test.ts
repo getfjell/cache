@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RandomEvictionStrategy } from '../../../src/eviction/strategies/RandomEvictionStrategy';
 import { CacheItemMetadata } from '../../../src/eviction/EvictionStrategy';
+import { MockMetadataProvider } from '../../utils/MockMetadataProvider';
 
 describe('RandomEvictionStrategy', () => {
   let strategy: RandomEvictionStrategy;
+  let metadataProvider: MockMetadataProvider;
 
   function createMockMetadata(key: string, addedAt = 1000, accessCount = 1): CacheItemMetadata {
     return {
@@ -16,39 +18,53 @@ describe('RandomEvictionStrategy', () => {
   }
 
   beforeEach(() => {
+    metadataProvider = new MockMetadataProvider();
     strategy = new RandomEvictionStrategy();
   });
 
   describe('selectForEviction', () => {
     it('should return null for empty cache', () => {
-      const items = new Map<string, CacheItemMetadata>();
+      const context = {
+        currentSize: { itemCount: 0, sizeBytes: 0 },
+        limits: { maxItems: 5, maxSizeBytes: 1000 },
+        newItemSize: 100
+      };
 
-      const result = strategy.selectForEviction(items);
+      const result = strategy.selectForEviction(metadataProvider, context);
 
-      expect(result).toBeNull();
+      expect(result).toEqual([]);
     });
 
     it('should return the only key when cache has single item', () => {
-      const items = new Map<string, CacheItemMetadata>([
-        ['key1', createMockMetadata('key1')]
-      ]);
+      const metadata = createMockMetadata('key1');
+      metadataProvider.setMetadata('key1', metadata);
 
-      const result = strategy.selectForEviction(items);
+      const context = {
+        currentSize: { itemCount: 1, sizeBytes: 100 },
+        limits: { maxItems: 1, maxSizeBytes: 100 },
+        newItemSize: 100
+      };
 
-      expect(result).toBe('key1');
+      const result = strategy.selectForEviction(metadataProvider, context);
+
+      expect(result).toContain('key1');
     });
 
     it('should return a valid key when cache has multiple items', () => {
-      const items = new Map<string, CacheItemMetadata>([
-        ['key1', createMockMetadata('key1')],
-        ['key2', createMockMetadata('key2')],
-        ['key3', createMockMetadata('key3')]
-      ]);
+      metadataProvider.setMetadata('key1', createMockMetadata('key1'));
+      metadataProvider.setMetadata('key2', createMockMetadata('key2'));
+      metadataProvider.setMetadata('key3', createMockMetadata('key3'));
 
-      const result = strategy.selectForEviction(items);
+      const context = {
+        currentSize: { itemCount: 3, sizeBytes: 300 },
+        limits: { maxItems: 3, maxSizeBytes: 300 },
+        newItemSize: 100
+      };
 
-      expect(result).not.toBeNull();
-      expect(items.has(result!)).toBe(true);
+      const result = strategy.selectForEviction(metadataProvider, context);
+
+      expect(result).toHaveLength(1);
+      expect(['key1', 'key2', 'key3']).toContain(result[0]);
     });
 
     it('should demonstrate randomness by selecting different keys over multiple calls', () => {
@@ -61,18 +77,24 @@ describe('RandomEvictionStrategy', () => {
         return mockValues[callCount++ % mockValues.length];
       });
 
-      const items = new Map<string, CacheItemMetadata>([
-        ['key1', createMockMetadata('key1')],
-        ['key2', createMockMetadata('key2')],
-        ['key3', createMockMetadata('key3')]
-      ]);
+      metadataProvider.setMetadata('key1', createMockMetadata('key1'));
+      metadataProvider.setMetadata('key2', createMockMetadata('key2'));
+      metadataProvider.setMetadata('key3', createMockMetadata('key3'));
+
+      const context = {
+        currentSize: { itemCount: 3, sizeBytes: 300 },
+        limits: { maxItems: 3, maxSizeBytes: 300 },
+        newItemSize: 100
+      };
 
       const results = new Set<string>();
 
       // Call multiple times to see different selections
       for (let i = 0; i < 6; i++) {
-        const result = strategy.selectForEviction(items);
-        results.add(result!);
+        const result = strategy.selectForEviction(metadataProvider, context);
+        if (result.length > 0) {
+          results.add(result[0]);
+        }
       }
 
       // Should have selected different keys
@@ -86,58 +108,61 @@ describe('RandomEvictionStrategy', () => {
   describe('onItemAccessed', () => {
     it('should update lastAccessedAt and increment accessCount', () => {
       const metadata = createMockMetadata('key1', 1000, 5);
+      metadataProvider.setMetadata('key1', metadata);
       const originalTime = Date.now();
 
       vi.spyOn(Date, 'now').mockReturnValue(originalTime + 1000);
 
-      strategy.onItemAccessed('key1', metadata);
+      strategy.onItemAccessed('key1', metadataProvider);
 
-      expect(metadata.lastAccessedAt).toBe(originalTime + 1000);
-      expect(metadata.accessCount).toBe(6);
+      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      expect(updatedMetadata.lastAccessedAt).toBe(originalTime + 1000);
+      expect(updatedMetadata.accessCount).toBe(6);
     });
 
     it('should handle multiple accesses correctly', () => {
       const metadata = createMockMetadata('key1', 1000, 1);
+      metadataProvider.setMetadata('key1', metadata);
 
       vi.spyOn(Date, 'now').mockReturnValue(2000);
-      strategy.onItemAccessed('key1', metadata);
+      strategy.onItemAccessed('key1', metadataProvider);
 
       vi.spyOn(Date, 'now').mockReturnValue(3000);
-      strategy.onItemAccessed('key1', metadata);
+      strategy.onItemAccessed('key1', metadataProvider);
 
-      expect(metadata.lastAccessedAt).toBe(3000);
-      expect(metadata.accessCount).toBe(3);
+      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      expect(updatedMetadata.lastAccessedAt).toBe(3000);
+      expect(updatedMetadata.accessCount).toBe(3);
     });
   });
 
   describe('onItemAdded', () => {
     it('should initialize metadata correctly', () => {
-      const metadata = createMockMetadata('key1');
       const currentTime = 5000;
 
       vi.spyOn(Date, 'now').mockReturnValue(currentTime);
 
-      strategy.onItemAdded('key1', metadata);
+      strategy.onItemAdded('key1', 100, metadataProvider);
 
+      const metadata = metadataProvider.getMetadata('key1')!;
       expect(metadata.addedAt).toBe(currentTime);
       expect(metadata.lastAccessedAt).toBe(currentTime);
       expect(metadata.accessCount).toBe(1);
     });
 
     it('should handle adding multiple items', () => {
-      const metadata1 = createMockMetadata('key1');
-      const metadata2 = createMockMetadata('key2');
-
       vi.spyOn(Date, 'now').mockReturnValue(1000);
-      strategy.onItemAdded('key1', metadata1);
+      strategy.onItemAdded('key1', 100, metadataProvider);
 
       vi.spyOn(Date, 'now').mockReturnValue(2000);
-      strategy.onItemAdded('key2', metadata2);
+      strategy.onItemAdded('key2', 100, metadataProvider);
 
+      const metadata1 = metadataProvider.getMetadata('key1')!;
       expect(metadata1.addedAt).toBe(1000);
       expect(metadata1.lastAccessedAt).toBe(1000);
       expect(metadata1.accessCount).toBe(1);
 
+      const metadata2 = metadataProvider.getMetadata('key2')!;
       expect(metadata2.addedAt).toBe(2000);
       expect(metadata2.lastAccessedAt).toBe(2000);
       expect(metadata2.accessCount).toBe(1);
@@ -146,44 +171,43 @@ describe('RandomEvictionStrategy', () => {
 
   describe('onItemRemoved', () => {
     it('should complete without throwing errors', () => {
-      expect(() => strategy.onItemRemoved()).not.toThrow();
+      expect(() => strategy.onItemRemoved('key1', metadataProvider)).not.toThrow();
     });
   });
 
   describe('integration behavior', () => {
     it('should work with typical cache operations', () => {
-      const items = new Map<string, CacheItemMetadata>();
-
       // Add some items
-      const metadata1 = createMockMetadata('key1');
-      const metadata2 = createMockMetadata('key2');
-      const metadata3 = createMockMetadata('key3');
-
-      items.set('key1', metadata1);
-      items.set('key2', metadata2);
-      items.set('key3', metadata3);
-
-      strategy.onItemAdded('key1', metadata1);
-      strategy.onItemAdded('key2', metadata2);
-      strategy.onItemAdded('key3', metadata3);
+      strategy.onItemAdded('key1', 100, metadataProvider);
+      strategy.onItemAdded('key2', 100, metadataProvider);
+      strategy.onItemAdded('key3', 100, metadataProvider);
 
       // Access some items
-      strategy.onItemAccessed('key1', metadata1);
-      strategy.onItemAccessed('key2', metadata2);
+      strategy.onItemAccessed('key1', metadataProvider);
+      strategy.onItemAccessed('key2', metadataProvider);
+
+      const context = {
+        currentSize: { itemCount: 3, sizeBytes: 300 },
+        limits: { maxItems: 3, maxSizeBytes: 300 },
+        newItemSize: 100
+      };
 
       // Select for eviction should return a valid key
-      const evictionKey = strategy.selectForEviction(items);
-      expect(evictionKey).not.toBeNull();
-      expect(items.has(evictionKey!)).toBe(true);
+      const evictionKeys = strategy.selectForEviction(metadataProvider, context);
+      expect(evictionKeys).toHaveLength(1);
+      expect(['key1', 'key2', 'key3']).toContain(evictionKeys[0]);
 
       // Remove the item
-      strategy.onItemRemoved();
-      items.delete(evictionKey!);
+      strategy.onItemRemoved(evictionKeys[0], metadataProvider);
 
       // Should still work with remaining items
-      const nextEvictionKey = strategy.selectForEviction(items);
-      expect(nextEvictionKey).not.toBeNull();
-      expect(items.has(nextEvictionKey!)).toBe(true);
+      const context2 = {
+        currentSize: { itemCount: 2, sizeBytes: 200 },
+        limits: { maxItems: 2, maxSizeBytes: 200 },
+        newItemSize: 100
+      };
+      const nextEvictionKeys = strategy.selectForEviction(metadataProvider, context2);
+      expect(nextEvictionKeys).toHaveLength(1);
     });
   });
 });
