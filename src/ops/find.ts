@@ -23,7 +23,7 @@ export const find = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[]]> => {
-  const { api, cacheMap, pkType, queryTtl } = context;
+  const { api, cacheMap, pkType, ttlManager } = context;
   logger.default('find', { finder, params, locations });
 
   // Generate query hash for caching
@@ -31,7 +31,7 @@ export const find = async <
   logger.debug('Generated query hash for find', { queryHash });
 
   // Check if we have cached query results
-  const cachedItemKeys = cacheMap.getQueryResult(queryHash);
+  const cachedItemKeys = await cacheMap.getQueryResult(queryHash);
   if (cachedItemKeys) {
     logger.debug('Using cached query results', { cachedKeyCount: cachedItemKeys.length });
 
@@ -40,7 +40,7 @@ export const find = async <
     let allItemsAvailable = true;
 
     for (const itemKey of cachedItemKeys) {
-      const item = cacheMap.get(itemKey);
+      const item = await cacheMap.get(itemKey);
       if (item) {
         cachedItems.push(item);
       } else {
@@ -63,12 +63,24 @@ export const find = async <
   // Store individual items in cache
   ret.forEach((v) => {
     cacheMap.set(v.key, v);
+
+    // Set TTL metadata for the newly cached item
+    const keyStr = JSON.stringify(v.key);
+    ttlManager.onItemAdded(keyStr, cacheMap);
+
+    // Handle eviction for the newly cached item
+    const evictedKeys = context.evictionManager.onItemAdded(keyStr, v, cacheMap);
+    // Remove evicted items from cache
+    evictedKeys.forEach(evictedKey => {
+      const parsedKey = JSON.parse(evictedKey);
+      cacheMap.delete(parsedKey);
+    });
   });
 
   // Store query result (item keys) in query cache
   const itemKeys = ret.map(item => item.key);
-  cacheMap.setQueryResult(queryHash, itemKeys, queryTtl);
-  logger.debug('Cached query result', { queryHash, itemKeyCount: itemKeys.length, ttl: queryTtl });
+  cacheMap.setQueryResult(queryHash, itemKeys);
+  logger.debug('Cached query result', { queryHash, itemKeyCount: itemKeys.length });
 
   return [context, validatePK(ret, pkType) as V[]];
 };

@@ -116,6 +116,8 @@ export function formatBytes(bytes: number, binary: boolean = false): string {
  * @param value - The value to estimate size for
  * @returns Estimated size in bytes
  */
+import safeStringify from 'fast-safe-stringify';
+
 export function estimateValueSize(value: any): number {
   if (value === null || typeof value === 'undefined') {
     return 8; // Approximate overhead
@@ -135,9 +137,64 @@ export function estimateValueSize(value: any): number {
         return value.reduce((total, item) => total + estimateValueSize(item), 24); // Array overhead
       }
 
-      // For objects, estimate based on JSON serialization
+      // Detect circular references explicitly to respect fallback behavior
+      const hasCircularReference = (obj: unknown, ancestors: WeakSet<object> = new WeakSet(), checked: WeakSet<object> = new WeakSet()): boolean => {
+        if (obj === null || typeof obj !== 'object') {
+          return false;
+        }
+
+        const asObject = obj as object;
+
+        if (checked.has(asObject)) {
+          return false;
+        }
+
+        if (ancestors.has(asObject)) {
+          return true;
+        }
+
+        ancestors.add(asObject);
+        try {
+          if (Array.isArray(asObject)) {
+            for (const item of asObject) {
+              if (hasCircularReference(item, ancestors, checked)) {
+                return true;
+              }
+            }
+          } else {
+            for (const key of Object.keys(asObject as Record<string, unknown>)) {
+              // Access value defensively in case of getters throwing
+              let child: unknown;
+              try {
+                child = (asObject as Record<string, unknown>)[key as keyof typeof asObject];
+              } catch {
+                // Treat property access errors as non-fatal for traversal
+                continue;
+              }
+              if (hasCircularReference(child, ancestors, checked)) {
+                return true;
+              }
+            }
+          }
+        } finally {
+          ancestors.delete(asObject);
+          checked.add(asObject);
+        }
+
+        return false;
+      };
+
       try {
-        const jsonString = JSON.stringify(value);
+        if (hasCircularReference(value)) {
+          return 64;
+        }
+      } catch {
+        return 64;
+      }
+
+      // For objects, estimate based on safe serialization that supports circular refs
+      try {
+        const jsonString = safeStringify(value);
         return jsonString.length * 2 + 16; // JSON string size + object overhead
       } catch {
         // Fallback for objects that can't be serialized

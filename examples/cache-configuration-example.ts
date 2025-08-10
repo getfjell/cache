@@ -127,7 +127,7 @@ async function cacheConfigurationExample() {
       // Return a custom cache map implementation
       // For this example, we'll use MemoryCacheMap but you could implement any logic
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { MemoryCacheMap } = require('@fjell/cache');
+      const { MemoryCacheMap } = require('../src/memory/MemoryCacheMap');
       console.log('🔧 Custom cache map factory called with kta:', kta);
       return new MemoryCacheMap(kta);
     },

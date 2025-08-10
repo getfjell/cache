@@ -1,4 +1,4 @@
-/* eslint-disable no-undefined */
+
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
 import { ComKey, IQFactory, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/core';
@@ -42,14 +42,18 @@ describe('MemoryCacheMap', () => {
   });
 
   describe('Constructor', () => {
-    it('should create an empty cache map', () => {
+    it('should create an empty cache map', async () => {
       expect(cacheMap.keys()).toHaveLength(0);
-      expect(cacheMap.values()).toHaveLength(0);
+      expect(await cacheMap.values()).toHaveLength(0);
     });
 
     it('should accept key type arrays', () => {
       const cache = new MemoryCacheMap<TestItem, 'test', 'container'>(['test', 'container']);
       expect(cache).toBeInstanceOf(MemoryCacheMap);
+    });
+
+    it('should have correct implementationType', () => {
+      expect(cacheMap.implementationType).toBe('memory/memory');
     });
   });
 
@@ -59,66 +63,82 @@ describe('MemoryCacheMap', () => {
     });
 
     describe('set() and get()', () => {
-      it('should store and retrieve items by primary key', () => {
-        const retrieved = cacheMap.get(priKey1);
+      it('should store and retrieve items by primary key', async () => {
+        const retrieved = await cacheMap.get(priKey1);
         expect(retrieved).toEqual(testItems[0]);
       });
 
-      it('should store and retrieve items by composite key', () => {
-        const retrieved = cacheMap.get(comKey1);
+      it('should store and retrieve items by composite key', async () => {
+        const retrieved = await cacheMap.get(comKey1);
         expect(retrieved).toEqual(testItems[2]);
       });
 
-      it('should return null for non-existent keys', () => {
+      it('should return null for non-existent keys', async () => {
         const nonExistentKey: PriKey<'test'> = { kt: 'test', pk: 'missing' as UUID };
-        const retrieved = cacheMap.get(nonExistentKey);
+        const retrieved = await cacheMap.get(nonExistentKey);
         expect(retrieved).toBeNull();
       });
 
-      it('should overwrite existing items', () => {
+      it('should overwrite existing items', async () => {
         const updatedItem: TestItem = { key: priKey1, id: '1', name: 'Updated Item 1', value: 999 } as TestItem;
         cacheMap.set(priKey1, updatedItem);
 
-        const retrieved = cacheMap.get(priKey1);
+        const retrieved = await cacheMap.get(priKey1);
         expect(retrieved).toEqual(updatedItem);
       });
     });
 
     describe('includesKey()', () => {
-      it('should return true for existing primary keys', () => {
-        expect(cacheMap.includesKey(priKey1)).toBe(true);
+      it('should return true for existing primary keys', async () => {
+        expect(await cacheMap.includesKey(priKey1)).toBe(true);
       });
 
-      it('should return true for existing composite keys', () => {
-        expect(cacheMap.includesKey(comKey1)).toBe(true);
+      it('should return true for existing composite keys', async () => {
+        expect(await cacheMap.includesKey(comKey1)).toBe(true);
       });
 
-      it('should return false for non-existent keys', () => {
+      it('should return false for non-existent keys', async () => {
         const nonExistentKey: PriKey<'test'> = { kt: 'test', pk: 'missing' as UUID };
-        expect(cacheMap.includesKey(nonExistentKey)).toBe(false);
+        expect(await cacheMap.includesKey(nonExistentKey)).toBe(false);
       });
     });
 
     describe('delete()', () => {
-      it('should remove items by primary key', () => {
-        expect(cacheMap.includesKey(priKey1)).toBe(true);
+      it('should remove items by primary key', async () => {
+        expect(await cacheMap.includesKey(priKey1)).toBe(true);
         cacheMap.delete(priKey1);
-        expect(cacheMap.includesKey(priKey1)).toBe(false);
-        expect(cacheMap.get(priKey1)).toBeNull();
+        expect(await cacheMap.includesKey(priKey1)).toBe(false);
+        expect(await cacheMap.get(priKey1)).toBeNull();
       });
 
-      it('should remove items by composite key', () => {
-        expect(cacheMap.includesKey(comKey1)).toBe(true);
+      it('should remove items by composite key', async () => {
+        expect(await cacheMap.includesKey(comKey1)).toBe(true);
         cacheMap.delete(comKey1);
-        expect(cacheMap.includesKey(comKey1)).toBe(false);
-        expect(cacheMap.get(comKey1)).toBeNull();
+        expect(await cacheMap.includesKey(comKey1)).toBe(false);
+        expect(await cacheMap.get(comKey1)).toBeNull();
       });
 
-      it('should not affect other items', () => {
+      it('should not affect other items', async () => {
         cacheMap.delete(priKey1);
-        expect(cacheMap.get(priKey2)).toEqual(testItems[1]);
-        expect(cacheMap.get(comKey1)).toEqual(testItems[2]);
-        expect(cacheMap.get(comKey2)).toEqual(testItems[3]);
+        expect(await cacheMap.get(priKey2)).toEqual(testItems[1]);
+        expect(await cacheMap.get(comKey1)).toEqual(testItems[2]);
+        expect(await cacheMap.get(comKey2)).toEqual(testItems[3]);
+      });
+
+      it('should remove associated metadata when deleting items', () => {
+        const keyStr = JSON.stringify(priKey1);
+        expect(cacheMap.getMetadata(keyStr)).not.toBeNull();
+        cacheMap.delete(priKey1);
+        expect(cacheMap.getMetadata(keyStr)).toBeNull();
+      });
+
+      it('should remove query results referencing deleted items', async () => {
+        cacheMap.setQueryResult('test_query', [priKey1, priKey2]);
+        cacheMap.delete(priKey1);
+        expect(await cacheMap.getQueryResult('test_query')).toEqual([priKey2]);
+
+        cacheMap.delete(priKey2);
+        expect(cacheMap.hasQueryResult('test_query')).toBe(false);
       });
     });
 
@@ -132,8 +152,8 @@ describe('MemoryCacheMap', () => {
         expect(keys).toContain(comKey2);
       });
 
-      it('should return all values', () => {
-        const values = cacheMap.values();
+      it('should return all values', async () => {
+        const values = await cacheMap.values();
         expect(values).toHaveLength(4);
         expect(values).toContain(testItems[0]);
         expect(values).toContain(testItems[1]);
@@ -143,17 +163,29 @@ describe('MemoryCacheMap', () => {
     });
 
     describe('clear()', () => {
-      it('should remove all items from the cache', () => {
+      it('should remove all items from the cache', async () => {
         expect(cacheMap.keys()).toHaveLength(4);
         cacheMap.clear();
         expect(cacheMap.keys()).toHaveLength(0);
-        expect(cacheMap.values()).toHaveLength(0);
+        expect(await cacheMap.values()).toHaveLength(0);
       });
 
-      it('should allow adding items after clearing', () => {
+      it('should allow adding items after clearing', async () => {
         cacheMap.clear();
         cacheMap.set(priKey1, testItems[0]);
-        expect(cacheMap.get(priKey1)).toEqual(testItems[0]);
+        expect(await cacheMap.get(priKey1)).toEqual(testItems[0]);
+      });
+
+      it('should clear metadata and query results when cleared', () => {
+        const keyStr = JSON.stringify(priKey1);
+        cacheMap.setQueryResult('query1', [priKey1]);
+        expect(cacheMap.hasQueryResult('query1')).toBe(true);
+        expect(cacheMap.getMetadata(keyStr)).not.toBeNull();
+
+        cacheMap.clear();
+
+        expect(cacheMap.hasQueryResult('query1')).toBe(false);
+        expect(cacheMap.getMetadata(keyStr)).toBeNull();
       });
     });
   });
@@ -164,20 +196,20 @@ describe('MemoryCacheMap', () => {
     });
 
     describe('allIn()', () => {
-      it('should return all items when location array is empty', () => {
-        const items = cacheMap.allIn([]);
+      it('should return all items when location array is empty', async () => {
+        const items = await cacheMap.allIn([]);
         expect(items).toHaveLength(4);
         expect(items).toEqual(expect.arrayContaining(testItems));
       });
 
-      it('should return items in specific location', () => {
+      it('should return items in specific location', async () => {
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
-        const items = cacheMap.allIn(location);
+        const items = await cacheMap.allIn(location);
         expect(items).toHaveLength(1);
         expect(items[0]).toEqual(testItems[2]);
       });
 
-      it('should return multiple items in same location', () => {
+      it('should return multiple items in same location', async () => {
         // Add another item in container1
         const extraComKey: ComKey<'test', 'container'> = {
           kt: 'test',
@@ -188,15 +220,15 @@ describe('MemoryCacheMap', () => {
         cacheMap.set(extraComKey, extraItem);
 
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
-        const items = cacheMap.allIn(location);
+        const items = await cacheMap.allIn(location);
         expect(items).toHaveLength(2);
         expect(items).toContain(testItems[2]);
         expect(items).toContain(extraItem);
       });
 
-      it('should return empty array for non-existent location', () => {
+      it('should return empty array for non-existent location', async () => {
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'nonexistent' as UUID }];
-        const items = cacheMap.allIn(location);
+        const items = await cacheMap.allIn(location);
         expect(items).toHaveLength(0);
       });
     });
@@ -208,58 +240,58 @@ describe('MemoryCacheMap', () => {
     });
 
     describe('contains()', () => {
-      it('should return true when items match query in all locations', () => {
+      it('should return true when items match query in all locations', async () => {
         const query: ItemQuery = IQFactory.condition('name', 'Item 1').toQuery();
-        const result = cacheMap.contains(query, []);
+        const result = await cacheMap.contains(query, []);
         expect(result).toBe(true);
       });
 
-      it('should return false when no items match query', () => {
+      it('should return false when no items match query', async () => {
         const query: ItemQuery = IQFactory.condition('name', 'Non-existent Item').toQuery();
-        const result = cacheMap.contains(query, []);
+        const result = await cacheMap.contains(query, []);
         expect(result).toBe(false);
       });
 
-      it('should return true when items match query in specific location', () => {
+      it('should return true when items match query in specific location', async () => {
         const query: ItemQuery = IQFactory.condition('name', 'Item 3').toQuery();
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
-        const result = cacheMap.contains(query, location);
+        const result = await cacheMap.contains(query, location);
         expect(result).toBe(true);
       });
 
-      it('should return false when items match query but not in specified location', () => {
+      it('should return false when items match query but not in specified location', async () => {
         const query: ItemQuery = IQFactory.condition('name', 'Item 1').toQuery();
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
-        const result = cacheMap.contains(query, location);
+        const result = await cacheMap.contains(query, location);
         expect(result).toBe(false);
       });
     });
 
     describe('queryIn()', () => {
-      it('should return matching items from all locations', () => {
+      it('should return matching items from all locations', async () => {
         const query: ItemQuery = IQFactory.condition('value', 100).toQuery();
-        const items = cacheMap.queryIn(query, []);
+        const items = await cacheMap.queryIn(query, []);
         expect(items).toHaveLength(1);
         expect(items[0]).toEqual(testItems[0]);
       });
 
-      it('should return matching items from specific location', () => {
+      it('should return matching items from specific location', async () => {
         const query: ItemQuery = IQFactory.condition('name', 'Item 3').toQuery();
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
-        const items = cacheMap.queryIn(query, location);
+        const items = await cacheMap.queryIn(query, location);
         expect(items).toHaveLength(1);
         expect(items[0]).toEqual(testItems[2]);
       });
 
-      it('should return empty array when no items match', () => {
+      it('should return empty array when no items match', async () => {
         const query: ItemQuery = IQFactory.condition('name', 'Non-existent').toQuery();
-        const items = cacheMap.queryIn(query, []);
+        const items = await cacheMap.queryIn(query, []);
         expect(items).toHaveLength(0);
       });
 
-      it('should use empty array as default for locations parameter', () => {
+      it('should use empty array as default for locations parameter', async () => {
         const query: ItemQuery = IQFactory.condition('value', 100).toQuery();
-        const items = cacheMap.queryIn(query);
+        const items = await cacheMap.queryIn(query);
         expect(items).toHaveLength(1);
         expect(items[0]).toEqual(testItems[0]);
       });
@@ -267,7 +299,7 @@ describe('MemoryCacheMap', () => {
   });
 
   describe('Key Normalization', () => {
-    it('should handle string and number primary keys consistently', () => {
+    it('should handle string and number primary keys consistently', async () => {
       const stringKey: PriKey<'test'> = { kt: 'test', pk: '123' as UUID };
       const numberKey: PriKey<'test'> = { kt: 'test', pk: 123 as any };
 
@@ -282,14 +314,14 @@ describe('MemoryCacheMap', () => {
 
       // Both keys should retrieve the most recently set item (item2)
       // since they normalize to the same internal key
-      expect(cacheMap.get(numberKey)).toEqual(item2);
+      expect(await cacheMap.get(numberKey)).toEqual(item2);
 
       // New key objects with same normalized values should also work
-      expect(cacheMap.get({ kt: 'test', pk: '123' as UUID })).toEqual(item2);
-      expect(cacheMap.get({ kt: 'test', pk: 123 as any })).toEqual(item2);
+      expect(await cacheMap.get({ kt: 'test', pk: '123' as UUID })).toEqual(item2);
+      expect(await cacheMap.get({ kt: 'test', pk: 123 as any })).toEqual(item2);
     });
 
-    it('should handle string and number location keys consistently', () => {
+    it('should handle string and number location keys consistently', async () => {
       const stringLocKey: ComKey<'test', 'container'> = {
         kt: 'test',
         pk: '1' as UUID,
@@ -309,7 +341,7 @@ describe('MemoryCacheMap', () => {
 
       // Both should be in the same normalized location
       const location: LocKeyArray<'container'> = [{ kt: 'container', lk: '456' as UUID }];
-      const items = cacheMap.allIn(location);
+      const items = await cacheMap.allIn(location);
       expect(items).toHaveLength(2);
       expect(items).toContain(item1);
       expect(items).toContain(item2);
@@ -321,20 +353,20 @@ describe('MemoryCacheMap', () => {
       testItems.forEach(item => cacheMap.set(item.key, item));
     });
 
-    it('should create a new instance with copied data', () => {
-      const cloned = cacheMap.clone();
+    it('should create a new instance with copied data', async () => {
+      const cloned = await cacheMap.clone();
       expect(cloned).toBeInstanceOf(MemoryCacheMap);
       expect(cloned).not.toBe(cacheMap);
     });
 
-    it('should copy all items to the clone', () => {
-      const cloned = cacheMap.clone();
+    it('should copy all items to the clone', async () => {
+      const cloned = await cacheMap.clone();
       expect(cloned.keys()).toHaveLength(4);
-      expect(cloned.values()).toEqual(expect.arrayContaining(testItems));
+      expect(await cloned.values()).toEqual(expect.arrayContaining(testItems));
     });
 
-    it('should not share state with original cache', () => {
-      const cloned = cacheMap.clone();
+    it('should not share state with original cache', async () => {
+      const cloned = await cacheMap.clone();
 
       // Modify original
       const newItem: TestItem = { key: { kt: 'test', pk: 'new' as UUID }, id: 'new', name: 'New Item', value: 999 } as TestItem;
@@ -343,89 +375,18 @@ describe('MemoryCacheMap', () => {
       // Clone should not be affected
       expect(cacheMap.keys()).toHaveLength(5);
       expect(cloned.keys()).toHaveLength(4);
-      expect(cloned.get(newItem.key)).toBeNull();
+      expect(await cloned.get(newItem.key)).toBeNull();
     });
 
-    it('should allow independent modifications', () => {
-      const cloned = cacheMap.clone();
+    it('should allow independent modifications', async () => {
+      const cloned = await cacheMap.clone();
 
       // Modify clone
       cloned.delete(priKey1);
 
       // Original should not be affected
-      expect(cacheMap.get(priKey1)).toEqual(testItems[0]);
-      expect(cloned.get(priKey1)).toBeNull();
-    });
-  });
-
-  describe('TTL Operations', () => {
-    beforeEach(() => {
-      testItems.forEach(item => cacheMap.set(item.key, item));
-    });
-
-    describe('getWithTTL()', () => {
-      it('should return item when within TTL', () => {
-        const result = cacheMap.getWithTTL(priKey1, 60000); // 60 seconds
-        expect(result).toEqual(testItems[0]);
-      });
-
-      it('should return null for non-existent key', () => {
-        const nonExistentKey: PriKey<'test'> = { kt: 'test', pk: 'missing' as UUID };
-        const result = cacheMap.getWithTTL(nonExistentKey, 60000);
-        expect(result).toBeNull();
-      });
-
-      it('should return null when TTL is 0 (caching disabled)', () => {
-        const result = cacheMap.getWithTTL(priKey1, 0);
-        expect(result).toBeNull();
-      });
-
-      it('should return null when item has expired', () => {
-        // Set an item fresh, then test with very short TTL after a delay
-        const shortTTL = 1; // 1ms
-
-        // Set the item fresh to ensure timing is controlled
-        cacheMap.set(priKey1, testItems[0]);
-
-        // First call should return the item
-        const immediate = cacheMap.getWithTTL(priKey1, shortTTL);
-        expect(immediate).toEqual(testItems[0]);
-
-        // Wait a bit and try again - should be expired
-        return new Promise(resolve => {
-          setTimeout(() => {
-            const expired = cacheMap.getWithTTL(priKey1, shortTTL);
-            expect(expired).toBeNull();
-            // Verify item was actually removed from cache
-            expect(cacheMap.includesKey(priKey1)).toBe(false);
-            resolve(undefined);
-          }, 5);
-        });
-      });
-
-      it('should work with composite keys', () => {
-        const result = cacheMap.getWithTTL(comKey1, 60000);
-        expect(result).toEqual(testItems[2]);
-      });
-
-      it('should handle different TTL values for same key', () => {
-        // Short TTL should work
-        const shortResult = cacheMap.getWithTTL(priKey1, 1000);
-        expect(shortResult).toEqual(testItems[0]);
-
-        // Long TTL should also work
-        const longResult = cacheMap.getWithTTL(priKey1, 86400000); // 24 hours
-        expect(longResult).toEqual(testItems[0]);
-      });
-    });
-
-    it('should update timestamp when setting items', () => {
-      const newItem: TestItem = { key: priKey1, id: '1', name: 'New Item', value: 999 } as TestItem;
-      cacheMap.set(priKey1, newItem);
-
-      // Item should be fresh
-      const result = cacheMap.getWithTTL(priKey1, 1000);
-      expect(result).toEqual(newItem);
+      expect(await cacheMap.get(priKey1)).toEqual(testItems[0]);
+      expect(await cloned.get(priKey1)).toBeNull();
     });
   });
 
@@ -439,28 +400,27 @@ describe('MemoryCacheMap', () => {
     });
 
     describe('setQueryResult() and getQueryResult()', () => {
-      it('should store and retrieve query results without TTL', () => {
+      it('should store and retrieve query results without TTL', async () => {
         cacheMap.setQueryResult(queryHash1, itemKeys);
-        const result = cacheMap.getQueryResult(queryHash1);
+        const result = await cacheMap.getQueryResult(queryHash1);
         expect(result).toEqual(itemKeys);
       });
 
-      it('should store and retrieve query results with TTL', () => {
-        const ttl = 60000; // 60 seconds
-        cacheMap.setQueryResult(queryHash1, itemKeys, ttl);
-        const result = cacheMap.getQueryResult(queryHash1);
+      it('should store and retrieve query results with TTL', async () => {
+        cacheMap.setQueryResult(queryHash1, itemKeys);
+        const result = await cacheMap.getQueryResult(queryHash1);
         expect(result).toEqual(itemKeys);
       });
 
-      it('should return null for non-existent query hash', () => {
-        const result = cacheMap.getQueryResult('non_existent');
+      it('should return null for non-existent query hash', async () => {
+        const result = await cacheMap.getQueryResult('non_existent');
         expect(result).toBeNull();
       });
 
-      it('should return independent copies of item keys', () => {
+      it('should return independent copies of item keys', async () => {
         cacheMap.setQueryResult(queryHash1, itemKeys);
-        const result1 = cacheMap.getQueryResult(queryHash1);
-        const result2 = cacheMap.getQueryResult(queryHash1);
+        const result1 = await cacheMap.getQueryResult(queryHash1);
+        const result2 = await cacheMap.getQueryResult(queryHash1);
 
         expect(result1).toEqual(itemKeys);
         expect(result2).toEqual(itemKeys);
@@ -468,40 +428,22 @@ describe('MemoryCacheMap', () => {
         expect(result1).not.toBe(itemKeys); // Not the original array
       });
 
-      it('should handle empty item keys arrays', () => {
+      it('should handle empty item keys arrays', async () => {
         const emptyKeys: any[] = [];
         cacheMap.setQueryResult(queryHash1, emptyKeys);
-        const result = cacheMap.getQueryResult(queryHash1);
+        const result = await cacheMap.getQueryResult(queryHash1);
         expect(result).toEqual([]);
         expect(result).not.toBe(emptyKeys);
       });
 
-      it('should handle query result expiration', () => {
-        const shortTTL = 1; // 1ms
-        cacheMap.setQueryResult(queryHash1, itemKeys, shortTTL);
-
-        // Should be available immediately
-        const immediate = cacheMap.getQueryResult(queryHash1);
-        expect(immediate).toEqual(itemKeys);
-
-        // Should expire after delay
-        return new Promise(resolve => {
-          setTimeout(() => {
-            const expired = cacheMap.getQueryResult(queryHash1);
-            expect(expired).toBeNull();
-            resolve(undefined);
-          }, 5);
-        });
-      });
-
-      it('should overwrite existing query results', () => {
+      it('should overwrite existing query results', async () => {
         const newKeys = [comKey1, comKey2];
 
         cacheMap.setQueryResult(queryHash1, itemKeys);
-        expect(cacheMap.getQueryResult(queryHash1)).toEqual(itemKeys);
+        expect(await cacheMap.getQueryResult(queryHash1)).toEqual(itemKeys);
 
         cacheMap.setQueryResult(queryHash1, newKeys);
-        expect(cacheMap.getQueryResult(queryHash1)).toEqual(newKeys);
+        expect(await cacheMap.getQueryResult(queryHash1)).toEqual(newKeys);
       });
     });
 
@@ -515,47 +457,19 @@ describe('MemoryCacheMap', () => {
         expect(cacheMap.hasQueryResult('non_existent')).toBe(false);
       });
 
-      it('should return false for expired query results', () => {
-        const shortTTL = 1; // 1ms
-        cacheMap.setQueryResult(queryHash1, itemKeys, shortTTL);
-
-        expect(cacheMap.hasQueryResult(queryHash1)).toBe(true);
-
-        return new Promise(resolve => {
-          setTimeout(() => {
-            expect(cacheMap.hasQueryResult(queryHash1)).toBe(false);
-            resolve(undefined);
-          }, 5);
-        });
-      });
-
-      it('should clean up expired entries when checked', () => {
-        const shortTTL = 1;
-        cacheMap.setQueryResult(queryHash1, itemKeys, shortTTL);
-
-        return new Promise(resolve => {
-          setTimeout(() => {
-            // hasQueryResult should remove expired entry
-            expect(cacheMap.hasQueryResult(queryHash1)).toBe(false);
-            // Subsequent getQueryResult should also return null
-            expect(cacheMap.getQueryResult(queryHash1)).toBeNull();
-            resolve(undefined);
-          }, 5);
-        });
-      });
     });
 
     describe('deleteQueryResult()', () => {
-      it('should remove existing query results', () => {
+      it('should remove existing query results', async () => {
         cacheMap.setQueryResult(queryHash1, itemKeys);
         expect(cacheMap.hasQueryResult(queryHash1)).toBe(true);
 
         cacheMap.deleteQueryResult(queryHash1);
         expect(cacheMap.hasQueryResult(queryHash1)).toBe(false);
-        expect(cacheMap.getQueryResult(queryHash1)).toBeNull();
+        expect(await cacheMap.getQueryResult(queryHash1)).toBeNull();
       });
 
-      it('should not affect other query results', () => {
+      it('should not affect other query results', async () => {
         const otherKeys = [comKey1];
 
         cacheMap.setQueryResult(queryHash1, itemKeys);
@@ -565,7 +479,7 @@ describe('MemoryCacheMap', () => {
 
         expect(cacheMap.hasQueryResult(queryHash1)).toBe(false);
         expect(cacheMap.hasQueryResult(queryHash2)).toBe(true);
-        expect(cacheMap.getQueryResult(queryHash2)).toEqual(otherKeys);
+        expect(await cacheMap.getQueryResult(queryHash2)).toEqual(otherKeys);
       });
 
       it('should handle deletion of non-existent query results gracefully', () => {
@@ -613,20 +527,20 @@ describe('MemoryCacheMap', () => {
     });
 
     describe('invalidateItemKeys()', () => {
-      it('should remove specified item keys', () => {
+      it('should remove specified item keys', async () => {
         const keysToInvalidate = [priKey1, comKey1];
 
-        expect(cacheMap.includesKey(priKey1)).toBe(true);
-        expect(cacheMap.includesKey(comKey1)).toBe(true);
-        expect(cacheMap.includesKey(priKey2)).toBe(true);
-        expect(cacheMap.includesKey(comKey2)).toBe(true);
+        expect(await cacheMap.includesKey(priKey1)).toBe(true);
+        expect(await cacheMap.includesKey(comKey1)).toBe(true);
+        expect(await cacheMap.includesKey(priKey2)).toBe(true);
+        expect(await cacheMap.includesKey(comKey2)).toBe(true);
 
         cacheMap.invalidateItemKeys(keysToInvalidate);
 
-        expect(cacheMap.includesKey(priKey1)).toBe(false);
-        expect(cacheMap.includesKey(comKey1)).toBe(false);
-        expect(cacheMap.includesKey(priKey2)).toBe(true);
-        expect(cacheMap.includesKey(comKey2)).toBe(true);
+        expect(await cacheMap.includesKey(priKey1)).toBe(false);
+        expect(await cacheMap.includesKey(comKey1)).toBe(false);
+        expect(await cacheMap.includesKey(priKey2)).toBe(true);
+        expect(await cacheMap.includesKey(comKey2)).toBe(true);
       });
 
       it('should handle empty keys array', () => {
@@ -641,72 +555,72 @@ describe('MemoryCacheMap', () => {
         expect(cacheMap.keys()).toHaveLength(4);
       });
 
-      it('should handle mixed existing and non-existent keys', () => {
+      it('should handle mixed existing and non-existent keys', async () => {
         const nonExistentKey: PriKey<'test'> = { kt: 'test', pk: 'missing' as UUID };
         const keysToInvalidate = [priKey1, nonExistentKey, comKey1];
 
         cacheMap.invalidateItemKeys(keysToInvalidate);
 
-        expect(cacheMap.includesKey(priKey1)).toBe(false);
-        expect(cacheMap.includesKey(comKey1)).toBe(false);
-        expect(cacheMap.includesKey(priKey2)).toBe(true);
-        expect(cacheMap.includesKey(comKey2)).toBe(true);
+        expect(await cacheMap.includesKey(priKey1)).toBe(false);
+        expect(await cacheMap.includesKey(comKey1)).toBe(false);
+        expect(await cacheMap.includesKey(priKey2)).toBe(true);
+        expect(await cacheMap.includesKey(comKey2)).toBe(true);
       });
     });
 
     describe('invalidateLocation()', () => {
-      it('should invalidate all primary items when location is empty', () => {
-        expect(cacheMap.includesKey(priKey1)).toBe(true);
-        expect(cacheMap.includesKey(priKey2)).toBe(true);
-        expect(cacheMap.includesKey(comKey1)).toBe(true);
-        expect(cacheMap.includesKey(comKey2)).toBe(true);
+      it('should invalidate all primary items when location is empty', async () => {
+        expect(await cacheMap.includesKey(priKey1)).toBe(true);
+        expect(await cacheMap.includesKey(priKey2)).toBe(true);
+        expect(await cacheMap.includesKey(comKey1)).toBe(true);
+        expect(await cacheMap.includesKey(comKey2)).toBe(true);
 
-        cacheMap.invalidateLocation([]);
+        await cacheMap.invalidateLocation([]);
 
         // Primary keys should be invalidated
-        expect(cacheMap.includesKey(priKey1)).toBe(false);
-        expect(cacheMap.includesKey(priKey2)).toBe(false);
+        expect(await cacheMap.includesKey(priKey1)).toBe(false);
+        expect(await cacheMap.includesKey(priKey2)).toBe(false);
         // Composite keys should remain
-        expect(cacheMap.includesKey(comKey1)).toBe(true);
-        expect(cacheMap.includesKey(comKey2)).toBe(true);
+        expect(await cacheMap.includesKey(comKey1)).toBe(true);
+        expect(await cacheMap.includesKey(comKey2)).toBe(true);
       });
 
-      it('should invalidate items in specific location', () => {
+      it('should invalidate items in specific location', async () => {
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
 
-        expect(cacheMap.includesKey(comKey1)).toBe(true);
-        expect(cacheMap.includesKey(comKey2)).toBe(true);
+        expect(await cacheMap.includesKey(comKey1)).toBe(true);
+        expect(await cacheMap.includesKey(comKey2)).toBe(true);
 
-        cacheMap.invalidateLocation(location);
+        await cacheMap.invalidateLocation(location);
 
         // Only items in container1 should be invalidated
-        expect(cacheMap.includesKey(comKey1)).toBe(false);
-        expect(cacheMap.includesKey(comKey2)).toBe(true);
+        expect(await cacheMap.includesKey(comKey1)).toBe(false);
+        expect(await cacheMap.includesKey(comKey2)).toBe(true);
         // Primary keys should remain
-        expect(cacheMap.includesKey(priKey1)).toBe(true);
-        expect(cacheMap.includesKey(priKey2)).toBe(true);
+        expect(await cacheMap.includesKey(priKey1)).toBe(true);
+        expect(await cacheMap.includesKey(priKey2)).toBe(true);
       });
 
-      it('should clear all query results when invalidating location', () => {
+      it('should clear all query results when invalidating location', async () => {
         const queryHash = 'test_query';
         cacheMap.setQueryResult(queryHash, [priKey1, comKey1]);
 
         expect(cacheMap.hasQueryResult(queryHash)).toBe(true);
 
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
-        cacheMap.invalidateLocation(location);
+        await cacheMap.invalidateLocation(location);
 
         expect(cacheMap.hasQueryResult(queryHash)).toBe(false);
       });
 
-      it('should handle non-existent locations gracefully', () => {
+      it('should handle non-existent locations gracefully', async () => {
         const nonExistentLocation: LocKeyArray<'container'> = [{ kt: 'container', lk: 'nonexistent' as UUID }];
 
         expect(() => cacheMap.invalidateLocation(nonExistentLocation)).not.toThrow();
         expect(cacheMap.keys()).toHaveLength(4); // All items should remain
       });
 
-      it('should invalidate multiple items in same location', () => {
+      it('should invalidate multiple items in same location', async () => {
         // Add another item to container1
         const extraComKey: ComKey<'test', 'container'> = {
           kt: 'test',
@@ -718,20 +632,20 @@ describe('MemoryCacheMap', () => {
 
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
 
-        expect(cacheMap.includesKey(comKey1)).toBe(true);
-        expect(cacheMap.includesKey(extraComKey)).toBe(true);
+        expect(await cacheMap.includesKey(comKey1)).toBe(true);
+        expect(await cacheMap.includesKey(extraComKey)).toBe(true);
 
-        cacheMap.invalidateLocation(location);
+        await cacheMap.invalidateLocation(location);
 
-        expect(cacheMap.includesKey(comKey1)).toBe(false);
-        expect(cacheMap.includesKey(extraComKey)).toBe(false);
-        expect(cacheMap.includesKey(comKey2)).toBe(true); // Different location
+        expect(await cacheMap.includesKey(comKey1)).toBe(false);
+        expect(await cacheMap.includesKey(extraComKey)).toBe(false);
+        expect(await cacheMap.includesKey(comKey2)).toBe(true); // Different location
       });
     });
   });
 
   describe('Constructor with Initial Data', () => {
-    it('should initialize with provided data', () => {
+    it('should initialize with provided data', async () => {
       const initialData = {
         [JSON.stringify(priKey1)]: testItems[0],
         [JSON.stringify(comKey1)]: testItems[2]
@@ -739,17 +653,17 @@ describe('MemoryCacheMap', () => {
 
       const cache = new MemoryCacheMap<TestItem, 'test', 'container'>(['test', 'container'], initialData);
 
-      expect(cache.get(priKey1)).toEqual(testItems[0]);
-      expect(cache.get(comKey1)).toEqual(testItems[2]);
-      expect(cache.keys()).toHaveLength(2);
+      expect(await cache.get(priKey1)).toEqual(testItems[0]);
+      expect(await cache.get(comKey1)).toEqual(testItems[2]);
+      expect(await cache.keys()).toHaveLength(2);
     });
 
-    it('should handle empty initial data', () => {
+    it('should handle empty initial data', async () => {
       const cache = new MemoryCacheMap<TestItem, 'test', 'container'>(['test', 'container'], {});
-      expect(cache.keys()).toHaveLength(0);
+      expect(await cache.keys()).toHaveLength(0);
     });
 
-    it('should handle invalid JSON keys in initial data gracefully', () => {
+    it('should handle invalid JSON keys in initial data gracefully', async () => {
       const initialData = {
         'invalid-json': testItems[0],
         [JSON.stringify(priKey1)]: testItems[0]
@@ -757,13 +671,13 @@ describe('MemoryCacheMap', () => {
 
       // Should not throw and should only include valid entries
       const cache = new MemoryCacheMap<TestItem, 'test', 'container'>(['test', 'container'], initialData);
-      expect(cache.keys()).toHaveLength(1);
-      expect(cache.get(priKey1)).toEqual(testItems[0]);
+      expect(await cache.keys()).toHaveLength(1);
+      expect(await cache.get(priKey1)).toEqual(testItems[0]);
     });
 
-    it('should handle undefined initial data', () => {
+    it('should handle undefined initial data', async () => {
       const cache = new MemoryCacheMap<TestItem, 'test', 'container'>(['test', 'container'], undefined);
-      expect(cache.keys()).toHaveLength(0);
+      expect(await cache.keys()).toHaveLength(0);
     });
   });
 
@@ -772,24 +686,24 @@ describe('MemoryCacheMap', () => {
       testItems.forEach(item => cacheMap.set(item.key, item));
     });
 
-    it('should copy query result cache to clone', () => {
+    it('should copy query result cache to clone', async () => {
       const queryHash = 'test_query';
       const itemKeys = [priKey1, priKey2];
 
       cacheMap.setQueryResult(queryHash, itemKeys);
-      const cloned = cacheMap.clone();
+      const cloned = await cacheMap.clone();
 
       expect(cloned.hasQueryResult(queryHash)).toBe(true);
-      expect(cloned.getQueryResult(queryHash)).toEqual(itemKeys);
+      expect(await cloned.getQueryResult(queryHash)).toEqual(itemKeys);
     });
 
-    it('should not share query result cache with original', () => {
+    it('should not share query result cache with original', async () => {
       const queryHash1 = 'query1';
       const queryHash2 = 'query2';
       const itemKeys = [priKey1, priKey2];
 
       cacheMap.setQueryResult(queryHash1, itemKeys);
-      const cloned = cacheMap.clone();
+      const cloned = await cacheMap.clone();
 
       // Modify original
       cacheMap.setQueryResult(queryHash2, [comKey1]);
@@ -804,30 +718,29 @@ describe('MemoryCacheMap', () => {
       expect(cacheMap.hasQueryResult(queryHash2)).toBe(true);
     });
 
-    it('should copy query results with TTL correctly', () => {
-      const queryHash = 'ttl_query';
+    it('should copy query results correctly', async () => {
+      const queryHash = 'query_to_copy';
       const itemKeys = [priKey1];
-      const ttl = 60000; // 60 seconds
 
-      cacheMap.setQueryResult(queryHash, itemKeys, ttl);
-      const cloned = cacheMap.clone();
+      cacheMap.setQueryResult(queryHash, itemKeys);
+      const cloned = await cacheMap.clone();
 
       expect(cloned.hasQueryResult(queryHash)).toBe(true);
-      expect(cloned.getQueryResult(queryHash)).toEqual(itemKeys);
+      expect(await cloned.getQueryResult(queryHash)).toEqual(itemKeys);
     });
   });
 
   describe('Edge Cases', () => {
-    it('should handle empty string keys', () => {
+    it('should handle empty string keys', async () => {
       const emptyKey: PriKey<'test'> = { kt: 'test', pk: '' as UUID };
       const item: TestItem = { key: emptyKey, id: 'empty', name: 'Empty Key', value: 0 } as TestItem;
 
       cacheMap.set(emptyKey, item);
-      expect(cacheMap.get(emptyKey)).toEqual(item);
-      expect(cacheMap.includesKey(emptyKey)).toBe(true);
+      expect(await cacheMap.get(emptyKey)).toEqual(item);
+      expect(await cacheMap.includesKey(emptyKey)).toBe(true);
     });
 
-    it('should handle complex objects as item values', () => {
+    it('should handle complex objects as item values', async () => {
       const complexItem: TestItem & { nested: { data: string[] } } = {
         key: priKey1,
         id: '1',
@@ -838,24 +751,24 @@ describe('MemoryCacheMap', () => {
 
       // @ts-ignore
       cacheMap.set(priKey1, complexItem as any);
-      const retrieved = cacheMap.get(priKey1);
+      const retrieved = await cacheMap.get(priKey1);
       expect(retrieved).toEqual(complexItem);
     });
 
-    it('should handle null and undefined values gracefully', () => {
+    it('should handle null and undefined values gracefully', async () => {
       const nullItem = null as any;
       const undefinedItem = undefined as any;
 
       cacheMap.set(priKey1, nullItem);
       cacheMap.set(priKey2, undefinedItem);
 
-      expect(cacheMap.get(priKey1)).toBeNull();
-      expect(cacheMap.get(priKey2)).toBeUndefined();
-      expect(cacheMap.includesKey(priKey1)).toBe(true);
-      expect(cacheMap.includesKey(priKey2)).toBe(true);
+      expect(await cacheMap.get(priKey1)).toBeNull();
+      expect(await cacheMap.get(priKey2)).toBeUndefined();
+      expect(await cacheMap.includesKey(priKey1)).toBe(true);
+      expect(await cacheMap.includesKey(priKey2)).toBe(true);
     });
 
-    it('should handle very large numbers of items', () => {
+    it('should handle very large numbers of items', async () => {
       const itemCount = 10000;
       const startTime = performance.now();
 
@@ -873,7 +786,7 @@ describe('MemoryCacheMap', () => {
       const retrievalStart = performance.now();
       for (let i = 0; i < 100; i++) {
         const key: PriKey<'test'> = { kt: 'test', pk: (i * 100).toString() as UUID };
-        const retrieved = cacheMap.get(key);
+        const retrieved = await cacheMap.get(key);
         expect(retrieved?.value).toBe(i * 100);
       }
       const retrievalTime = performance.now() - retrievalStart;
@@ -883,7 +796,7 @@ describe('MemoryCacheMap', () => {
       expect(retrievalTime).toBeLessThan(500); // 500ms for 100 retrievals (increased for CI)
     });
 
-    it('should handle special characters in keys', () => {
+    it('should handle special characters in keys', async () => {
       const specialKeys = [
         { kt: 'test', pk: 'key with spaces' as UUID },
         { kt: 'test', pk: 'key-with-dashes' as UUID },
@@ -895,17 +808,17 @@ describe('MemoryCacheMap', () => {
         { kt: 'test', pk: 'key\\with\\backslashes' as UUID }
       ] as PriKey<'test'>[];
 
-      specialKeys.forEach((key, index) => {
+      for (const [index, key] of specialKeys.entries()) {
         const item: TestItem = { key, id: index.toString(), name: `Special ${index}`, value: index } as TestItem;
         cacheMap.set(key, item);
-        expect(cacheMap.get(key)).toEqual(item);
-        expect(cacheMap.includesKey(key)).toBe(true);
-      });
+        expect(await cacheMap.get(key)).toEqual(item);
+        expect(await cacheMap.includesKey(key)).toBe(true);
+      }
 
       expect(cacheMap.keys()).toHaveLength(specialKeys.length);
     });
 
-    it('should handle Unicode characters in keys', () => {
+    it('should handle Unicode characters in keys', async () => {
       const unicodeKeys = [
         { kt: 'test', pk: 'café' as UUID },
         { kt: 'test', pk: '日本語' as UUID },
@@ -914,27 +827,27 @@ describe('MemoryCacheMap', () => {
         { kt: 'test', pk: 'αβγ' as UUID }
       ] as PriKey<'test'>[];
 
-      unicodeKeys.forEach((key, index) => {
+      for (const [index, key] of unicodeKeys.entries()) {
         const item: TestItem = { key, id: index.toString(), name: `Unicode ${index}`, value: index } as TestItem;
         cacheMap.set(key, item);
-        expect(cacheMap.get(key)).toEqual(item);
-        expect(cacheMap.includesKey(key)).toBe(true);
-      });
+        expect(await cacheMap.get(key)).toEqual(item);
+        expect(await cacheMap.includesKey(key)).toBe(true);
+      }
 
       expect(cacheMap.keys()).toHaveLength(unicodeKeys.length);
     });
 
-    it('should handle very long key values', () => {
+    it('should handle very long key values', async () => {
       const longPk = 'a'.repeat(10000);
       const longKey: PriKey<'test'> = { kt: 'test', pk: longPk as UUID };
       const item: TestItem = { key: longKey, id: '1', name: 'Long Key Item', value: 1 } as TestItem;
 
       cacheMap.set(longKey, item);
-      expect(cacheMap.get(longKey)).toEqual(item);
-      expect(cacheMap.includesKey(longKey)).toBe(true);
+      expect(await cacheMap.get(longKey)).toEqual(item);
+      expect(await cacheMap.includesKey(longKey)).toBe(true);
     });
 
-    it('should handle rapid operations without conflicts', () => {
+    it('should handle rapid operations without conflicts', async () => {
       const operations = 1000;
       const keys: PriKey<'test'>[] = [];
 
@@ -949,10 +862,10 @@ describe('MemoryCacheMap', () => {
       expect(cacheMap.keys()).toHaveLength(operations);
 
       // Rapid get operations
-      keys.forEach((key, index) => {
-        const retrieved = cacheMap.get(key);
+      for (const [index, key] of keys.entries()) {
+        const retrieved = await cacheMap.get(key);
         expect(retrieved?.value).toBe(index);
-      });
+      }
 
       // Rapid delete operations
       for (let i = 0; i < operations / 2; i++) {
