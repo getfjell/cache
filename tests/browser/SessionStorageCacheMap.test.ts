@@ -67,25 +67,25 @@ describe('SessionStorageCacheMap', () => {
 
   describe('Basic Operations', () => {
     describe('set() and get()', () => {
-      it('should store and retrieve items by primary key', () => {
+      it('should store and retrieve items by primary key', async () => {
         cacheMap.set(priKey1, testItems[0]);
-        const retrieved = cacheMap.get(priKey1);
+        const retrieved = await cacheMap.get(priKey1);
 
         expect(retrieved).toEqual(testItems[0]);
         expect(window.sessionStorage.setItem).toHaveBeenCalled();
         expect(window.sessionStorage.getItem).toHaveBeenCalled();
       });
 
-      it('should store and retrieve items by composite key', () => {
+      it('should store and retrieve items by composite key', async () => {
         cacheMap.set(comKey1, testItems[2]);
-        const retrieved = cacheMap.get(comKey1);
+        const retrieved = await cacheMap.get(comKey1);
 
         expect(retrieved).toEqual(testItems[2]);
       });
 
-      it('should return null for non-existent keys', () => {
+      it('should return null for non-existent keys', async () => {
         const nonExistentKey: PriKey<'test'> = { kt: 'test', pk: 'missing' as UUID };
-        const retrieved = cacheMap.get(nonExistentKey);
+        const retrieved = await cacheMap.get(nonExistentKey);
 
         expect(retrieved).toBeNull();
       });
@@ -103,13 +103,13 @@ describe('SessionStorageCacheMap', () => {
         expect(storedData.value).toEqual(testItems[0]);
       });
 
-      it('should overwrite existing items', () => {
+      it('should overwrite existing items', async () => {
         cacheMap.set(priKey1, testItems[0]);
 
         const updatedItem: TestItem = { key: priKey1, id: '1', name: 'Updated Item 1', value: 999 } as TestItem;
         cacheMap.set(priKey1, updatedItem);
 
-        const retrieved = cacheMap.get(priKey1);
+        const retrieved = await cacheMap.get(priKey1);
         expect(retrieved).toEqual(updatedItem);
       });
     });
@@ -120,21 +120,21 @@ describe('SessionStorageCacheMap', () => {
         cacheMap.set(comKey1, testItems[2]);
       });
 
-      it('should return true for existing primary keys', () => {
-        expect(cacheMap.includesKey(priKey1)).toBe(true);
+      it('should return true for existing primary keys', async () => {
+        expect(await cacheMap.includesKey(priKey1)).toBe(true);
       });
 
-      it('should return true for existing composite keys', () => {
-        expect(cacheMap.includesKey(comKey1)).toBe(true);
+      it('should return true for existing composite keys', async () => {
+        expect(await cacheMap.includesKey(comKey1)).toBe(true);
       });
 
-      it('should return false for non-existent keys', () => {
+      it('should return false for non-existent keys', async () => {
         const nonExistentKey: PriKey<'test'> = { kt: 'test', pk: 'missing' as UUID };
-        expect(cacheMap.includesKey(nonExistentKey)).toBe(false);
+        expect(await cacheMap.includesKey(nonExistentKey)).toBe(false);
       });
 
-      it('should verify key collision detection', () => {
-        expect(cacheMap.includesKey(priKey1)).toBe(true);
+      it('should verify key collision detection', async () => {
+        expect(await cacheMap.includesKey(priKey1)).toBe(true);
 
         // @ts-ignore
         const getItemCall = window.sessionStorage.getItem.mock.calls[window.sessionStorage.getItem.mock.calls.length - 1];
@@ -149,28 +149,28 @@ describe('SessionStorageCacheMap', () => {
         cacheMap.set(comKey1, testItems[2]);
       });
 
-      it('should remove items by primary key', () => {
-        expect(cacheMap.includesKey(priKey1)).toBe(true);
+      it('should remove items by primary key', async () => {
+        expect(await cacheMap.includesKey(priKey1)).toBe(true);
         cacheMap.delete(priKey1);
 
-        expect(cacheMap.includesKey(priKey1)).toBe(false);
-        expect(cacheMap.get(priKey1)).toBeNull();
+        expect(await cacheMap.includesKey(priKey1)).toBe(false);
+        expect(await cacheMap.get(priKey1)).toBeNull();
         expect(window.sessionStorage.removeItem).toHaveBeenCalled();
       });
 
-      it('should remove items by composite key', () => {
-        expect(cacheMap.includesKey(comKey1)).toBe(true);
+      it('should remove items by composite key', async () => {
+        expect(await cacheMap.includesKey(comKey1)).toBe(true);
         cacheMap.delete(comKey1);
 
-        expect(cacheMap.includesKey(comKey1)).toBe(false);
-        expect(cacheMap.get(comKey1)).toBeNull();
+        expect(await cacheMap.includesKey(comKey1)).toBe(false);
+        expect(await cacheMap.get(comKey1)).toBeNull();
       });
 
-      it('should not affect other items', () => {
+      it('should not affect other items', async () => {
         cacheMap.delete(priKey1);
 
-        expect(cacheMap.get(priKey2)).toEqual(testItems[1]);
-        expect(cacheMap.get(comKey1)).toEqual(testItems[2]);
+        expect(await cacheMap.get(priKey2)).toEqual(testItems[1]);
+        expect(await cacheMap.get(comKey1)).toEqual(testItems[2]);
       });
     });
 
@@ -188,8 +188,8 @@ describe('SessionStorageCacheMap', () => {
         expect(keys.some(k => JSON.stringify(k) === JSON.stringify(comKey1))).toBe(true);
       });
 
-      it('should return all values', () => {
-        const values = cacheMap.values();
+      it('should return all values', async () => {
+        const values = await cacheMap.values();
 
         expect(values).toHaveLength(3);
         expect(values.some(v => JSON.stringify(v) === JSON.stringify(testItems[0]))).toBe(true);
@@ -203,13 +203,13 @@ describe('SessionStorageCacheMap', () => {
         testItems.forEach(item => cacheMap.set(item.key, item));
       });
 
-      it('should remove all cache items from sessionStorage', () => {
+      it('should remove all cache items from sessionStorage', async () => {
         expect(cacheMap.keys()).toHaveLength(3);
 
         cacheMap.clear();
 
         expect(cacheMap.keys()).toHaveLength(0);
-        expect(cacheMap.values()).toHaveLength(0);
+        expect(await cacheMap.values()).toHaveLength(0);
       });
 
       it('should only remove items with the cache prefix', () => {
@@ -242,7 +242,7 @@ describe('SessionStorageCacheMap', () => {
       expect(setItemCall[0]).toContain('test-session-cache:');
     });
 
-    it('should handle session expiration gracefully', () => {
+    it('should handle session expiration gracefully', async () => {
       cacheMap.set(priKey1, testItems[0]);
 
       // Simulate session clearing (tab close)
@@ -250,7 +250,7 @@ describe('SessionStorageCacheMap', () => {
 
       // All data should be gone
       expect(cacheMap.keys()).toHaveLength(0);
-      expect(cacheMap.get(priKey1)).toBeNull();
+      expect(await cacheMap.get(priKey1)).toBeNull();
     });
   });
 
@@ -260,24 +260,24 @@ describe('SessionStorageCacheMap', () => {
     });
 
     describe('allIn()', () => {
-      it('should return all items when location array is empty', () => {
-        const items = cacheMap.allIn([]);
+      it('should return all items when location array is empty', async () => {
+        const items = await cacheMap.allIn([]);
 
         expect(items).toHaveLength(3);
         expect(items).toEqual(expect.arrayContaining(testItems));
       });
 
-      it('should return items in specific location', () => {
+      it('should return items in specific location', async () => {
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
-        const items = cacheMap.allIn(location);
+        const items = await cacheMap.allIn(location);
 
         expect(items).toHaveLength(1);
         expect(items[0]).toEqual(testItems[2]);
       });
 
-      it('should return empty array for non-existent location', () => {
+      it('should return empty array for non-existent location', async () => {
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'nonexistent' as UUID }];
-        const items = cacheMap.allIn(location);
+        const items = await cacheMap.allIn(location);
 
         expect(items).toHaveLength(0);
       });
@@ -290,33 +290,33 @@ describe('SessionStorageCacheMap', () => {
     });
 
     describe('contains()', () => {
-      it('should return true when items match query', () => {
+      it('should return true when items match query', async () => {
         const query: ItemQuery = IQFactory.condition('name', 'Item 1').toQuery();
-        const result = cacheMap.contains(query, []);
+        const result = await cacheMap.contains(query, []);
 
         expect(result).toBe(true);
       });
 
-      it('should return false when no items match query', () => {
+      it('should return false when no items match query', async () => {
         const query: ItemQuery = IQFactory.condition('name', 'Non-existent Item').toQuery();
-        const result = cacheMap.contains(query, []);
+        const result = await cacheMap.contains(query, []);
 
         expect(result).toBe(false);
       });
     });
 
     describe('queryIn()', () => {
-      it('should return matching items from all locations', () => {
+      it('should return matching items from all locations', async () => {
         const query: ItemQuery = IQFactory.condition('value', 100).toQuery();
-        const items = cacheMap.queryIn(query, []);
+        const items = await cacheMap.queryIn(query, []);
 
         expect(items).toHaveLength(1);
         expect(items[0]).toEqual(testItems[0]);
       });
 
-      it('should return empty array when no items match', () => {
+      it('should return empty array when no items match', async () => {
         const query: ItemQuery = IQFactory.condition('name', 'Non-existent').toQuery();
-        const items = cacheMap.queryIn(query, []);
+        const items = await cacheMap.queryIn(query, []);
 
         expect(items).toHaveLength(0);
       });
@@ -336,29 +336,29 @@ describe('SessionStorageCacheMap', () => {
       }).toThrow('Failed to store item in sessionStorage');
     });
 
-    it('should handle sessionStorage getItem errors gracefully', () => {
+    it('should handle sessionStorage getItem errors gracefully', async () => {
       // Mock sessionStorage.getItem to throw an error
       // @ts-ignore
       window.sessionStorage.getItem.mockImplementationOnce(() => {
         throw new Error('Storage error');
       });
 
-      const result = cacheMap.get(priKey1);
+      const result = await cacheMap.get(priKey1);
       expect(result).toBeNull();
     });
 
-    it('should handle invalid JSON in sessionStorage gracefully', () => {
+    it('should handle invalid JSON in sessionStorage gracefully', async () => {
       // Directly set invalid JSON in storage
       const storageKey = `test-session-cache:${cacheMap['normalizedHashFunction'](priKey1)}`;
       window.sessionStorage.setItem(storageKey, 'invalid json');
 
-      const result = cacheMap.get(priKey1);
+      const result = await cacheMap.get(priKey1);
       expect(result).toBeNull();
     });
   });
 
   describe('Key Normalization', () => {
-    it('should handle string and number primary keys consistently', () => {
+    it('should handle string and number primary keys consistently', async () => {
       const stringKey: PriKey<'test'> = { kt: 'test', pk: '123' as UUID };
       const numberKey: PriKey<'test'> = { kt: 'test', pk: 123 as any };
 
@@ -369,8 +369,8 @@ describe('SessionStorageCacheMap', () => {
       cacheMap.set(numberKey, item2);
 
       // Number 123 should overwrite string '123' due to normalization
-      expect(cacheMap.get(stringKey)).toEqual(item2);
-      expect(cacheMap.get(numberKey)).toEqual(item2);
+      expect(await cacheMap.get(stringKey)).toEqual(item2);
+      expect(await cacheMap.get(numberKey)).toEqual(item2);
     });
   });
 
@@ -379,49 +379,49 @@ describe('SessionStorageCacheMap', () => {
       testItems.forEach(item => cacheMap.set(item.key, item));
     });
 
-    it('should create a new instance sharing the same sessionStorage', () => {
-      const cloned = cacheMap.clone();
+    it('should create a new instance sharing the same sessionStorage', async () => {
+      const cloned = await cacheMap.clone();
 
       expect(cloned).toBeInstanceOf(SessionStorageCacheMap);
       expect(cloned).not.toBe(cacheMap);
     });
 
-    it('should share data through sessionStorage', () => {
-      const cloned = cacheMap.clone();
+    it('should share data through sessionStorage', async () => {
+      const cloned = await cacheMap.clone();
 
       // Clone should see the same data
       expect(cloned.keys()).toHaveLength(3);
-      expect(cloned.get(priKey1)).toEqual(testItems[0]);
+      expect(await cloned.get(priKey1)).toEqual(testItems[0]);
     });
 
-    it('should share modifications through sessionStorage', () => {
-      const cloned = cacheMap.clone();
+    it('should share modifications through sessionStorage', async () => {
+      const cloned = await cacheMap.clone();
 
       // Modify through clone
       const newItem: TestItem = { key: { kt: 'test', pk: 'new' as UUID }, id: 'new', name: 'New Item', value: 999 } as TestItem;
       cloned.set(newItem.key, newItem);
 
       // Original should see the change
-      expect(cacheMap.get(newItem.key)).toEqual(newItem);
+      expect(await cacheMap.get(newItem.key)).toEqual(newItem);
     });
   });
 
   describe('Prefix Isolation', () => {
-    it('should isolate caches with different prefixes', () => {
+    it('should isolate caches with different prefixes', async () => {
       const cache1 = new SessionStorageCacheMap<TestItem, 'test', 'container'>(['test', 'container'], 'cache1');
       const cache2 = new SessionStorageCacheMap<TestItem, 'test', 'container'>(['test', 'container'], 'cache2');
 
       cache1.set(priKey1, testItems[0]);
       cache2.set(priKey1, testItems[1]);
 
-      expect(cache1.get(priKey1)).toEqual(testItems[0]);
-      expect(cache2.get(priKey1)).toEqual(testItems[1]);
+      expect(await cache1.get(priKey1)).toEqual(testItems[0]);
+      expect(await cache2.get(priKey1)).toEqual(testItems[1]);
 
       expect(cache1.keys()).toHaveLength(1);
       expect(cache2.keys()).toHaveLength(1);
     });
 
-    it('should not affect other prefixes when clearing', () => {
+    it('should not affect other prefixes when clearing', async () => {
       const cache1 = new SessionStorageCacheMap<TestItem, 'test', 'container'>(['test', 'container'], 'cache1');
       const cache2 = new SessionStorageCacheMap<TestItem, 'test', 'container'>(['test', 'container'], 'cache2');
 
@@ -432,7 +432,7 @@ describe('SessionStorageCacheMap', () => {
 
       expect(cache1.keys()).toHaveLength(0);
       expect(cache2.keys()).toHaveLength(1);
-      expect(cache2.get(priKey1)).toEqual(testItems[1]);
+      expect(await cache2.get(priKey1)).toEqual(testItems[1]);
     });
   });
 
@@ -442,47 +442,47 @@ describe('SessionStorageCacheMap', () => {
     const itemKeys = [priKey1, priKey2];
 
     describe('setQueryResult() and getQueryResult()', () => {
-      it('should store and retrieve query results without TTL', () => {
+      it('should store and retrieve query results without TTL', async () => {
         cacheMap.setQueryResult(queryHash1, itemKeys);
 
-        const result = cacheMap.getQueryResult(queryHash1);
+        const result = await cacheMap.getQueryResult(queryHash1);
         expect(result).toEqual(itemKeys);
       });
 
-      it('should return null for non-existent query hash', () => {
-        const result = cacheMap.getQueryResult('non-existent');
+      it('should return null for non-existent query hash', async () => {
+        const result = await cacheMap.getQueryResult('non-existent');
         expect(result).toBeNull();
       });
 
-      it('should handle old format query results (array without expiration)', () => {
+      it('should handle old format query results (array without expiration)', async () => {
         // Manually store old format (just array)
         const queryKey = `test-session-cache:query:${queryHash1}`;
         window.sessionStorage.setItem(queryKey, JSON.stringify(itemKeys));
 
-        const result = cacheMap.getQueryResult(queryHash1);
+        const result = await cacheMap.getQueryResult(queryHash1);
         expect(result).toEqual(itemKeys);
       });
 
-      it('should handle malformed query result data', () => {
+      it('should handle malformed query result data', async () => {
         // Manually store invalid data
         const queryKey = `test-session-cache:query:${queryHash1}`;
         window.sessionStorage.setItem(queryKey, 'invalid json');
 
-        const result = cacheMap.getQueryResult(queryHash1);
+        const result = await cacheMap.getQueryResult(queryHash1);
         expect(result).toBeNull();
       });
 
-      it('should handle query results with missing itemKeys', () => {
+      it('should handle query results with missing itemKeys', async () => {
         // Manually store data without itemKeys
         const queryKey = `test-session-cache:query:${queryHash1}`;
         const malformedData = { someOtherField: 'value' };
         window.sessionStorage.setItem(queryKey, JSON.stringify(malformedData));
 
-        const result = cacheMap.getQueryResult(queryHash1);
+        const result = await cacheMap.getQueryResult(queryHash1);
         expect(result).toBeNull();
       });
 
-      it('should handle sessionStorage errors during query result operations', () => {
+      it('should handle sessionStorage errors during query result operations', async () => {
         // Test setQueryResult error handling
         // @ts-ignore
         window.sessionStorage.setItem.mockImplementationOnce(() => {
@@ -499,7 +499,7 @@ describe('SessionStorageCacheMap', () => {
           throw new Error('Storage error');
         });
 
-        const result = cacheMap.getQueryResult(queryHash1);
+        const result = await cacheMap.getQueryResult(queryHash1);
         expect(result).toBeNull();
       });
     });
@@ -544,7 +544,7 @@ describe('SessionStorageCacheMap', () => {
     });
 
     describe('clearQueryResults()', () => {
-      it('should clear all query results but preserve regular cache items', () => {
+      it('should clear all query results but preserve regular cache items', async () => {
         // Add regular cache items
         cacheMap.set(priKey1, testItems[0]);
         cacheMap.set(priKey2, testItems[1]);
@@ -563,8 +563,8 @@ describe('SessionStorageCacheMap', () => {
         expect(cacheMap.hasQueryResult(queryHash2)).toBe(false);
 
         // Regular cache items should remain
-        expect(cacheMap.get(priKey1)).toEqual(testItems[0]);
-        expect(cacheMap.get(priKey2)).toEqual(testItems[1]);
+        expect(await cacheMap.get(priKey1)).toEqual(testItems[0]);
+        expect(await cacheMap.get(priKey2)).toEqual(testItems[1]);
       });
 
       it('should only clear query results with matching prefix', () => {
@@ -635,16 +635,16 @@ describe('SessionStorageCacheMap', () => {
         cacheMap.setQueryResult('query2', [comKey1]);
       });
 
-      it('should remove specified items from cache', () => {
-        expect(cacheMap.get(priKey1)).toEqual(testItems[0]);
-        expect(cacheMap.get(priKey2)).toEqual(testItems[1]);
-        expect(cacheMap.get(comKey1)).toEqual(testItems[2]);
+      it('should remove specified items from cache', async () => {
+        expect(await cacheMap.get(priKey1)).toEqual(testItems[0]);
+        expect(await cacheMap.get(priKey2)).toEqual(testItems[1]);
+        expect(await cacheMap.get(comKey1)).toEqual(testItems[2]);
 
         cacheMap.invalidateItemKeys([priKey1, priKey2]);
 
-        expect(cacheMap.get(priKey1)).toBeNull();
-        expect(cacheMap.get(priKey2)).toBeNull();
-        expect(cacheMap.get(comKey1)).toEqual(testItems[2]); // Should remain
+        expect(await cacheMap.get(priKey1)).toBeNull();
+        expect(await cacheMap.get(priKey2)).toBeNull();
+        expect(await cacheMap.get(comKey1)).toEqual(testItems[2]); // Should remain
       });
 
       it('should handle empty key arrays', () => {
@@ -666,60 +666,60 @@ describe('SessionStorageCacheMap', () => {
     });
 
     describe('invalidateLocation()', () => {
-      it('should invalidate all primary items when location is empty', () => {
-        expect(cacheMap.get(priKey1)).toEqual(testItems[0]);
-        expect(cacheMap.get(priKey2)).toEqual(testItems[1]);
-        expect(cacheMap.get(comKey1)).toEqual(testItems[2]);
+      it('should invalidate all primary items when location is empty', async () => {
+        expect(await cacheMap.get(priKey1)).toEqual(testItems[0]);
+        expect(await cacheMap.get(priKey2)).toEqual(testItems[1]);
+        expect(await cacheMap.get(comKey1)).toEqual(testItems[2]);
 
-        cacheMap.invalidateLocation([]);
+        await cacheMap.invalidateLocation([]);
 
         // Primary items should be invalidated
-        expect(cacheMap.get(priKey1)).toBeNull();
-        expect(cacheMap.get(priKey2)).toBeNull();
+        expect(await cacheMap.get(priKey1)).toBeNull();
+        expect(await cacheMap.get(priKey2)).toBeNull();
 
         // Composite items should remain
-        expect(cacheMap.get(comKey1)).toEqual(testItems[2]);
+        expect(await cacheMap.get(comKey1)).toEqual(testItems[2]);
 
         // Query results should be cleared
         expect(cacheMap.hasQueryResult('query1')).toBe(false);
         expect(cacheMap.hasQueryResult('query2')).toBe(false);
       });
 
-      it('should invalidate items in specific location', () => {
+      it('should invalidate items in specific location', async () => {
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
 
-        expect(cacheMap.get(comKey1)).toEqual(testItems[2]);
+        expect(await cacheMap.get(comKey1)).toEqual(testItems[2]);
 
-        cacheMap.invalidateLocation(location);
+        await cacheMap.invalidateLocation(location);
 
         // Item in specified location should be invalidated
-        expect(cacheMap.get(comKey1)).toBeNull();
+        expect(await cacheMap.get(comKey1)).toBeNull();
 
         // Primary items should remain
-        expect(cacheMap.get(priKey1)).toEqual(testItems[0]);
-        expect(cacheMap.get(priKey2)).toEqual(testItems[1]);
+        expect(await cacheMap.get(priKey1)).toEqual(testItems[0]);
+        expect(await cacheMap.get(priKey2)).toEqual(testItems[1]);
 
         // Query results should be cleared
         expect(cacheMap.hasQueryResult('query1')).toBe(false);
         expect(cacheMap.hasQueryResult('query2')).toBe(false);
       });
 
-      it('should handle non-existent locations gracefully', () => {
+      it('should handle non-existent locations gracefully', async () => {
         const nonExistentLocation: LocKeyArray<'container'> = [{ kt: 'container', lk: 'missing' as UUID }];
 
-        expect(() => {
-          cacheMap.invalidateLocation(nonExistentLocation);
-        }).not.toThrow();
+        // Don't use expect with async function, just await directly
+        await cacheMap.invalidateLocation(nonExistentLocation);
+        // If it throws, the test will fail automatically
 
         // All items should still be present
-        expect(cacheMap.keys()).toHaveLength(3);
+        expect(await cacheMap.keys()).toHaveLength(3);
 
         // But query results should still be cleared
         expect(cacheMap.hasQueryResult('query1')).toBe(false);
         expect(cacheMap.hasQueryResult('query2')).toBe(false);
       });
 
-      it('should properly identify primary vs composite keys', () => {
+      it('should properly identify primary vs composite keys', async () => {
         // Add more test data to verify key type identification
         const anotherComKey: ComKey<'test', 'container'> = {
           kt: 'test',
@@ -730,15 +730,15 @@ describe('SessionStorageCacheMap', () => {
         cacheMap.set(anotherComKey, anotherComItem);
 
         // Invalidate primary items
-        cacheMap.invalidateLocation([]);
+        await cacheMap.invalidateLocation([]);
 
         // Primary items should be gone
-        expect(cacheMap.get(priKey1)).toBeNull();
-        expect(cacheMap.get(priKey2)).toBeNull();
+        expect(await cacheMap.get(priKey1)).toBeNull();
+        expect(await cacheMap.get(priKey2)).toBeNull();
 
         // Composite items should remain
-        expect(cacheMap.get(comKey1)).toEqual(testItems[2]);
-        expect(cacheMap.get(anotherComKey)).toEqual(anotherComItem);
+        expect(await cacheMap.get(comKey1)).toEqual(testItems[2]);
+        expect(await cacheMap.get(anotherComKey)).toEqual(anotherComItem);
       });
     });
   });
@@ -988,7 +988,7 @@ describe('SessionStorageCacheMap', () => {
         expect(cacheMap.getMetadata('key3')).toBeNull();
       });
 
-      it('should not affect regular cache items', () => {
+      it('should not affect regular cache items', async () => {
         // Add regular cache items
         cacheMap.set(priKey1, testItems[0]);
         cacheMap.set(priKey2, testItems[1]);
@@ -996,8 +996,8 @@ describe('SessionStorageCacheMap', () => {
         cacheMap.clearMetadata();
 
         // Regular cache items should remain
-        expect(cacheMap.get(priKey1)).toEqual(testItems[0]);
-        expect(cacheMap.get(priKey2)).toEqual(testItems[1]);
+        expect(await cacheMap.get(priKey1)).toEqual(testItems[0]);
+        expect(await cacheMap.get(priKey2)).toEqual(testItems[1]);
       });
 
       it('should not affect query results', () => {
@@ -1165,7 +1165,7 @@ describe('SessionStorageCacheMap', () => {
 
   describe('Enhanced Error Handling and Edge Cases', () => {
     describe('Hash collision detection', () => {
-      it('should handle hash collisions correctly', () => {
+      it('should handle hash collisions correctly', async () => {
         const key1: PriKey<'test'> = { kt: 'test', pk: 'key1' as UUID };
         const key2: PriKey<'test'> = { kt: 'test', pk: 'key2' as UUID };
 
@@ -1186,17 +1186,17 @@ describe('SessionStorageCacheMap', () => {
         window.sessionStorage.setItem(storageKey, JSON.stringify(collidingData));
 
         // When we try to get key1, it should detect the collision and return null
-        const result1 = cacheMap.get(key1);
+        const result1 = await cacheMap.get(key1);
         expect(result1).toBeNull();
 
         // key2 should also return null because verification will fail
-        const result2 = cacheMap.get(key2);
+        const result2 = await cacheMap.get(key2);
         expect(result2).toBeNull();
       });
     });
 
     describe('Corrupted storage data handling', () => {
-      it('should handle storage with missing originalKey', () => {
+      it('should handle storage with missing originalKey', async () => {
         const storageKey = `test-session-cache:${cacheMap['normalizedHashFunction'](priKey1)}`;
         const corruptedData = {
           value: testItems[0]
@@ -1204,11 +1204,11 @@ describe('SessionStorageCacheMap', () => {
         };
         window.sessionStorage.setItem(storageKey, JSON.stringify(corruptedData));
 
-        const result = cacheMap.get(priKey1);
+        const result = await cacheMap.get(priKey1);
         expect(result).toBeNull();
       });
 
-      it('should handle storage with missing value', () => {
+      it('should handle storage with missing value', async () => {
         const storageKey = `test-session-cache:${cacheMap['normalizedHashFunction'](priKey1)}`;
         const corruptedData = {
           originalKey: priKey1
@@ -1216,7 +1216,7 @@ describe('SessionStorageCacheMap', () => {
         };
         window.sessionStorage.setItem(storageKey, JSON.stringify(corruptedData));
 
-        const result = cacheMap.get(priKey1);
+        const result = await cacheMap.get(priKey1);
         expect(result).toBeNull();
       });
 
@@ -1235,7 +1235,7 @@ describe('SessionStorageCacheMap', () => {
         expect(keys[0]).toEqual(priKey1);
       });
 
-      it('should handle malformed JSON in values() method', () => {
+      it('should handle malformed JSON in values() method', async () => {
         cacheMap.set(priKey1, testItems[0]); // Add one valid item
 
         // Directly add corrupted item to storage
@@ -1243,7 +1243,7 @@ describe('SessionStorageCacheMap', () => {
         const storageMock = window.sessionStorage as any;
         storageMock.setItem(corruptedKey, 'invalid json');
 
-        const values = cacheMap.values();
+        const values = await cacheMap.values();
 
         // Should only return valid values, skip corrupted ones
         expect(values).toHaveLength(1);
@@ -1313,14 +1313,14 @@ describe('SessionStorageCacheMap', () => {
       );
     });
 
-    it('should handle complex multi-level location keys', () => {
+    it('should handle complex multi-level location keys', async () => {
       complexCacheMap.set(complexComKey, complexTestItem);
-      const retrieved = complexCacheMap.get(complexComKey);
+      const retrieved = await complexCacheMap.get(complexComKey);
 
       expect(retrieved).toEqual(complexTestItem);
     });
 
-    it('should find items in complex nested locations', () => {
+    it('should find items in complex nested locations', async () => {
       complexCacheMap.set(complexComKey, complexTestItem);
 
       const location: LocKeyArray<'container', 'section', 'subsection'> = [
@@ -1329,12 +1329,12 @@ describe('SessionStorageCacheMap', () => {
         { kt: 'subsection', lk: 'subsection1' as UUID }
       ];
 
-      const items = complexCacheMap.allIn(location);
+      const items = await complexCacheMap.allIn(location);
       expect(items).toHaveLength(1);
       expect(items[0]).toEqual(complexTestItem);
     });
 
-    it('should handle partial location matching correctly', () => {
+    it('should handle partial location matching correctly', async () => {
       complexCacheMap.set(complexComKey, complexTestItem);
 
       // Partial location (missing subsection)
@@ -1343,13 +1343,13 @@ describe('SessionStorageCacheMap', () => {
         { kt: 'section', lk: 'section1' as UUID }
       ];
 
-      const items = complexCacheMap.allIn(partialLocation as any);
+      const items = await complexCacheMap.allIn(partialLocation as any);
       expect(items).toHaveLength(0); // Should not match due to length difference
     });
 
-    it('should invalidate complex nested locations correctly', () => {
+    it('should invalidate complex nested locations correctly', async () => {
       complexCacheMap.set(complexComKey, complexTestItem);
-      expect(complexCacheMap.get(complexComKey)).toEqual(complexTestItem);
+      expect(await complexCacheMap.get(complexComKey)).toEqual(complexTestItem);
 
       const location: LocKeyArray<'container', 'section', 'subsection'> = [
         { kt: 'container', lk: 'container1' as UUID },
@@ -1357,8 +1357,8 @@ describe('SessionStorageCacheMap', () => {
         { kt: 'subsection', lk: 'subsection1' as UUID }
       ];
 
-      complexCacheMap.invalidateLocation(location);
-      expect(complexCacheMap.get(complexComKey)).toBeNull();
+      await complexCacheMap.invalidateLocation(location);
+      expect(await complexCacheMap.get(complexComKey)).toBeNull();
     });
   });
 
@@ -1378,7 +1378,7 @@ describe('SessionStorageCacheMap', () => {
   });
 
   describe('Performance Considerations', () => {
-    it('should handle large numbers of items efficiently', () => {
+    it('should handle large numbers of items efficiently', async () => {
       const startTime = Date.now();
       const items: TestItem[] = [];
       const keys: PriKey<'test'>[] = [];
@@ -1405,11 +1405,11 @@ describe('SessionStorageCacheMap', () => {
       expect(storedKeys).toHaveLength(20);
 
       // Verify we can retrieve all items
-      const retrievedItems = keys.map(key => cacheMap.get(key));
+      const retrievedItems = await Promise.all(keys.map(async key => await cacheMap.get(key)));
       expect(retrievedItems.filter(item => item !== null)).toHaveLength(20);
     });
 
-    it('should handle large numbers of query results efficiently', () => {
+    it('should handle large numbers of query results efficiently', async () => {
       const startTime = Date.now();
 
       // First store some items that we'll reference in query results
@@ -1422,7 +1422,7 @@ describe('SessionStorageCacheMap', () => {
         cacheMap.setQueryResult(queryHash, [priKey1, priKey2]);
 
         // Verify each result immediately after setting
-        const result = cacheMap.getQueryResult(queryHash);
+        const result = await cacheMap.getQueryResult(queryHash);
         expect(result).not.toBeNull();
         expect(result).toHaveLength(2);
       }
@@ -1435,7 +1435,7 @@ describe('SessionStorageCacheMap', () => {
 
       // Verify all results are still accessible
       for (let i = 0; i < 10; i++) {
-        const result = cacheMap.getQueryResult(`query-${i}`);
+        const result = await cacheMap.getQueryResult(`query-${i}`);
         expect(result).not.toBeNull();
         expect(result).toHaveLength(2);
         expect(result![0]).toEqual(priKey1);
@@ -1443,7 +1443,7 @@ describe('SessionStorageCacheMap', () => {
       }
     });
 
-    it('should handle bulk operations efficiently', () => {
+    it('should handle bulk operations efficiently', async () => {
       const numItems = 10;
       const keys: (PriKey<'test'>)[] = [];
       const items: TestItem[] = [];
@@ -1459,15 +1459,15 @@ describe('SessionStorageCacheMap', () => {
       const startTime = Date.now();
 
       // Bulk set with verification
-      items.forEach(item => {
+      for (const item of items) {
         cacheMap.set(item.key, item);
         // Verify each item was stored correctly
-        const stored = cacheMap.get(item.key);
+        const stored = await cacheMap.get(item.key);
         expect(stored).toEqual(item);
-      });
+      }
 
       // Bulk get with verification
-      const retrievedItems = keys.map(key => cacheMap.get(key));
+      const retrievedItems = await Promise.all(keys.map(async key => await cacheMap.get(key)));
       retrievedItems.forEach((item, index) => {
         expect(item).toEqual(items[index]);
       });

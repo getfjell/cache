@@ -91,48 +91,48 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
 
   describe('Synchronous Memory Cache Operations', () => {
     describe('get() and set()', () => {
-      it('should store and retrieve items synchronously', () => {
+      it('should store and retrieve items synchronously', async () => {
         // Set item
         cacheMap.set(priKey1, testItem1);
 
         // Get item immediately (from memory cache)
-        const retrieved = cacheMap.get(priKey1);
+        const retrieved = await cacheMap.get(priKey1);
         expect(retrieved).toEqual(testItem1);
       });
 
-      it('should return null for non-existent keys', () => {
-        const result = cacheMap.get(priKey1);
+      it('should return null for non-existent keys', async () => {
+        const result = await cacheMap.get(priKey1);
         expect(result).toBeNull();
       });
 
-      it('should handle multiple items', () => {
+      it('should handle multiple items', async () => {
         cacheMap.set(priKey1, testItem1);
         cacheMap.set(priKey2, testItem2);
 
-        expect(cacheMap.get(priKey1)).toEqual(testItem1);
-        expect(cacheMap.get(priKey2)).toEqual(testItem2);
+        expect(await cacheMap.get(priKey1)).toEqual(testItem1);
+        expect(await cacheMap.get(priKey2)).toEqual(testItem2);
       });
     });
 
     describe('includesKey()', () => {
-      it('should return true for existing keys', () => {
+      it('should return true for existing keys', async () => {
         cacheMap.set(priKey1, testItem1);
-        expect(cacheMap.includesKey(priKey1)).toBe(true);
+        expect(await cacheMap.includesKey(priKey1)).toBe(true);
       });
 
-      it('should return false for non-existent keys', () => {
-        expect(cacheMap.includesKey(priKey1)).toBe(false);
+      it('should return false for non-existent keys', async () => {
+        expect(await cacheMap.includesKey(priKey1)).toBe(false);
       });
     });
 
     describe('delete()', () => {
-      it('should remove items from memory cache', () => {
+      it('should remove items from memory cache', async () => {
         cacheMap.set(priKey1, testItem1);
-        expect(cacheMap.includesKey(priKey1)).toBe(true);
+        expect(await cacheMap.includesKey(priKey1)).toBe(true);
 
         cacheMap.delete(priKey1);
-        expect(cacheMap.includesKey(priKey1)).toBe(false);
-        expect(cacheMap.get(priKey1)).toBeNull();
+        expect(await cacheMap.includesKey(priKey1)).toBe(false);
+        expect(await cacheMap.get(priKey1)).toBeNull();
       });
     });
 
@@ -154,11 +154,11 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
     });
 
     describe('values()', () => {
-      it('should return all values', () => {
+      it('should return all values', async () => {
         cacheMap.set(priKey1, testItem1);
         cacheMap.set(priKey2, testItem2);
 
-        const values = cacheMap.values();
+        const values = await cacheMap.values();
         expect(values).toHaveLength(2);
         expect(values).toContain(testItem1);
         expect(values).toContain(testItem2);
@@ -177,22 +177,22 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
     });
 
     describe('allIn()', () => {
-      it('should return items in specified locations', () => {
+      it('should return items in specified locations', async () => {
         cacheMap.set(comKey1, testItem3);
         cacheMap.set(priKey1, testItem1); // This has no location
 
         const locations: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
-        const items = cacheMap.allIn(locations);
+        const items = await cacheMap.allIn(locations);
 
         expect(items).toHaveLength(1);
         expect(items[0]).toEqual(testItem3);
       });
 
-      it('should return all items when locations is empty', () => {
+      it('should return all items when locations is empty', async () => {
         cacheMap.set(priKey1, testItem1);
         cacheMap.set(comKey1, testItem3);
 
-        const items = cacheMap.allIn([]);
+        const items = await cacheMap.allIn([]);
         expect(items).toHaveLength(2);
       });
     });
@@ -224,7 +224,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
   });
 
   describe('Query Result Caching', () => {
-    it('should support query result caching methods', () => {
+    it('should support query result caching methods', async () => {
       const queryHash = 'test-query-hash';
       const itemKeys = [priKey1, priKey2];
 
@@ -232,7 +232,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
         cacheMap.setQueryResult(queryHash, itemKeys);
       }).not.toThrow();
 
-      const result = cacheMap.getQueryResult(queryHash);
+      const result = await cacheMap.getQueryResult(queryHash);
       expect(result).toEqual(itemKeys);
 
       expect(cacheMap.hasQueryResult(queryHash)).toBe(true);
@@ -253,7 +253,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
   });
 
   describe('Invalidation Methods', () => {
-    it('should support item key invalidation', () => {
+    it('should support item key invalidation', async () => {
       cacheMap.set(priKey1, testItem1);
       cacheMap.set(priKey2, testItem2);
 
@@ -262,17 +262,17 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       }).not.toThrow();
 
       // Items should be removed from memory cache
-      expect(cacheMap.includesKey(priKey1)).toBe(false);
-      expect(cacheMap.includesKey(priKey2)).toBe(false);
+      expect(await cacheMap.includesKey(priKey1)).toBe(false);
+      expect(await cacheMap.includesKey(priKey2)).toBe(false);
     });
 
-    it('should support location invalidation', () => {
+    it('should support location invalidation', async () => {
       cacheMap.set(comKey1, testItem3);
       const locations: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
 
-      expect(() => {
-        cacheMap.invalidateLocation(locations);
-      }).not.toThrow();
+      // Don't use expect with async function, just await directly
+      await cacheMap.invalidateLocation(locations);
+      // If it throws, the test will fail automatically
     });
 
     it('should support clearing query results', () => {
@@ -289,16 +289,16 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
   });
 
   describe('clone()', () => {
-    it('should create a new wrapper instance', () => {
-      const cloned = cacheMap.clone();
+    it('should create a new wrapper instance', async () => {
+      const cloned = await cacheMap.clone();
 
       expect(cloned).toBeInstanceOf(IndexDBCacheMap);
       expect(cloned).not.toBe(cacheMap);
       expect(cloned.asyncCache).toBeInstanceOf(AsyncIndexDBCacheMap);
     });
 
-    it('should create independent wrapper instances', () => {
-      const cloned = cacheMap.clone();
+    it('should create independent wrapper instances', async () => {
+      const cloned = await cacheMap.clone();
 
       // Wrappers are different instances
       expect(cloned).not.toBe(cacheMap);
@@ -307,12 +307,12 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       expect(cloned.asyncCache).not.toBe(cacheMap.asyncCache);
     });
 
-    it('should not share memory cache state', () => {
+    it('should not share memory cache state', async () => {
       cacheMap.set(priKey1, testItem1);
-      const cloned = cacheMap.clone();
+      const cloned = await cacheMap.clone();
 
       // Cloned instance should start empty
-      expect(cloned.get(priKey1)).toBeNull();
+      expect(await cloned.get(priKey1)).toBeNull();
       expect(cloned.keys()).toHaveLength(0);
     });
   });
@@ -327,7 +327,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
 
       // Should work immediately even if initialization is pending
       newCache.set(priKey1, testItem1);
-      expect(newCache.get(priKey1)).toEqual(testItem1);
+      expect(await newCache.get(priKey1)).toEqual(testItem1);
     });
 
     it('should handle IndexedDB initialization failures gracefully', async () => {
@@ -348,7 +348,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
 
       // Should still work with memory cache after initialization failure
       newCache.set(priKey1, testItem1);
-      expect(newCache.get(priKey1)).toEqual(testItem1);
+      expect(await newCache.get(priKey1)).toEqual(testItem1);
 
       consoleSpy.mockRestore();
     });
@@ -371,18 +371,18 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       newCache.asyncCache = mockAsyncCache as any;
 
       // Memory value should be preserved, not overwritten by IndexedDB
-      expect(newCache.get(priKey1)).toEqual(testItem1);
+      expect(await newCache.get(priKey1)).toEqual(testItem1);
 
       // Ensure get was not called for existing key
       expect(mockAsyncCache.get).not.toHaveBeenCalled();
     });
 
-    it('should handle get operations before initialization completes', () => {
+    it('should handle get operations before initialization completes', async () => {
       const newCache = new IndexDBCacheMap<TestItem, 'test', 'container'>(['test', 'container']);
 
       // Should return null for non-existent keys even during initialization
-      expect(newCache.get(priKey1)).toBeNull();
-      expect(newCache.includesKey(priKey1)).toBe(false);
+      expect(await newCache.get(priKey1)).toBeNull();
+      expect(await newCache.includesKey(priKey1)).toBe(false);
     });
   });
 
@@ -400,7 +400,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       cacheMap.set(priKey1, testItem1);
 
       // Should immediately be available in memory
-      expect(cacheMap.get(priKey1)).toEqual(testItem1);
+      expect(await cacheMap.get(priKey1)).toEqual(testItem1);
 
       // Wait for async operation to complete
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -417,7 +417,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       cacheMap.set(priKey1, testItem1);
 
       // Memory cache should work regardless of sync failure
-      expect(cacheMap.get(priKey1)).toEqual(testItem1);
+      expect(await cacheMap.get(priKey1)).toEqual(testItem1);
 
       // Wait for async operation to complete
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -437,7 +437,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       cacheMap.delete(priKey1);
 
       // Should immediately be removed from memory
-      expect(cacheMap.get(priKey1)).toBeNull();
+      expect(await cacheMap.get(priKey1)).toBeNull();
 
       // Wait for async operation to complete
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -455,7 +455,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       cacheMap.delete(priKey1);
 
       // Memory cache should be updated regardless of sync failure
-      expect(cacheMap.get(priKey1)).toBeNull();
+      expect(await cacheMap.get(priKey1)).toBeNull();
 
       // Wait for async operation to complete
       await new Promise(resolve => setTimeout(resolve, 10));
@@ -674,7 +674,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
   });
 
   describe('Query Operations Edge Cases', () => {
-    it('should support contains method with various queries', () => {
+    it('should support contains method with various queries', async () => {
       cacheMap.set(priKey1, testItem1);
       cacheMap.set(comKey1, testItem3);
 
@@ -685,7 +685,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
           conditions: [{ column: 'name', value: 'Item 1', operator: '==' }]
         }
       };
-      expect(cacheMap.contains(matchingQuery, [])).toBe(true);
+      expect(await cacheMap.contains(matchingQuery, [])).toBe(true);
 
       // Query that should not match
       const nonMatchingQuery: ItemQuery = {
@@ -694,10 +694,10 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
           conditions: [{ column: 'name', value: 'Non-existent', operator: '==' }]
         }
       };
-      expect(cacheMap.contains(nonMatchingQuery, [])).toBe(false);
+      expect(await cacheMap.contains(nonMatchingQuery, [])).toBe(false);
     });
 
-    it('should support contains method with specific locations', () => {
+    it('should support contains method with specific locations', async () => {
       cacheMap.set(comKey1, testItem3);
       cacheMap.set(priKey1, testItem1); // No location
 
@@ -710,7 +710,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       const locations: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
 
       // Should find item in specified location
-      expect(cacheMap.contains(query, locations)).toBe(true);
+      expect(await cacheMap.contains(query, locations)).toBe(true);
 
       // Should not find item with different query in same location
       const differentQuery: ItemQuery = {
@@ -719,10 +719,10 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
           conditions: [{ column: 'name', value: 'Item 1', operator: '==' }]
         }
       };
-      expect(cacheMap.contains(differentQuery, locations)).toBe(false);
+      expect(await cacheMap.contains(differentQuery, locations)).toBe(false);
     });
 
-    it('should support queryIn method with various queries', () => {
+    it('should support queryIn method with various queries', async () => {
       cacheMap.set(priKey1, testItem1);
       cacheMap.set(priKey2, testItem2);
       cacheMap.set(comKey1, testItem3);
@@ -734,7 +734,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
           conditions: [{ column: 'value', value: 100, operator: '==' }]
         }
       };
-      const results = cacheMap.queryIn(valueQuery, []);
+      const results = await cacheMap.queryIn(valueQuery, []);
       expect(results).toHaveLength(1);
       expect(results[0]).toEqual(testItem1);
 
@@ -745,11 +745,11 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
           conditions: [{ column: 'value', value: 999, operator: '==' }]
         }
       };
-      const noResults = cacheMap.queryIn(noMatchQuery, []);
+      const noResults = await cacheMap.queryIn(noMatchQuery, []);
       expect(noResults).toHaveLength(0);
     });
 
-    it('should support queryIn method with specific locations', () => {
+    it('should support queryIn method with specific locations', async () => {
       cacheMap.set(comKey1, testItem3);
       cacheMap.set(priKey1, testItem1); // No location
 
@@ -762,7 +762,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
           conditions: [{ column: 'name', value: 'Item 3', operator: '==' }]
         }
       };
-      const results = cacheMap.queryIn(query, locations);
+      const results = await cacheMap.queryIn(query, locations);
       expect(results).toHaveLength(1);
       expect(results[0]).toEqual(testItem3);
 
@@ -773,13 +773,13 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
           conditions: [{ column: 'name', value: 'Item 1', operator: '==' }]
         }
       };
-      const results2 = cacheMap.queryIn(query2, locations);
+      const results2 = await cacheMap.queryIn(query2, locations);
       expect(results2).toHaveLength(0);
     });
 
-    it('should handle empty query results correctly', () => {
+    it('should handle empty query results correctly', async () => {
       // Empty cache
-      const emptyResults = cacheMap.queryIn({}, []);
+      const emptyResults = await cacheMap.queryIn({}, []);
       expect(emptyResults).toHaveLength(0);
 
       // Add some items
@@ -792,26 +792,26 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
           conditions: [{ column: 'value', value: -1, operator: '==' }]
         }
       };
-      const noResults = cacheMap.queryIn(impossibleQuery, []);
+      const noResults = await cacheMap.queryIn(impossibleQuery, []);
       expect(noResults).toHaveLength(0);
     });
   });
 
   describe('Integration with Memory Cache', () => {
-    it('should demonstrate synchronous usage pattern', () => {
+    it('should demonstrate synchronous usage pattern', async () => {
       // This is the correct usage pattern for IndexDBCacheMap
 
       // Synchronous operations work immediately with memory cache
       cacheMap.set(priKey1, testItem1);
-      expect(cacheMap.get(priKey1)).toEqual(testItem1);
-      expect(cacheMap.includesKey(priKey1)).toBe(true);
+      expect(await cacheMap.get(priKey1)).toEqual(testItem1);
+      expect(await cacheMap.includesKey(priKey1)).toBe(true);
 
       cacheMap.set(priKey2, testItem2);
       expect(cacheMap.keys()).toHaveLength(2);
-      expect(cacheMap.values()).toHaveLength(2);
+      expect(await cacheMap.values()).toHaveLength(2);
 
       cacheMap.delete(priKey1);
-      expect(cacheMap.includesKey(priKey1)).toBe(false);
+      expect(await cacheMap.includesKey(priKey1)).toBe(false);
       expect(cacheMap.keys()).toHaveLength(1);
     });
 
@@ -822,60 +822,60 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       expect(typeof cacheMap.asyncCache.set).toBe('function');
     });
 
-    it('should delegate all operations to memory cache for consistency', () => {
+    it('should delegate all operations to memory cache for consistency', async () => {
       // Verify that the wrapper properly delegates to memory cache
       cacheMap.set(priKey1, testItem1);
       cacheMap.set(priKey2, testItem2);
 
       // Test key operations
-      expect(cacheMap.includesKey(priKey1)).toBe(true);
-      expect(cacheMap.get(priKey1)).toEqual(testItem1);
+      expect(await cacheMap.includesKey(priKey1)).toBe(true);
+      expect(await cacheMap.get(priKey1)).toEqual(testItem1);
 
       // Test collection operations
       const keys = cacheMap.keys();
-      const values = cacheMap.values();
+      const values = await cacheMap.values();
       expect(keys).toHaveLength(2);
       expect(values).toHaveLength(2);
 
       // Test location-based operations
       cacheMap.set(comKey1, testItem3);
       const locations: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
-      const itemsInLocation = cacheMap.allIn(locations);
+      const itemsInLocation = await cacheMap.allIn(locations);
       expect(itemsInLocation).toHaveLength(1);
       expect(itemsInLocation[0]).toEqual(testItem3);
     });
   });
 
   describe('Edge Cases and Error Scenarios', () => {
-    it('should handle rapid successive operations on the same key', () => {
+    it('should handle rapid successive operations on the same key', async () => {
       // Perform rapid operations that might create race conditions
       cacheMap.set(priKey1, testItem1);
       cacheMap.delete(priKey1);
       cacheMap.set(priKey1, testItem2);
 
       // Final state should be testItem2
-      expect(cacheMap.get(priKey1)).toEqual(testItem2);
-      expect(cacheMap.includesKey(priKey1)).toBe(true);
+      expect(await cacheMap.get(priKey1)).toEqual(testItem2);
+      expect(await cacheMap.includesKey(priKey1)).toBe(true);
     });
 
-    it('should handle operations on non-existent keys gracefully', () => {
+    it('should handle operations on non-existent keys gracefully', async () => {
       // Delete non-existent key
       expect(() => cacheMap.delete(priKey1)).not.toThrow();
 
       // Get non-existent key
-      expect(cacheMap.get(priKey1)).toBeNull();
-      expect(cacheMap.includesKey(priKey1)).toBe(false);
+      expect(await cacheMap.get(priKey1)).toBeNull();
+      expect(await cacheMap.includesKey(priKey1)).toBe(false);
     });
 
-    it('should handle null and undefined values appropriately', () => {
+    it('should handle null and undefined values appropriately', async () => {
       // The cache should handle actual null values in items
       const nullValueItem = { ...testItem1, name: null as any };
 
       expect(() => cacheMap.set(priKey1, nullValueItem)).not.toThrow();
-      expect(cacheMap.get(priKey1)).toEqual(nullValueItem);
+      expect(await cacheMap.get(priKey1)).toEqual(nullValueItem);
     });
 
-    it('should handle complex nested object values', () => {
+    it('should handle complex nested object values', async () => {
       const complexItem = {
         ...testItem1,
         nested: {
@@ -887,7 +887,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       };
 
       cacheMap.set(priKey1, complexItem);
-      const retrieved = cacheMap.get(priKey1);
+      const retrieved = await cacheMap.get(priKey1);
 
       expect(retrieved).toEqual(complexItem);
       expect(retrieved?.nested.deep.value).toEqual([1, 2, 3]);
@@ -903,7 +903,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       expect(cacheMap.keys()).toHaveLength(0);
     });
 
-    it('should handle invalidation of non-existent items', () => {
+    it('should handle invalidation of non-existent items', async () => {
       // Invalidate keys that don't exist
       expect(() => {
         cacheMap.invalidateItemKeys([priKey1, priKey2]);
@@ -913,14 +913,15 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       const nonExistentLocations: LocKeyArray<'container'> = [
         { kt: 'container', lk: 'non-existent' as UUID }
       ];
-      expect(() => {
-        cacheMap.invalidateLocation(nonExistentLocations);
-      }).not.toThrow();
+
+      // Don't use expect with async function, just await directly
+      await cacheMap.invalidateLocation(nonExistentLocations);
+      // If it throws, the test will fail automatically
     });
 
-    it('should handle query result operations with non-existent queries', () => {
+    it('should handle query result operations with non-existent queries', async () => {
       // Get non-existent query result
-      expect(cacheMap.getQueryResult('non-existent')).toBeNull();
+      expect(await cacheMap.getQueryResult('non-existent')).toBeNull();
       expect(cacheMap.hasQueryResult('non-existent')).toBe(false);
 
       // Delete non-existent query result
@@ -961,8 +962,8 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       cacheMap.set(priKey2, testItem2);
 
       // Memory cache should still work
-      expect(cacheMap.get(priKey1)).toEqual(testItem1);
-      expect(cacheMap.get(priKey2)).toEqual(testItem2);
+      expect(await cacheMap.get(priKey1)).toEqual(testItem1);
+      expect(await cacheMap.get(priKey2)).toEqual(testItem2);
 
       // Wait for background operations to complete
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -984,8 +985,8 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
       cacheMap.set(priKey1, testItem2); // Update same key
 
       // All should be in memory immediately
-      expect(cacheMap.get(priKey1)).toEqual(testItem2);
-      expect(cacheMap.get(priKey2)).toEqual(testItem2);
+      expect(await cacheMap.get(priKey1)).toEqual(testItem2);
+      expect(await cacheMap.get(priKey2)).toEqual(testItem2);
 
       // Wait for async operations
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -996,7 +997,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
   });
 
   describe('Memory Pressure and Large Data Handling', () => {
-    it('should handle storing many small items', () => {
+    it('should handle storing many small items', async () => {
       const itemCount = 1000;
       const keys: PriKey<'test'>[] = [];
       const items: TestItem[] = [];
@@ -1021,14 +1022,14 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
 
       // Verify random access works
       const randomIndex = Math.floor(Math.random() * itemCount);
-      expect(cacheMap.get(keys[randomIndex])).toEqual(items[randomIndex]);
+      expect(await cacheMap.get(keys[randomIndex])).toEqual(items[randomIndex]);
 
       // Verify clearing works with many items
       cacheMap.clear();
       expect(cacheMap.keys()).toHaveLength(0);
     });
 
-    it('should handle large object values', () => {
+    it('should handle large object values', async () => {
       // Create a large object
       const largeData = Array(1000).fill(0).map((_, i) => ({
         index: i,
@@ -1043,7 +1044,7 @@ describe('IndexDBCacheMap (Synchronous Wrapper)', () => {
 
       expect(() => cacheMap.set(priKey1, largeItem)).not.toThrow();
 
-      const retrieved = cacheMap.get(priKey1);
+      const retrieved = await cacheMap.get(priKey1);
       expect(retrieved).toEqual(largeItem);
       expect(retrieved?.largeData).toHaveLength(1000);
     });

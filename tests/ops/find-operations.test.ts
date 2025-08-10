@@ -101,7 +101,7 @@ describe('Find Operations', () => {
 
       expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
       expect(results).toEqual([testItems[0]]);
-      expect(updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
+      expect(await updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
 
       // Query result should be cached
       expect(updatedContext.cacheMap.hasQueryResult).toBeDefined();
@@ -155,8 +155,8 @@ describe('Find Operations', () => {
 
       expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
       expect(results).toEqual([testItems[0], testItems[1]]);
-      expect(updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
-      expect(updatedContext.cacheMap.get(priKey2)).toEqual(testItems[1]);
+      expect(await updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
+      expect(await updatedContext.cacheMap.get(priKey2)).toEqual(testItems[1]);
     });
 
     it('should handle empty results from API', async () => {
@@ -218,7 +218,7 @@ describe('Find Operations', () => {
 
       expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
       expect(results).toEqual([testItems[2]]);
-      expect(updatedContext.cacheMap.get(comKey1)).toEqual(testItems[2]);
+      expect(await updatedContext.cacheMap.get(comKey1)).toEqual(testItems[2]);
     });
 
     it('should handle API errors gracefully', async () => {
@@ -316,7 +316,7 @@ describe('Find Operations', () => {
 
       expect(mockApi.findOne).toHaveBeenCalledWith(finder, finderParams, locations);
       expect(result).toEqual(testItems[0]);
-      expect(updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
+      expect(await updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
     });
 
     it('should use cached query result when available and item exists', async () => {
@@ -363,7 +363,7 @@ describe('Find Operations', () => {
 
       expect(mockApi.findOne).toHaveBeenCalledWith(finder, finderParams, locations);
       expect(result).toEqual(testItems[0]);
-      expect(updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
+      expect(await updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
     });
 
     it('should handle findOne operations with complex parameters', async () => {
@@ -406,7 +406,7 @@ describe('Find Operations', () => {
 
       expect(mockApi.findOne).toHaveBeenCalledWith(finder, finderParams, locations);
       expect(result).toEqual(testItems[2]);
-      expect(updatedContext.cacheMap.get(comKey1)).toEqual(testItems[2]);
+      expect(await updatedContext.cacheMap.get(comKey1)).toEqual(testItems[2]);
     });
 
     it('should handle API errors gracefully', async () => {

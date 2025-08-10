@@ -74,7 +74,7 @@ export const get = async <
   // Check cache first if TTL is enabled
   if (ttlManager.isTTLEnabled()) {
     const keyStr = JSON.stringify(key);
-    const cachedItem = cacheMap.get(key);
+    const cachedItem = await cacheMap.get(key);
     if (cachedItem) {
       // Check TTL validity using TTLManager
       const isValid = ttlManager.validateItem(keyStr, cacheMap);
@@ -95,7 +95,7 @@ export const get = async <
     logger.debug('Cache miss or expired', { key, defaultTTL: ttlManager.getDefaultTTL() });
   } else {
     // TTL not enabled, check cache directly
-    const cachedItem = cacheMap.get(key);
+    const cachedItem = await cacheMap.get(key);
     if (cachedItem) {
       logger.debug('Cache hit (TTL disabled)', { key });
       statsManager.incrementHits();
