@@ -65,6 +65,12 @@ export class AsyncIndexDBCacheMap<
   private async getDB(): Promise<IDBDatabase> {
     if (!this.dbPromise) {
       this.dbPromise = new Promise((resolve, reject) => {
+        // Check if IndexedDB is available (not in server-side environment)
+        if (typeof indexedDB === 'undefined') {
+          reject(new Error('IndexedDB is not available in this environment'));
+          return;
+        }
+
         const request = indexedDB.open(this.dbName, this.version);
 
         request.onerror = () => {

@@ -59,6 +59,24 @@ export const all = async <
     }
   }
 
+  // If no cached query results, try to find items directly in cache using queryIn
+  // This handles cases where individual items are cached but query results are not yet cached
+  try {
+    const directCachedItems = await cacheMap.queryIn(query, locations);
+    if (directCachedItems && directCachedItems.length > 0) {
+      logger.debug('Found items directly in cache, skipping API call', { itemCount: directCachedItems.length });
+
+      // Cache the query result for future use
+      const itemKeys = directCachedItems.map(item => item.key);
+      await cacheMap.setQueryResult(queryHash, itemKeys);
+      logger.debug('Cached query result from direct cache hit', { queryHash, itemKeyCount: itemKeys.length });
+
+      return [context, validatePK(directCachedItems, pkType) as V[]];
+    }
+  } catch (error) {
+    logger.debug('Error querying cache directly, proceeding to API', { error });
+  }
+
   // Fetch from API
   let ret: V[] = [];
   try {
