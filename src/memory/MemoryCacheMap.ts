@@ -86,7 +86,7 @@ export class MemoryCacheMap<
     return null;
   }
 
-  public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
+  public async set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): Promise<void> {
     logger.trace('set', { key, value });
     const hashedKey = this.normalizedHashFunction(key);
     const keyStr = JSON.stringify(key);
@@ -120,7 +120,7 @@ export class MemoryCacheMap<
     return !!entry && this.normalizedHashFunction(entry.originalKey) === hashedKey;
   }
 
-  public delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
+  public async delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<void> {
     logger.trace('delete', { key });
     const hashedKey = this.normalizedHashFunction(key);
     const entry = this.map[hashedKey];
@@ -141,7 +141,7 @@ export class MemoryCacheMap<
     }
   }
 
-  public keys(): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] {
+  public async keys(): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]> {
     return Object.values(this.map).map(entry => entry.originalKey);
   }
 
@@ -149,7 +149,7 @@ export class MemoryCacheMap<
     return Object.values(this.map).map(entry => entry.value);
   }
 
-  public clear(): void {
+  public async clear(): Promise<void> {
     this.map = {};
     // Clear related metadata and query results to avoid memory leaks
     this.metadataMap.clear();
@@ -197,11 +197,12 @@ export class MemoryCacheMap<
     const clone = new MemoryCacheMap<V, S, L1, L2, L3, L4, L5>(this.types);
     // Create an independent copy of the map.
     // This is a shallow copy of the entries, so items themselves are not deep-cloned.
-    for (const key of this.keys()) {
+    const keys = await this.keys();
+    for (const key of keys) {
       // get() will use the correct normalized retrieval
       const value = await this.get(key);
       if (value) { // Should handle null/undefined values if they can be set
-        clone.set(key, value);
+        await clone.set(key, value);
       }
     }
 
@@ -217,7 +218,7 @@ export class MemoryCacheMap<
 
   // Query result caching methods implementation
 
-  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+  public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
     logger.trace('setQueryResult', { queryHash, itemKeys });
 
     const entry: QueryCacheEntry = {
@@ -238,21 +239,21 @@ export class MemoryCacheMap<
     return [...entry.itemKeys]; // Return a copy to avoid external mutations
   }
 
-  public hasQueryResult(queryHash: string): boolean {
+  public async hasQueryResult(queryHash: string): Promise<boolean> {
     const entry = this.queryResultCache[queryHash];
     return !!entry;
   }
 
-  public deleteQueryResult(queryHash: string): void {
+  public async deleteQueryResult(queryHash: string): Promise<void> {
     logger.trace('deleteQueryResult', { queryHash });
     delete this.queryResultCache[queryHash];
   }
 
-  public invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+  public async invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
     logger.debug('invalidateItemKeys', { keys });
-    keys.forEach(key => {
-      this.delete(key);
-    });
+    for (const key of keys) {
+      await this.delete(key);
+    }
   }
 
   public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
@@ -260,49 +261,49 @@ export class MemoryCacheMap<
 
     if (locations.length === 0) {
       // For primary items (no location), clear all primary keys
-      const allKeys = this.keys();
+      const allKeys = await this.keys();
       const primaryKeys = allKeys.filter(key => !isComKey(key));
-      this.invalidateItemKeys(primaryKeys);
+      await this.invalidateItemKeys(primaryKeys);
     } else {
       // For contained items, get all items in the location and invalidate them
       const itemsInLocation = await this.allIn(locations);
       const keysToInvalidate = itemsInLocation.map(item => item.key);
-      this.invalidateItemKeys(keysToInvalidate);
+      await this.invalidateItemKeys(keysToInvalidate);
     }
 
     // Clear all query results that might be affected
     // For now, we'll clear all query results to be safe
     // A more sophisticated approach would be to track which queries are location-specific
-    this.clearQueryResults();
+    await this.clearQueryResults();
   }
 
-  public clearQueryResults(): void {
+  public async clearQueryResults(): Promise<void> {
     logger.trace('clearQueryResults');
     this.queryResultCache = {};
   }
 
   // CacheMapMetadataProvider implementation
-  public getMetadata(key: string): CacheItemMetadata | null {
+  public async getMetadata(key: string): Promise<CacheItemMetadata | null> {
     return this.metadataMap.get(key) || null;
   }
 
-  public setMetadata(key: string, metadata: CacheItemMetadata): void {
+  public async setMetadata(key: string, metadata: CacheItemMetadata): Promise<void> {
     this.metadataMap.set(key, metadata);
   }
 
-  public deleteMetadata(key: string): void {
+  public async deleteMetadata(key: string): Promise<void> {
     this.metadataMap.delete(key);
   }
 
-  public getAllMetadata(): Map<string, CacheItemMetadata> {
+  public async getAllMetadata(): Promise<Map<string, CacheItemMetadata>> {
     return new Map(this.metadataMap);
   }
 
-  public clearMetadata(): void {
+  public async clearMetadata(): Promise<void> {
     this.metadataMap.clear();
   }
 
-  public getCurrentSize(): { itemCount: number; sizeBytes: number } {
+  public async getCurrentSize(): Promise<{ itemCount: number; sizeBytes: number }> {
     let sizeBytes = 0;
     for (const entry of Object.values(this.map)) {
       sizeBytes += estimateValueSize(entry.value);
@@ -314,7 +315,7 @@ export class MemoryCacheMap<
     };
   }
 
-  public getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+  public async getSizeLimits(): Promise<{ maxItems: number | null; maxSizeBytes: number | null }> {
     // Basic MemoryCacheMap has no size limits
     return {
       maxItems: null,

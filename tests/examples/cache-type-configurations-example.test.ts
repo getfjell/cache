@@ -28,8 +28,8 @@ describe('Cache Type Configuration Examples', () => {
   let originalWindow: any;
 
   beforeEach(() => {
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => { });
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
     originalWindow = global.window;
   });
 
@@ -42,7 +42,7 @@ describe('Cache Type Configuration Examples', () => {
       expect(memoryOptions).toBeDefined();
       expect(memoryOptions.cacheType).toBe('memory');
       expect(memoryOptions.memoryConfig?.maxItems).toBe(1000);
-      expect(memoryOptions.memoryConfig?.ttl).toBe(300000);
+      expect(memoryOptions.ttl).toBe(600000);
       expect(memoryOptions.enableDebugLogging).toBe(true);
       expect(memoryOptions.autoSync).toBe(true);
       expect(memoryOptions.maxRetries).toBe(3);
@@ -117,7 +117,7 @@ describe('Cache Type Configuration Examples', () => {
 
       expect(config.cacheType).toBe('memory');
       expect(config.memoryConfig?.maxItems).toBe(5000);
-      expect(config.memoryConfig?.ttl).toBe(300000);
+      expect(config.ttl).toBe(600000);
       expect(config.enableDebugLogging).toBe(true);
       expect(config.maxRetries).toBe(3);
 
@@ -132,7 +132,7 @@ describe('Cache Type Configuration Examples', () => {
 
       expect(config.cacheType).toBe('memory');
       expect(config.memoryConfig?.maxItems).toBe(5000);
-      expect(config.memoryConfig?.ttl).toBe(300000);
+      expect(config.ttl).toBe(600000);
       expect(config.enableDebugLogging).toBe(true);
       expect(config.maxRetries).toBe(3);
 
@@ -226,7 +226,7 @@ describe('Cache Type Configuration Examples', () => {
       expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Error during cache operations:', expect.any(Error));
 
       // Restore original implementation
-      consoleLogSpy.mockImplementation(originalImplementation || (() => {}));
+      consoleLogSpy.mockImplementation(originalImplementation || (() => { }));
     });
 
     it('should work without localStorage in browser environment', async () => {
@@ -266,7 +266,7 @@ describe('Cache Type Configuration Examples', () => {
       await runExamples();
 
       // Check that configuration values are properly formatted in the table
-      const tableRowPattern = /│ Memory Cache\s+│ memory\s+│ None\s+│ 1000 items\s+│ 300s\s+│ Fast access, temporary data\s+│/;
+      const tableRowPattern = /│ Memory Cache\s+│ memory\s+│ None\s+│ 1000 items\s+│ 600s\s+│ Fast access, temporary data\s+│/;
 
       // Find the specific table row in console output
       const memoryRow = consoleLogSpy.mock.calls.find(call =>
@@ -289,8 +289,8 @@ describe('Cache Type Configuration Examples', () => {
 
   describe('TTL calculations', () => {
     it('should correctly convert TTL from milliseconds to seconds', () => {
-      expect(memoryOptions.memoryConfig?.ttl).toBe(300000);
-      expect((memoryOptions.memoryConfig?.ttl || 0) / 1000).toBe(300);
+      expect(memoryOptions.ttl).toBe(600000);
+      expect((memoryOptions.ttl || 0) / 1000).toBe(600);
 
       expect(indexedDBOptions.ttl).toBe(1800000);
       expect((indexedDBOptions.ttl || 0) / 1000).toBe(1800);
@@ -367,7 +367,7 @@ describe('Cache Type Configuration Examples', () => {
       try {
         await mockRunExamples();
       } catch (error) {
-        expect(error.message).toBe('Test main execution error');
+        expect((error as Error).message).toBe('Test main execution error');
       }
 
       // Restore
@@ -389,7 +389,7 @@ describe('Cache Type Configuration Examples', () => {
       expect(config.cacheType).toBeDefined();
 
       // Test TTL calculations with potential undefined values
-      const testTTL = (config.memoryConfig?.ttl || 0) / 1000;
+      const testTTL = (config.ttl || 0) / 1000;
       expect(typeof testTTL).toBe('number');
     });
 
@@ -455,12 +455,12 @@ describe('Cache Type Configuration Examples', () => {
       const userCoordinate = createCoordinate('user');
 
       // Create cache factory with memory options
-      const factory = createInstanceFactory(vi.fn(), memoryOptions);
+      const factory = createInstanceFactory(vi.fn() as any, memoryOptions);
       const cache = factory(userCoordinate, { registry });
 
       // Verify cache instance was created
       expect(cache).toBeDefined();
-      expect(cache.cacheMap.constructor.name).toBe('MockCacheMap');
+      expect((cache as any).cacheMap.constructor.name).toBe('MockCacheMap');
     });
 
     it('should test that mock API functions would work if called', async () => {
@@ -554,7 +554,7 @@ describe('Cache Type Configuration Examples', () => {
         // This is what console.error would receive in the catch block
         console.error(error);
         expect(consoleErrorSpy).toHaveBeenCalledWith(expect.any(Error));
-        expect(error.message).toBe(errorMessage);
+        expect((error as Error).message).toBe(errorMessage);
       }
     });
 
@@ -616,7 +616,7 @@ describe('Cache Type Configuration Examples', () => {
         await exampleModule.runExamples();
 
         // Test error handling by mocking runExamples to throw
-        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
         const mockError = new Error('Test execution error');
 
         // Simulate the .catch(console.error) pattern from line 378
@@ -659,7 +659,7 @@ describe('Cache Type Configuration Examples', () => {
         };
 
         // Test the catch pattern - this simulates line 378
-        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
         try {
           await mockRunExamplesWithError();

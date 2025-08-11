@@ -16,7 +16,7 @@ interface TestUser extends Item<'User', 'company', 'department', 'team'> {
 }
 
 const createTestUser = (id: string, name: string, email: string): TestUser => ({
-  key: { pk: id, type: 'User' },
+  key: { kt: 'User', pk: id },
   name,
   email,
   __pkType: 'User' as const,
@@ -102,7 +102,8 @@ describe('Memory Leak Prevention', () => {
 
   beforeEach(() => {
     coordinate = {
-      kta: ['User', 'company', 'department', 'team']
+      kta: ['User', 'company', 'department', 'team'],
+      scopes: []
     };
     registry = createRegistry();
     api = createMockApi();
@@ -124,7 +125,7 @@ describe('Memory Leak Prevention', () => {
 
       // Creating events should initialize cleanup
       const event1 = CacheEventFactory.itemCreated(
-        { key: { type: 'User', pk: 'user1' } },
+        { kt: 'User', pk: 'user1' },
         { key: { type: 'User', pk: 'user1' }, name: 'Test User', email: 'test@example.com' } as any
       );
 

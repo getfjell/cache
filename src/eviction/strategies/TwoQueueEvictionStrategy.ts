@@ -29,11 +29,11 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
     this.lastDecayTime = Date.now();
   }
 
-  selectForEviction(
+  async selectForEviction(
     metadataProvider: CacheMapMetadataProvider,
     context: EvictionContext
-  ): string[] {
-    const allMetadata = metadataProvider.getAllMetadata();
+  ): Promise<string[]> {
+    const allMetadata = await metadataProvider.getAllMetadata();
     if (allMetadata.size === 0) return [];
 
     if (!this.isEvictionNeeded(context)) {
@@ -44,7 +44,7 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
     if (evictionCount <= 0) return [];
 
     // Apply periodic decay if enabled
-    this.applyPeriodicDecay(allMetadata);
+    await this.applyPeriodicDecay(allMetadata);
 
     const keysToEvict: string[] = [];
 
@@ -128,8 +128,8 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
     return bestKey || (items.size > 0 ? (items.keys().next().value ?? null) : null);
   }
 
-  onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): void {
-    const metadata = metadataProvider.getMetadata(key);
+  async onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): Promise<void> {
+    const metadata = await metadataProvider.getMetadata(key);
     if (!metadata) return;
 
     const now = Date.now();
@@ -162,12 +162,12 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
       }
     }
 
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): void {
+  async onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): Promise<void> {
     const now = Date.now();
-    let metadata = metadataProvider.getMetadata(key);
+    let metadata = await metadataProvider.getMetadata(key);
 
     if (!metadata) {
       metadata = {
@@ -211,10 +211,10 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
       }
     }
 
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): void {
+  async onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): Promise<void> {
     // Remove from appropriate queue
     const recentIndex = this.recentQueue.indexOf(key);
     if (recentIndex !== -1) {
@@ -227,7 +227,7 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
     }
 
     // Clean up metadata
-    metadataProvider.deleteMetadata(key);
+    await metadataProvider.deleteMetadata(key);
   }
 
   /**
@@ -289,7 +289,7 @@ export class TwoQueueEvictionStrategy extends EvictionStrategy {
   /**
    * Apply periodic decay to hot queue items
    */
-  private applyPeriodicDecay(items: Map<string, CacheItemMetadata>): void {
+  private async applyPeriodicDecay(items: Map<string, CacheItemMetadata>): Promise<void> {
     if ((this.config.hotQueueDecayFactor ?? 0) === 0) return;
 
     const now = Date.now();

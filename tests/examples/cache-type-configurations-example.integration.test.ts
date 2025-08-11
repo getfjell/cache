@@ -9,7 +9,7 @@ describe('Cache Type Configurations Example Integration', () => {
     expect(example.memoryOptions).toBeDefined();
     expect(example.memoryOptions.cacheType).toBe('memory');
     expect(example.memoryOptions.memoryConfig?.maxItems).toBe(1000);
-    expect(example.memoryOptions.memoryConfig?.ttl).toBe(300000);
+    expect(example.memoryOptions.ttl).toBe(600000);
 
     expect(example.indexedDBOptions).toBeDefined();
     expect(example.indexedDBOptions.cacheType).toBe('indexedDB');

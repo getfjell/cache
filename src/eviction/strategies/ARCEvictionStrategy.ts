@@ -25,11 +25,11 @@ export class ARCEvictionStrategy extends EvictionStrategy {
     this.lastDecayTime = Date.now();
   }
 
-  selectForEviction(
+  async selectForEviction(
     metadataProvider: CacheMapMetadataProvider,
     context: EvictionContext
-  ): string[] {
-    const allMetadata = metadataProvider.getAllMetadata();
+  ): Promise<string[]> {
+    const allMetadata = await metadataProvider.getAllMetadata();
     if (allMetadata.size === 0) return [];
 
     if (!this.isEvictionNeeded(context)) {
@@ -135,8 +135,8 @@ export class ARCEvictionStrategy extends EvictionStrategy {
     return null;
   }
 
-  onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): void {
-    const metadata = metadataProvider.getMetadata(key);
+  async onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): Promise<void> {
+    const metadata = await metadataProvider.getMetadata(key);
     if (!metadata) return;
 
     const now = Date.now();
@@ -189,10 +189,10 @@ export class ARCEvictionStrategy extends EvictionStrategy {
       this.cleanupGhostLists();
     }
 
-    metadataProvider.setMetadata(key, updatedMetadata);
+    await metadataProvider.setMetadata(key, updatedMetadata);
   }
 
-  onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): void {
+  async onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): Promise<void> {
     const now = Date.now();
     const metadata: CacheItemMetadata = {
       key,
@@ -209,11 +209,11 @@ export class ARCEvictionStrategy extends EvictionStrategy {
       metadata.lastFrequencyUpdate = now;
     }
 
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): void {
-    const metadata = metadataProvider.getMetadata(key);
+  async onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): Promise<void> {
+    const metadata = await metadataProvider.getMetadata(key);
 
     // Determine which ghost list to add to based on item characteristics
     if (metadata && this.isFrequentItem(metadata)) {
@@ -223,7 +223,7 @@ export class ARCEvictionStrategy extends EvictionStrategy {
     }
 
     // Clean up metadata first to avoid accessing stale data
-    metadataProvider.deleteMetadata(key);
+    await metadataProvider.deleteMetadata(key);
 
     // Ensure both ghost lists stay within bounds after modifications
     this.cleanupGhostLists();

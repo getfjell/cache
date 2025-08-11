@@ -25,8 +25,7 @@ export class StorageMock implements Storage {
     // For testing, we'll simulate a 5MB limit
     const totalSize = this.calculateTotalSize() + key.length + value.length;
     if (totalSize > 5 * 1024 * 1024) {
-      const error = new DOMException('QuotaExceededError');
-      error.name = 'QuotaExceededError';
+      const error = new DOMException('QuotaExceededError', 'QuotaExceededError');
       throw error;
     }
     this.data.set(key, value);

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Cache, createCache } from '../../src/Cache';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
 import { LocalStorageCacheMap } from '../../src/browser/LocalStorageCacheMap';
@@ -39,6 +39,21 @@ describe('Cache Integration Tests', () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    // Clear all timers to prevent memory leaks
+    vi.clearAllTimers();
+    // Clear storage mocks to prevent data leaking between tests
+    if ((localStorage as any).__reset) {
+      (localStorage as any).__reset();
+    }
+    if ((sessionStorage as any).__reset) {
+      (sessionStorage as any).__reset();
+    }
+    if ((globalThis as any).__resetMockIndexedDBStorage) {
+      (globalThis as any).__resetMockIndexedDBStorage();
+    }
+  });
+
   describe('createCache with default MemoryCacheMap', () => {
     let cache: Cache<TestItem, 'test'>;
 
@@ -47,6 +62,13 @@ describe('Cache Integration Tests', () => {
       const registry = createRegistry('cache');
 
       cache = createCache(mockApi as any, coordinate, registry);
+    });
+
+    afterEach(() => {
+      // Destroy cache to clean up resources
+      if (cache) {
+        cache.destroy();
+      }
     });
 
     it('should create cache with MemoryCacheMap by default', () => {
@@ -362,18 +384,20 @@ describe('Cache Integration Tests', () => {
       // Test localStorage quota exceeded scenario
       const localCache = new LocalStorageCacheMap<TestItem, 'test'>(['test'], 'error-test');
 
-      // Mock storage error
+      // Mock storage error with proper QuotaExceededError
       const originalSetItem = localStorage.setItem;
       localStorage.setItem = vi.fn(() => {
-        throw new Error('QuotaExceededError');
+        const error = new Error('QuotaExceededError');
+        error.name = 'QuotaExceededError';
+        throw error;
       });
 
       const testKey: PriKey<'test'> = { kt: 'test', pk: '1' as UUID };
       const testItem: TestItem = { key: testKey, id: '1', name: 'Test Item', value: 100 } as TestItem;
 
-      expect(() => {
-        localCache.set(testKey, testItem);
-      }).toThrow('Failed to store item in localStorage');
+      await expect(async () => {
+        await localCache.set(testKey, testItem);
+      }).rejects.toThrow('Failed to store item in localStorage: storage quota exceeded even after multiple cleanup attempts');
 
       // Restore original method
       localStorage.setItem = originalSetItem;
