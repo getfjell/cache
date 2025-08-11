@@ -5,9 +5,9 @@
  * using the new Options system in @fjell/cache.
  */
 
-import { createRegistry } from '@fjell/registry';
-import { createClientApi } from '@fjell/client-api';
-import { createInstanceFactory, Options } from '@fjell/cache';
+import { createRegistry } from '../src/Registry';
+import { createCItemApi } from '@fjell/client-api';
+import { createInstanceFactory, Options } from '../src/index.js';
 import { Item } from '@fjell/core';
 
 // Define User interface
@@ -25,26 +25,29 @@ async function cacheConfigurationExample() {
 
   // Create registry and API
   const registry = createRegistry();
-  const api = createClientApi<User, 'user'>('http://localhost:3000/api');
+  const api = createCItemApi<User, 'user', never, never, never, never, never>(
+    { baseUrl: 'http://localhost:3000/api' } as any,
+    'user',
+    [] as any
+  );
 
   // Example 1: Memory Cache (Default)
   console.log('📝 Example 1: Memory Cache (Default)');
-  const memoryOptions: Partial<Options<User, 'user'>> = {
+  const memoryOptions: Partial<Options<User, 'user', never, never, never, never, never>> = {
     cacheType: 'memory',
     memoryConfig: {
-      maxItems: 1000,
-      ttl: 300000 // 5 minutes
+      maxItems: 1000
     },
     enableDebugLogging: true
   };
 
   const memoryInstanceFactory = createInstanceFactory(api, memoryOptions);
-  console.log('✅ Memory cache factory created with 1000 item limit and 5min TTL');
+  console.log('✅ Memory cache factory created with 1000 item limit');
 
   // Example 2: LocalStorage Cache
   console.log('\n📝 Example 2: LocalStorage Cache');
   if (typeof window !== 'undefined' && window.localStorage) {
-    const localStorageOptions: Partial<Options<User, 'user'>> = {
+    const localStorageOptions: Partial<Options<User, 'user', never, never, never, never, never>> = {
       cacheType: 'localStorage',
       webStorageConfig: {
         keyPrefix: 'my-app:users:',
@@ -63,7 +66,7 @@ async function cacheConfigurationExample() {
   // Example 3: SessionStorage Cache
   console.log('\n📝 Example 3: SessionStorage Cache');
   if (typeof window !== 'undefined' && window.sessionStorage) {
-    const sessionStorageOptions: Partial<Options<User, 'user'>> = {
+    const sessionStorageOptions: Partial<Options<User, 'user', never, never, never, never, never>> = {
       cacheType: 'sessionStorage',
       webStorageConfig: {
         keyPrefix: 'session:users:',
@@ -83,7 +86,7 @@ async function cacheConfigurationExample() {
   // Example 4: IndexedDB Cache
   console.log('\n📝 Example 4: IndexedDB Cache');
   if (typeof window !== 'undefined' && window.indexedDB) {
-    const indexedDBOptions: Partial<Options<User, 'user'>> = {
+    const indexedDBOptions: Partial<Options<User, 'user', never, never, never, never, never>> = {
       cacheType: 'indexedDB',
       indexedDBConfig: {
         dbName: 'MyAppCache',
@@ -102,7 +105,7 @@ async function cacheConfigurationExample() {
   // Example 5: Async IndexedDB Cache
   console.log('\n📝 Example 5: Async IndexedDB Cache');
   if (typeof window !== 'undefined' && window.indexedDB) {
-    const indexedDBOptions: Partial<Options<User, 'user'>> = {
+    const indexedDBOptions: Partial<Options<User, 'user', never, never, never, never, never>> = {
       cacheType: 'indexedDB',
       indexedDBConfig: {
         dbName: 'MyAppAsyncCache',
@@ -121,9 +124,9 @@ async function cacheConfigurationExample() {
 
   // Example 6: Custom Cache Map
   console.log('\n📝 Example 6: Custom Cache Map');
-  const customOptions: Partial<Options<User, 'user'>> = {
+  const customOptions: Partial<Options<User, 'user', never, never, never, never, never>> = {
     cacheType: 'custom',
-    customCacheMapFactory: (kta) => {
+    customCacheMapFactory: (kta: string[]) => {
       // Return a custom cache map implementation
       // For this example, we'll use MemoryCacheMap but you could implement any logic
       // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -140,7 +143,7 @@ async function cacheConfigurationExample() {
   // Example 7: Environment-based Configuration
   console.log('\n📝 Example 7: Environment-based Configuration');
 
-  function getEnvironmentBasedOptions(): Partial<Options<User, 'user'>> {
+  function getEnvironmentBasedOptions(): Partial<Options<User, 'user', never, never, never, never, never>> {
     const isProduction = process.env.NODE_ENV === 'production';
     const isBrowser = typeof window !== 'undefined';
 
@@ -163,8 +166,7 @@ async function cacheConfigurationExample() {
         return {
           cacheType: 'memory',
           memoryConfig: {
-            maxItems: 5000,
-            ttl: 600000 // 10 minutes
+            maxItems: 5000
           },
           autoSync: true,
           enableDebugLogging: false
@@ -194,10 +196,10 @@ async function cacheConfigurationExample() {
 
   try {
     // Create coordinate for users
-    const userCoordinate = { kta: ['user' as const] };
+    const userCoordinate: { kta: ['user']; scopes: [] } = { kta: ['user'], scopes: [] };
 
     // Create instances with available cache types
-    const memoryInstance = memoryInstanceFactory(userCoordinate, { registry });
+    const memoryInstance = memoryInstanceFactory(userCoordinate, { registry }) as any;
 
     console.log('📊 Cache types created:');
     console.log(`  - Memory cache: ${memoryInstance.cacheMap.constructor.name}`);
@@ -209,7 +211,7 @@ async function cacheConfigurationExample() {
 
     // Only test localStorage if it's available
     if (typeof window !== 'undefined' && window.localStorage) {
-      const localStorageOptions: Partial<Options<User, 'user'>> = {
+      const localStorageOptions: Partial<Options<User, 'user', never, never, never, never, never>> = {
         cacheType: 'localStorage',
         webStorageConfig: {
           keyPrefix: 'my-app:users:',
@@ -217,7 +219,7 @@ async function cacheConfigurationExample() {
         }
       };
       const localStorageInstanceFactory = createInstanceFactory(api, localStorageOptions);
-      const localStorageInstance = localStorageInstanceFactory(userCoordinate, { registry });
+      const localStorageInstance = localStorageInstanceFactory(userCoordinate, { registry }) as any;
 
       console.log(`  - LocalStorage cache: ${localStorageInstance.cacheMap.constructor.name}`);
       if (localStorageInstance.options) {

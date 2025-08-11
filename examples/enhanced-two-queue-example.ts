@@ -8,27 +8,27 @@ import { TwoQueueConfig } from '../src/eviction/EvictionStrategyConfig';
 class SimpleMetadataProvider implements CacheMapMetadataProvider {
   private metadata = new Map<string, CacheItemMetadata>();
 
-  getMetadata(key: string): CacheItemMetadata | null {
+  async getMetadata(key: string): Promise<CacheItemMetadata | null> {
     return this.metadata.get(key) || null;
   }
 
-  setMetadata(key: string, metadata: CacheItemMetadata): void {
+  async setMetadata(key: string, metadata: CacheItemMetadata): Promise<void> {
     this.metadata.set(key, metadata);
   }
 
-  deleteMetadata(key: string): void {
+  async deleteMetadata(key: string): Promise<void> {
     this.metadata.delete(key);
   }
 
-  getAllMetadata(): Map<string, CacheItemMetadata> {
+  async getAllMetadata(): Promise<Map<string, CacheItemMetadata>> {
     return new Map(this.metadata);
   }
 
-  clearMetadata(): void {
+  async clearMetadata(): Promise<void> {
     this.metadata.clear();
   }
 
-  getCurrentSize(): { itemCount: number; sizeBytes: number } {
+  async getCurrentSize(): Promise<{ itemCount: number; sizeBytes: number }> {
     let sizeBytes = 0;
     for (const metadata of this.metadata.values()) {
       sizeBytes += metadata.estimatedSize;
@@ -36,7 +36,7 @@ class SimpleMetadataProvider implements CacheMapMetadataProvider {
     return { itemCount: this.metadata.size, sizeBytes };
   }
 
-  getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+  async getSizeLimits(): Promise<{ maxItems: number | null; maxSizeBytes: number | null }> {
     return { maxItems: null, maxSizeBytes: null };
   }
 }
@@ -44,13 +44,13 @@ class SimpleMetadataProvider implements CacheMapMetadataProvider {
 /**
  * Example demonstrating the enhanced 2Q eviction strategy with frequency-based enhancements
  */
-function demonstrateEnhanced2Q() {
+async function demonstrateEnhanced2Q() {
   console.log('=== Enhanced 2Q (Two-Queue) Eviction Strategy Example ===\n');
 
   // Example 1: Traditional 2Q behavior
   console.log('1. Traditional 2Q (simple promotion on second access):');
   const traditional2Q = createEvictionStrategy('2q', 100);
-  demonstrate2QStrategy(traditional2Q, 'Traditional 2Q');
+  await demonstrate2QStrategy(traditional2Q, 'Traditional 2Q');
 
   // Example 2: 2Q with frequency-based promotion
   console.log('\n2. 2Q with frequency-based promotion:');
@@ -62,7 +62,7 @@ function demonstrateEnhanced2Q() {
     useFrequencyWeightedLRU: true
   };
   const frequency2Q = createEvictionStrategy('2q', 100, frequencyConfig);
-  demonstrate2QStrategy(frequency2Q, 'Frequency-Enhanced 2Q');
+  await demonstrate2QStrategy(frequency2Q, 'Frequency-Enhanced 2Q');
 
   // Example 3: 2Q with frequency decay
   console.log('\n3. 2Q with frequency decay in hot queue:');
@@ -90,10 +90,10 @@ function demonstrateEnhanced2Q() {
     hotQueueDecayInterval: 120000 // 2 minutes
   };
   const aggressive2Q = createEvictionStrategy('2q', 100, aggressiveConfig);
-  demonstrate2QStrategy(aggressive2Q, 'Aggressive 2Q');
+  await demonstrate2QStrategy(aggressive2Q, 'Aggressive 2Q');
 }
 
-function demonstrate2QStrategy(strategy: any, name: string) {
+async function demonstrate2QStrategy(strategy: any, name: string) {
   const metadataProvider = new SimpleMetadataProvider();
 
   // Create items with different access patterns
@@ -105,7 +105,7 @@ function demonstrate2QStrategy(strategy: any, name: string) {
     { key: 'warm:session', accessCount: 3, type: 'warm' }
   ];
 
-  itemData.forEach(({ key, accessCount, type }) => {
+  itemData.forEach(async ({ key, accessCount, type }) => {
     const metadata: CacheItemMetadata = {
       key,
       addedAt: Date.now() - (type === 'hot' ? 300000 : 60000), // Hot items are older
@@ -115,14 +115,14 @@ function demonstrate2QStrategy(strategy: any, name: string) {
     };
 
     // Add item through metadata provider
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
     strategy.onItemAdded(key, metadata.estimatedSize, metadataProvider);
 
     // Simulate accesses
     for (let i = 1; i < accessCount; i++) {
       metadata.accessCount++;
       metadata.lastAccessedAt = Date.now();
-      metadataProvider.setMetadata(key, metadata);
+      await metadataProvider.setMetadata(key, metadata);
       strategy.onItemAccessed(key, metadataProvider);
     }
   });
@@ -137,7 +137,7 @@ function demonstrate2QStrategy(strategy: any, name: string) {
 
   // Show item details
   console.log('  Item details:');
-  const allMetadata = metadataProvider.getAllMetadata();
+  const allMetadata = await metadataProvider.getAllMetadata();
   for (const [key, metadata] of allMetadata) {
     const freq = metadata.rawFrequency || metadata.accessCount;
     const score = metadata.frequencyScore ? ` (score: ${metadata.frequencyScore.toFixed(2)})` : '';
@@ -146,7 +146,7 @@ function demonstrate2QStrategy(strategy: any, name: string) {
   }
 }
 
-function demonstrateDecay2Q(strategy: any, name: string) {
+async function demonstrateDecay2Q(strategy: any, name: string) {
   const metadataProvider = new SimpleMetadataProvider();
 
   // Create items with different ages to show decay effect
@@ -160,7 +160,7 @@ function demonstrateDecay2Q(strategy: any, name: string) {
     { key: 'new-moderate', accessCount: 4, addedAt: newTime }
   ];
 
-  itemData.forEach(({ key, accessCount, addedAt }) => {
+  itemData.forEach(async ({ key, accessCount, addedAt }) => {
     const metadata: CacheItemMetadata = {
       key,
       addedAt,
@@ -170,14 +170,14 @@ function demonstrateDecay2Q(strategy: any, name: string) {
     };
 
     // Add item through metadata provider
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
     strategy.onItemAdded(key, metadata.estimatedSize, metadataProvider);
 
     // Simulate accesses over time
     for (let i = 1; i < accessCount; i++) {
       metadata.accessCount++;
       metadata.lastAccessedAt = Date.now();
-      metadataProvider.setMetadata(key, metadata);
+      await metadataProvider.setMetadata(key, metadata);
       strategy.onItemAccessed(key, metadataProvider);
     }
   });
@@ -192,7 +192,7 @@ function demonstrateDecay2Q(strategy: any, name: string) {
 
   // Show decay-adjusted scores
   console.log('  Decay-adjusted frequency analysis:');
-  const allMetadata = metadataProvider.getAllMetadata();
+  const allMetadata = await metadataProvider.getAllMetadata();
   for (const [key, metadata] of allMetadata) {
     const rawFreq = metadata.rawFrequency || metadata.accessCount;
     const effectiveScore = metadata.frequencyScore || rawFreq;

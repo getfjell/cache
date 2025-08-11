@@ -187,7 +187,7 @@ export class LocalStorageCacheMap<
     }
   }
 
-  public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
+  public async set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): Promise<void> {
     logger.trace('set', { key, value });
 
     for (let attempt = 0; attempt < this.MAX_RETRY_ATTEMPTS; attempt++) {
@@ -253,7 +253,7 @@ export class LocalStorageCacheMap<
     }
   }
 
-  public delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
+  public async delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<void> {
     logger.trace('delete', { key });
 
     try {
@@ -271,7 +271,7 @@ export class LocalStorageCacheMap<
     if (locations.length === 0) {
       logger.debug('Returning all items, LocKeys is empty');
       const items: V[] = [];
-      for (const key of allKeys) {
+      for (const key of await allKeys) {
         const item = await this.get(key);
         if (item !== null) {
           items.push(item);
@@ -280,9 +280,10 @@ export class LocalStorageCacheMap<
       return items;
     } else {
       const locKeys: LocKeyArray<L1, L2, L3, L4, L5> | [] = locations;
-      logger.debug('allIn', { locKeys, keys: allKeys.length });
+      const resolvedKeys = await allKeys;
+      logger.debug('allIn', { locKeys, keys: resolvedKeys.length });
 
-      const filteredKeys = allKeys
+      const filteredKeys = resolvedKeys
         .filter((key) => key && isComKey(key))
         .filter((key) => {
           const ComKey = key as ComKey<S, L1, L2, L3, L4, L5>;
@@ -337,7 +338,7 @@ export class LocalStorageCacheMap<
     return null;
   }
 
-  public keys(): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] {
+  public async keys(): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]> {
     const keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] = [];
 
     try {
@@ -373,7 +374,7 @@ export class LocalStorageCacheMap<
     return values;
   }
 
-  public clear(): void {
+  public async clear(): Promise<void> {
     logger.debug('Clearing localStorage cache');
     try {
       const storageKeys = this.getAllStorageKeys();
@@ -388,7 +389,7 @@ export class LocalStorageCacheMap<
 
   // Query result caching methods implementation
 
-  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+  public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
     logger.trace('setQueryResult', { queryHash, itemKeys });
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
 
@@ -428,7 +429,7 @@ export class LocalStorageCacheMap<
     }
   }
 
-  public hasQueryResult(queryHash: string): boolean {
+  public async hasQueryResult(queryHash: string): Promise<boolean> {
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
       return localStorage.getItem(queryKey) !== null;
@@ -438,7 +439,7 @@ export class LocalStorageCacheMap<
     }
   }
 
-  public deleteQueryResult(queryHash: string): void {
+  public async deleteQueryResult(queryHash: string): Promise<void> {
     logger.trace('deleteQueryResult', { queryHash });
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
@@ -448,15 +449,15 @@ export class LocalStorageCacheMap<
     }
   }
 
-  public invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+  public async invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
     logger.debug('invalidateItemKeys', { keys });
-    keys.forEach(key => {
+    for (const key of keys) {
       try {
-        this.delete(key);
+        await this.delete(key);
       } catch (error) {
         logger.error('Failed to delete key during invalidation', { key, error });
       }
-    });
+    }
   }
 
   public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
@@ -465,29 +466,29 @@ export class LocalStorageCacheMap<
     try {
       if (locations.length === 0) {
         // For primary items (no location), clear all primary keys
-        const allKeys = this.keys();
+        const allKeys = await this.keys();
         const primaryKeys = allKeys.filter(key => !isComKey(key));
-        this.invalidateItemKeys(primaryKeys);
+        await this.invalidateItemKeys(primaryKeys);
       } else {
         // For contained items, compute keys directly from stored keys to avoid value-shape assumptions
-        const keysToInvalidate = this
-          .keys()
+        const allKeys = await this.keys();
+        const keysToInvalidate = allKeys
           .filter((key) => key && isComKey(key))
           .filter((key) => {
             const compositeKey = key as ComKey<S, L1, L2, L3, L4, L5>;
             return isLocKeyArrayEqual(locations as any[], compositeKey.loc);
           });
-        this.invalidateItemKeys(keysToInvalidate);
+        await this.invalidateItemKeys(keysToInvalidate);
       }
 
       // Clear all query results after invalidating items
-      this.clearQueryResults();
+      await this.clearQueryResults();
     } catch (error) {
       logger.error('Error in invalidateLocation', { locations, error });
     }
   }
 
-  public clearQueryResults(): void {
+  public async clearQueryResults(): Promise<void> {
     logger.trace('clearQueryResults');
     const queryPrefix = `${this.keyPrefix}:query:`;
     try {
@@ -505,7 +506,7 @@ export class LocalStorageCacheMap<
   }
 
   // CacheMapMetadataProvider implementation
-  public getMetadata(key: string): CacheItemMetadata | null {
+  public async getMetadata(key: string): Promise<CacheItemMetadata | null> {
     try {
       const metadataKey = `${this.keyPrefix}:metadata:${key}`;
       const stored = localStorage.getItem(metadataKey);
@@ -525,7 +526,7 @@ export class LocalStorageCacheMap<
     }
   }
 
-  public setMetadata(key: string, metadata: CacheItemMetadata): void {
+  public async setMetadata(key: string, metadata: CacheItemMetadata): Promise<void> {
     for (let attempt = 0; attempt < this.MAX_RETRY_ATTEMPTS; attempt++) {
       try {
         const metadataKey = `${this.keyPrefix}:metadata:${key}`;
@@ -563,7 +564,7 @@ export class LocalStorageCacheMap<
     }
   }
 
-  public deleteMetadata(key: string): void {
+  public async deleteMetadata(key: string): Promise<void> {
     try {
       const metadataKey = `${this.keyPrefix}:metadata:${key}`;
       localStorage.removeItem(metadataKey);
@@ -573,7 +574,7 @@ export class LocalStorageCacheMap<
     }
   }
 
-  public getAllMetadata(): Map<string, CacheItemMetadata> {
+  public async getAllMetadata(): Promise<Map<string, CacheItemMetadata>> {
     const metadata = new Map<string, CacheItemMetadata>();
 
     try {
@@ -602,7 +603,7 @@ export class LocalStorageCacheMap<
     return metadata;
   }
 
-  public clearMetadata(): void {
+  public async clearMetadata(): Promise<void> {
     try {
       const metadataPrefix = `${this.keyPrefix}:metadata:`;
       const keysToDelete = this.getAllKeysStartingWith(metadataPrefix);
@@ -613,7 +614,7 @@ export class LocalStorageCacheMap<
     }
   }
 
-  public getCurrentSize(): { itemCount: number; sizeBytes: number } {
+  public async getCurrentSize(): Promise<{ itemCount: number; sizeBytes: number }> {
     let itemCount = 0;
     let sizeBytes = 0;
 
@@ -664,7 +665,7 @@ export class LocalStorageCacheMap<
     return { itemCount, sizeBytes };
   }
 
-  public getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+  public async getSizeLimits(): Promise<{ maxItems: number | null; maxSizeBytes: number | null }> {
     // LocalStorage typically has a 5-10MB limit, but we can't determine the exact limit
     // Return conservative estimates
     return {

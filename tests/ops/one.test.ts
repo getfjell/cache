@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { one } from '../../src/ops/one';
 import { CacheContext } from '../../src/CacheContext';
 import { CacheMap } from '../../src/CacheMap';
@@ -39,6 +39,11 @@ describe('one operation', () => {
   let mockEvictionManager: any;
   let context: CacheContext<TestItem, 'test', 'container'>;
 
+  afterEach(() => {
+    // Clear timers to prevent memory leaks
+    vi.clearAllTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -60,7 +65,9 @@ describe('one operation', () => {
       keys: vi.fn(),
       values: vi.fn(),
       entries: vi.fn(),
-      size: vi.fn()
+      size: vi.fn(),
+      getMetadata: vi.fn(),
+      setMetadata: vi.fn()
     } as any;
 
     // Mock EventEmitter
@@ -114,8 +121,8 @@ describe('one operation', () => {
       const queryHash = createQueryHash('test', query, []);
 
       // Mock cached query result with item key
-      mockCacheMap.getQueryResult.mockReturnValue([priKey1]);
-      mockCacheMap.get.mockReturnValue(testItem1);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue([priKey1]);
+      vi.mocked(mockCacheMap.get).mockResolvedValue(testItem1);
 
       const [resultContext, result] = await one(query, [], context);
 
@@ -131,7 +138,7 @@ describe('one operation', () => {
       const queryHash = createQueryHash('test', query, []);
 
       // Mock cached empty result
-      mockCacheMap.getQueryResult.mockReturnValue([]);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue([]);
 
       const [resultContext, result] = await one(query, [], context);
 
@@ -147,9 +154,9 @@ describe('one operation', () => {
       const queryHash = createQueryHash('test', query, []);
 
       // Mock cached query result exists but item is missing from cache
-      mockCacheMap.getQueryResult.mockReturnValue([priKey1]);
-      mockCacheMap.get.mockReturnValue(null);
-      mockApi.one.mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue([priKey1]);
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockResolvedValue(testItem1);
 
       const [resultContext, result] = await one(query, [], context);
 
@@ -168,8 +175,8 @@ describe('one operation', () => {
       const queryHash = createQueryHash('test', query, []);
 
       // Mock no cached query result
-      mockCacheMap.getQueryResult.mockReturnValue(null);
-      mockApi.one.mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockResolvedValue(testItem1);
 
       const [resultContext, result] = await one(query, [], context);
 
@@ -186,8 +193,8 @@ describe('one operation', () => {
       const queryHash = createQueryHash('test', query, []);
 
       // Mock no cached query result and API returns null
-      mockCacheMap.getQueryResult.mockReturnValue(null);
-      mockApi.one.mockResolvedValue(null);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockResolvedValue(null);
 
       const [resultContext, result] = await one(query, [], context);
 
@@ -203,8 +210,8 @@ describe('one operation', () => {
       const query: ItemQuery = IQFactory.condition('id', '3').toQuery();
       const queryHash = createQueryHash('test', query, testLocations);
 
-      mockCacheMap.getQueryResult.mockReturnValue(null);
-      mockApi.one.mockResolvedValue(testItem3);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockResolvedValue(testItem3);
 
       const [resultContext, result] = await one(query, testLocations, context);
 
@@ -219,8 +226,8 @@ describe('one operation', () => {
     it('should call TTL manager when item is added to cache', async () => {
       const query: ItemQuery = IQFactory.condition('id', '1').toQuery();
 
-      mockCacheMap.getQueryResult.mockReturnValue(null);
-      mockApi.one.mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockResolvedValue(testItem1);
 
       await one(query, [], context);
 
@@ -234,8 +241,8 @@ describe('one operation', () => {
       const query: ItemQuery = IQFactory.condition('id', '1').toQuery();
       const evictedKeys = [JSON.stringify(priKey2)];
 
-      mockCacheMap.getQueryResult.mockReturnValue(null);
-      mockApi.one.mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockResolvedValue(testItem1);
       mockEvictionManager.onItemAdded.mockReturnValue(evictedKeys);
 
       await one(query, [], context);
@@ -251,8 +258,8 @@ describe('one operation', () => {
     it('should not call TTL or eviction managers when using cached results', async () => {
       const query: ItemQuery = IQFactory.condition('id', '1').toQuery();
 
-      mockCacheMap.getQueryResult.mockReturnValue([priKey1]);
-      mockCacheMap.get.mockReturnValue(testItem1);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue([priKey1]);
+      vi.mocked(mockCacheMap.get).mockResolvedValue(testItem1);
 
       await one(query, [], context);
 
@@ -265,10 +272,10 @@ describe('one operation', () => {
     it('should handle NotFoundError by caching empty result', async () => {
       const query: ItemQuery = IQFactory.condition('id', 'nonexistent').toQuery();
       const queryHash = createQueryHash('test', query, []);
-      const notFoundError = new NotFoundError('Item not found', {});
+      const notFoundError = new NotFoundError('Item not found', '/test/path', {});
 
-      mockCacheMap.getQueryResult.mockReturnValue(null);
-      mockApi.one.mockRejectedValue(notFoundError);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockRejectedValue(notFoundError);
 
       const [resultContext, result] = await one(query, [], context);
 
@@ -282,8 +289,8 @@ describe('one operation', () => {
       const query: ItemQuery = IQFactory.condition('id', '1').toQuery();
       const genericError = new Error('Generic error');
 
-      mockCacheMap.getQueryResult.mockReturnValue(null);
-      mockApi.one.mockRejectedValue(genericError);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockRejectedValue(genericError);
 
       await expect(one(query, [], context)).rejects.toThrow('Generic error');
       expect(mockCacheMap.setQueryResult).not.toHaveBeenCalled();
@@ -296,8 +303,8 @@ describe('one operation', () => {
       const query: ItemQuery = {};
       const queryHash = createQueryHash('test', query, []);
 
-      mockCacheMap.getQueryResult.mockReturnValue(null);
-      mockApi.one.mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockResolvedValue(testItem1);
 
       const [resultContext, result] = await one(query, [], context);
 
@@ -309,8 +316,8 @@ describe('one operation', () => {
     it('should handle undefined query (defaults to empty object)', async () => {
       const queryHash = createQueryHash('test', {}, []);
 
-      mockCacheMap.getQueryResult.mockReturnValue(null);
-      mockApi.one.mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockResolvedValue(testItem1);
 
       const [resultContext, result] = await one(undefined, [], context);
 
@@ -323,8 +330,8 @@ describe('one operation', () => {
       const query: ItemQuery = IQFactory.condition('id', '1').toQuery();
       const queryHash = createQueryHash('test', query, []);
 
-      mockCacheMap.getQueryResult.mockReturnValue(null);
-      mockApi.one.mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockResolvedValue(testItem1);
 
       const [resultContext, result] = await one(query, [], context);
 
@@ -338,9 +345,9 @@ describe('one operation', () => {
       const queryHash = createQueryHash('test', query, []);
 
       // Mock cached query result with multiple keys but first item missing
-      mockCacheMap.getQueryResult.mockReturnValue([priKey1, priKey2]);
-      mockCacheMap.get.mockReturnValue(null); // First item is missing
-      mockApi.one.mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue([priKey1, priKey2]);
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null); // First item is missing
+      vi.mocked(mockApi.one).mockResolvedValue(testItem1);
 
       const [resultContext, result] = await one(query, [], context);
 
@@ -355,8 +362,8 @@ describe('one operation', () => {
     it('should generate consistent query hashes for same inputs', async () => {
       const query: ItemQuery = IQFactory.condition('id', '1').toQuery();
 
-      mockCacheMap.getQueryResult.mockReturnValue(null);
-      mockApi.one.mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockResolvedValue(testItem1);
 
       // Call twice with same parameters
       await one(query, testLocations, context);
@@ -371,8 +378,8 @@ describe('one operation', () => {
       const query1: ItemQuery = IQFactory.condition('id', '1').toQuery();
       const query2: ItemQuery = IQFactory.condition('id', '2').toQuery();
 
-      mockCacheMap.getQueryResult.mockReturnValue(null);
-      mockApi.one.mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
+      vi.mocked(mockApi.one).mockResolvedValue(testItem1);
 
       await one(query1, [], context);
       await one(query2, [], context);

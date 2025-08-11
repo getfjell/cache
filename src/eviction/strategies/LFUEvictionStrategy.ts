@@ -137,11 +137,11 @@ export class LFUEvictionStrategy extends EvictionStrategy {
     this.lastDecayTime = Date.now();
   }
 
-  selectForEviction(
+  async selectForEviction(
     metadataProvider: CacheMapMetadataProvider,
     context: EvictionContext
-  ): string[] {
-    const allMetadata = metadataProvider.getAllMetadata();
+  ): Promise<string[]> {
+    const allMetadata = await metadataProvider.getAllMetadata();
     if (allMetadata.size === 0) return [];
 
     if (!this.isEvictionNeeded(context)) {
@@ -169,8 +169,8 @@ export class LFUEvictionStrategy extends EvictionStrategy {
     return sortedEntries.slice(0, evictionCount).map(([key]) => key);
   }
 
-  onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): void {
-    const metadata = metadataProvider.getMetadata(key);
+  async onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): Promise<void> {
+    const metadata = await metadataProvider.getMetadata(key);
     if (!metadata) return;
 
     const now = Date.now();
@@ -189,10 +189,10 @@ export class LFUEvictionStrategy extends EvictionStrategy {
     metadata.frequencyScore = this.calculateFrequencyScore(metadata, now);
     metadata.lastFrequencyUpdate = now;
 
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): void {
+  async onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): Promise<void> {
     const now = Date.now();
     const metadata: CacheItemMetadata = {
       key,
@@ -212,13 +212,13 @@ export class LFUEvictionStrategy extends EvictionStrategy {
       this.sketch.increment(key);
     }
 
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): void {
+  async onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): Promise<void> {
     // Note: For Count-Min Sketch, we don't remove entries as it's a probabilistic structure
     // The decay mechanism will naturally reduce the impact of removed items over time
-    metadataProvider.deleteMetadata(key);
+    await metadataProvider.deleteMetadata(key);
   }
 
   /**

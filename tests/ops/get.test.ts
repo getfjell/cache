@@ -1,5 +1,4 @@
-
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from '../../src/ops/get';
 import { CacheContext } from '../../src/CacheContext';
 import { CacheMap } from '../../src/CacheMap';
@@ -37,6 +36,11 @@ describe('get operation', () => {
   let mockEvictionManager: any;
   let mockStatsManager: CacheStatsManager;
   let context: CacheContext<TestItem, 'test', 'container'>;
+
+  afterEach(() => {
+    // Clear timers to prevent memory leaks
+    vi.clearAllTimers();
+  });
 
   beforeEach(() => {
     // Mock API
@@ -136,7 +140,7 @@ describe('get operation', () => {
     });
 
     it('should check cache and fetch from API on cache miss', async () => {
-      vi.mocked(mockCacheMap.get).mockReturnValue(null); // Cache miss
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null); // Cache miss
       vi.mocked(mockApi.get).mockResolvedValue(testItem1);
 
       const [resultContext, result] = await get(priKey1, context);
@@ -166,7 +170,7 @@ describe('get operation', () => {
     });
 
     it('should check cache and fetch from API on cache miss', async () => {
-      vi.mocked(mockCacheMap.get).mockReturnValue(null); // Cache miss
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null); // Cache miss
       vi.mocked(mockApi.get).mockResolvedValue(testItem1);
 
       const [, result] = await get(priKey1, context);
@@ -186,7 +190,7 @@ describe('get operation', () => {
 
     describe('cache hit scenarios', () => {
       it('should return cached item when cache hit', async () => {
-        vi.mocked(mockCacheMap.get).mockReturnValue(testItem1);
+        vi.mocked(mockCacheMap.get).mockResolvedValue(testItem1);
         vi.mocked(mockTtlManager.validateItem).mockReturnValue(true);
 
         const [resultContext, result] = await get(priKey1, context);
@@ -200,7 +204,7 @@ describe('get operation', () => {
       });
 
       it('should work with composite keys from cache', async () => {
-        vi.mocked(mockCacheMap.get).mockReturnValue(testItem3);
+        vi.mocked(mockCacheMap.get).mockResolvedValue(testItem3);
         vi.mocked(mockTtlManager.validateItem).mockReturnValue(true);
 
         const [, result] = await get(comKey1, context);
@@ -214,7 +218,7 @@ describe('get operation', () => {
 
     describe('cache miss scenarios', () => {
       it('should fetch from API when cache miss', async () => {
-        vi.mocked(mockCacheMap.get).mockReturnValue(null);
+        vi.mocked(mockCacheMap.get).mockResolvedValue(null);
         vi.mocked(mockApi.get).mockResolvedValue(testItem1);
 
         const [, result] = await get(priKey1, context);
@@ -226,7 +230,7 @@ describe('get operation', () => {
       });
 
       it('should cache the fetched item', async () => {
-        vi.mocked(mockCacheMap.get).mockReturnValue(null);
+        vi.mocked(mockCacheMap.get).mockResolvedValue(null);
         vi.mocked(mockApi.get).mockResolvedValue(testItem2);
 
         await get(priKey2, context);
@@ -235,7 +239,7 @@ describe('get operation', () => {
       });
 
       it('should return null when API returns null and not cache it', async () => {
-        vi.mocked(mockCacheMap.get).mockReturnValue(null);
+        vi.mocked(mockCacheMap.get).mockResolvedValue(null);
         vi.mocked(mockApi.get).mockResolvedValue(null);
 
         const [, result] = await get(priKey1, context);
@@ -249,7 +253,7 @@ describe('get operation', () => {
 
     describe('cache expiration scenarios', () => {
       it('should fetch from API when cache entry expired', async () => {
-        vi.mocked(mockCacheMap.get).mockReturnValue(testItem1);
+        vi.mocked(mockCacheMap.get).mockResolvedValue(testItem1);
         vi.mocked(mockTtlManager.validateItem).mockReturnValue(false); // Simulate expired entry
         vi.mocked(mockApi.get).mockResolvedValue(testItem1);
 
@@ -276,7 +280,7 @@ describe('get operation', () => {
 
     it('should propagate API errors even with TTL configured', async () => {
       vi.mocked(mockTtlManager.isTTLEnabled).mockReturnValue(true);
-      vi.mocked(mockCacheMap.get).mockReturnValue(null);
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null);
 
       const apiError = new Error('Network error');
       vi.mocked(mockApi.get).mockRejectedValue(apiError);
@@ -308,7 +312,7 @@ describe('get operation', () => {
     it('should validate cached items have correct primary key type', async () => {
       vi.mocked(mockTtlManager.isTTLEnabled).mockReturnValue(true);
       const cachedItemWithCorrectPK = { ...testItem1, key: priKey1 };
-      vi.mocked(mockCacheMap.get).mockReturnValue(cachedItemWithCorrectPK);
+      vi.mocked(mockCacheMap.get).mockResolvedValue(cachedItemWithCorrectPK);
       vi.mocked(mockTtlManager.validateItem).mockReturnValue(true);
 
       const [, result] = await get(priKey1, context);
@@ -321,7 +325,7 @@ describe('get operation', () => {
     it('should work with small TTL values', async () => {
       vi.mocked(mockTtlManager.isTTLEnabled).mockReturnValue(true);
       vi.mocked(mockTtlManager.getDefaultTTL).mockReturnValue(1000);
-      vi.mocked(mockCacheMap.get).mockReturnValue(testItem1);
+      vi.mocked(mockCacheMap.get).mockResolvedValue(testItem1);
       vi.mocked(mockTtlManager.validateItem).mockReturnValue(true);
 
       await get(priKey1, context);
@@ -333,7 +337,7 @@ describe('get operation', () => {
     it('should work with large TTL values', async () => {
       vi.mocked(mockTtlManager.isTTLEnabled).mockReturnValue(true);
       vi.mocked(mockTtlManager.getDefaultTTL).mockReturnValue(86400000);
-      vi.mocked(mockCacheMap.get).mockReturnValue(null);
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null);
       vi.mocked(mockApi.get).mockResolvedValue(testItem1);
 
       await get(priKey1, context);
@@ -344,7 +348,7 @@ describe('get operation', () => {
 
     it('should treat disabled TTL as no TTL', async () => {
       vi.mocked(mockTtlManager.isTTLEnabled).mockReturnValue(false);
-      vi.mocked(mockCacheMap.get).mockReturnValue(null); // Cache miss
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null); // Cache miss
       vi.mocked(mockApi.get).mockResolvedValue(testItem1);
 
       await get(priKey1, context);
@@ -465,7 +469,7 @@ describe('get operation', () => {
     it('should preserve context with TTL configuration', async () => {
       vi.mocked(mockTtlManager.isTTLEnabled).mockReturnValue(true);
       vi.mocked(mockTtlManager.getDefaultTTL).mockReturnValue(300000);
-      vi.mocked(mockCacheMap.get).mockReturnValue(testItem1);
+      vi.mocked(mockCacheMap.get).mockResolvedValue(testItem1);
       vi.mocked(mockTtlManager.validateItem).mockReturnValue(true);
 
       const [resultContext] = await get(priKey1, context);

@@ -20,7 +20,8 @@ const mockApi = {
 } as unknown as ClientApi<TestItem, 'test', 'location'>;
 
 const mockCoordinate: Coordinate<'test', 'location'> = {
-  kta: ['test', 'location']
+  kta: ['test', 'location'],
+  scopes: []
 };
 
 const mockRegistry = {} as Registry;
@@ -38,7 +39,7 @@ describe('Cache TTL and Eviction Integration', () => {
         }
       });
 
-      cache = createCache(mockApi, mockCoordinate, mockRegistry, options);
+      cache = createCache(mockApi, mockCoordinate, mockRegistry, options as any) as any;
     });
 
     it('should expose TTL configuration in cache info', () => {
@@ -58,7 +59,7 @@ describe('Cache TTL and Eviction Integration', () => {
       expect(cache.ttlManager.getDefaultTTL()).toBe(2000);
     });
 
-    it('should validate TTL items correctly', () => {
+    it('should validate TTL items correctly', async () => {
 
       // Set up metadata as if item was added
       const now = Date.now();
@@ -68,27 +69,25 @@ describe('Cache TTL and Eviction Integration', () => {
         lastAccessedAt: now,
         accessCount: 1,
         estimatedSize: 100,
-        expiresAt: now + 1000,
-        ttl: 1000
-      });
+        expiresAt: now + 1000 // Set expiration time 1 second from now
+      } as any);
 
       // Item should be valid initially
-      expect(cache.ttlManager.validateItem('item1', cache.cacheMap)).toBe(true);
-      expect(cache.ttlManager.isExpired('item1', cache.cacheMap)).toBe(false);
+      expect(await cache.ttlManager.validateItem('item1', cache.cacheMap)).toBe(true);
+      expect(await cache.ttlManager.isExpired('item1', cache.cacheMap)).toBe(false);
 
-      // Simulate time passing by updating metadata
+      // Simulate time passing by updating metadata with expired time
       cache.cacheMap.setMetadata('item1', {
         key: 'item1',
         addedAt: now,
         lastAccessedAt: now,
         accessCount: 1,
         estimatedSize: 100,
-        expiresAt: now - 1000, // Expired
-        ttl: 1000
-      });
+        expiresAt: now - 1000 // Set expiration time to 1 second ago (expired)
+      } as any);
 
-      expect(cache.ttlManager.validateItem('item1', cache.cacheMap)).toBe(false);
-      expect(cache.ttlManager.isExpired('item1', cache.cacheMap)).toBe(true);
+      expect(await cache.ttlManager.validateItem('item1', cache.cacheMap)).toBe(false);
+      expect(await cache.ttlManager.isExpired('item1', cache.cacheMap)).toBe(true);
     });
   });
 
@@ -104,7 +103,7 @@ describe('Cache TTL and Eviction Integration', () => {
         }
       });
 
-      cache = createCache(mockApi, mockCoordinate, mockRegistry, options);
+      cache = createCache(mockApi, mockCoordinate, mockRegistry, options as any) as any;
     });
 
     it('should expose eviction configuration in cache info', () => {
@@ -120,10 +119,10 @@ describe('Cache TTL and Eviction Integration', () => {
       expect(cache.evictionManager.getEvictionStrategyName()).toBe('lru');
     });
 
-    it('should perform eviction when cache limits are exceeded', () => {
+    it('should perform eviction when cache limits are exceeded', async () => {
       // Set up cache state to simulate being at capacity
-      cache.cacheMap.getCurrentSize = () => ({ itemCount: 2, sizeBytes: 200 });
-      cache.cacheMap.getSizeLimits = () => ({ maxItems: 2, maxSizeBytes: null });
+      cache.cacheMap.getCurrentSize = () => Promise.resolve({ itemCount: 2, sizeBytes: 200 });
+      cache.cacheMap.getSizeLimits = () => Promise.resolve({ maxItems: 2, maxSizeBytes: null });
 
       const now = Date.now();
 
@@ -145,7 +144,7 @@ describe('Cache TTL and Eviction Integration', () => {
       });
 
       // Adding a new item should trigger eviction
-      const evictedKeys = cache.evictionManager.onItemAdded(
+      const evictedKeys = await cache.evictionManager.onItemAdded(
         'item3',
         { id: 'item3', data: 'new data' },
         cache.cacheMap
@@ -169,7 +168,7 @@ describe('Cache TTL and Eviction Integration', () => {
         }
       });
 
-      cache = createCache(mockApi, mockCoordinate, mockRegistry, options);
+      cache = createCache(mockApi, mockCoordinate, mockRegistry, options as any) as any;
     });
 
     it('should expose both TTL and eviction in cache info', () => {
@@ -182,7 +181,7 @@ describe('Cache TTL and Eviction Integration', () => {
       expect(cacheInfo.implementationType).toBe('memory/memory');
     });
 
-    it('should handle TTL expiration and eviction together', () => {
+    it('should handle TTL expiration and eviction together', async () => {
       const now = Date.now();
 
       // Add items with different TTL states
@@ -192,9 +191,8 @@ describe('Cache TTL and Eviction Integration', () => {
         lastAccessedAt: now - 10000,
         accessCount: 1,
         estimatedSize: 100,
-        expiresAt: now - 1000, // Expired
-        ttl: 5000
-      });
+        expiresAt: now - 1000 // Expired 1 second ago
+      } as any);
 
       cache.cacheMap.setMetadata('valid-item', {
         key: 'valid-item',
@@ -202,16 +200,15 @@ describe('Cache TTL and Eviction Integration', () => {
         lastAccessedAt: now,
         accessCount: 1,
         estimatedSize: 100,
-        expiresAt: now + 5000, // Valid
-        ttl: 5000
-      });
+        expiresAt: now + 5000 // Expires in 5 seconds
+      } as any);
 
       // Find expired items for cleanup
-      const expiredKeys = cache.ttlManager.findExpiredItems(cache.cacheMap);
+      const expiredKeys = await cache.ttlManager.findExpiredItems(cache.cacheMap);
       expect(expiredKeys).toEqual(['expired-item']);
 
       // Valid items should not be expired
-      expect(cache.ttlManager.isExpired('valid-item', cache.cacheMap)).toBe(false);
+      expect(await cache.ttlManager.isExpired('valid-item', cache.cacheMap)).toBe(false);
     });
 
     it('should allow dynamic configuration updates', async () => {
@@ -238,7 +235,7 @@ describe('Cache TTL and Eviction Integration', () => {
         // No TTL or eviction configuration
       });
 
-      cache = createCache(mockApi, mockCoordinate, mockRegistry, options);
+      cache = createCache(mockApi, mockCoordinate, mockRegistry, options as any) as any;
     });
 
     it('should show no TTL or eviction support in cache info', () => {
@@ -251,16 +248,16 @@ describe('Cache TTL and Eviction Integration', () => {
       expect(cacheInfo.implementationType).toBe('memory/memory');
     });
 
-    it('should handle operations gracefully without TTL or eviction', () => {
+    it('should handle operations gracefully without TTL or eviction', async () => {
       expect(cache.ttlManager.isTTLEnabled()).toBe(false);
       expect(cache.evictionManager.isEvictionSupported()).toBe(false);
 
       // Operations should work without errors
-      cache.ttlManager.onItemAdded('test-key', cache.cacheMap);
-      cache.evictionManager.onItemAdded('test-key', { test: 'data' }, cache.cacheMap);
+      await cache.ttlManager.onItemAdded('test-key', cache.cacheMap);
+      await cache.evictionManager.onItemAdded('test-key', { test: 'data' }, cache.cacheMap);
 
-      expect(cache.ttlManager.validateItem('test-key', cache.cacheMap)).toBe(true);
-      expect(cache.evictionManager.performEviction(cache.cacheMap)).toEqual([]);
+      expect(await cache.ttlManager.validateItem('test-key', cache.cacheMap)).toBe(true);
+      expect(await cache.evictionManager.performEviction(cache.cacheMap)).toEqual([]);
     });
   });
 });

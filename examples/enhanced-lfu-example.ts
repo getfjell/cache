@@ -9,27 +9,27 @@ import { LFUConfig } from '../src/eviction/EvictionStrategyConfig';
 class SimpleMetadataProvider implements CacheMapMetadataProvider {
   private metadata = new Map<string, CacheItemMetadata>();
 
-  getMetadata(key: string): CacheItemMetadata | null {
+  async getMetadata(key: string): Promise<CacheItemMetadata | null> {
     return this.metadata.get(key) || null;
   }
 
-  setMetadata(key: string, metadata: CacheItemMetadata): void {
+  async setMetadata(key: string, metadata: CacheItemMetadata): Promise<void> {
     this.metadata.set(key, metadata);
   }
 
-  deleteMetadata(key: string): void {
+  async deleteMetadata(key: string): Promise<void> {
     this.metadata.delete(key);
   }
 
-  getAllMetadata(): Map<string, CacheItemMetadata> {
+  async getAllMetadata(): Promise<Map<string, CacheItemMetadata>> {
     return new Map(this.metadata);
   }
 
-  clearMetadata(): void {
+  async clearMetadata(): Promise<void> {
     this.metadata.clear();
   }
 
-  getCurrentSize(): { itemCount: number; sizeBytes: number } {
+  async getCurrentSize(): Promise<{ itemCount: number; sizeBytes: number }> {
     let sizeBytes = 0;
     for (const metadata of this.metadata.values()) {
       sizeBytes += metadata.estimatedSize;
@@ -37,7 +37,7 @@ class SimpleMetadataProvider implements CacheMapMetadataProvider {
     return { itemCount: this.metadata.size, sizeBytes };
   }
 
-  getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+  async getSizeLimits(): Promise<{ maxItems: number | null; maxSizeBytes: number | null }> {
     return { maxItems: null, maxSizeBytes: null };
   }
 }
@@ -45,13 +45,13 @@ class SimpleMetadataProvider implements CacheMapMetadataProvider {
 /**
  * Example demonstrating the enhanced LFU eviction strategy with frequency sketching and decay
  */
-function demonstrateEnhancedLFU() {
+async function demonstrateEnhancedLFU() {
   console.log('=== Enhanced LFU Eviction Strategy Example ===\n');
 
   // Example 1: Traditional LFU (backwards compatible)
   console.log('1. Traditional LFU (no decay, simple counting):');
   const traditionalLFU = createEvictionStrategy('lfu');
-  demonstrateStrategy(traditionalLFU, 'Traditional LFU');
+  await demonstrateStrategy(traditionalLFU, 'Traditional LFU');
 
   // Example 2: LFU with frequency sketching (more memory efficient)
   console.log('\n2. LFU with Count-Min Sketch (probabilistic counting):');
@@ -63,7 +63,7 @@ function demonstrateEnhancedLFU() {
     decayFactor: 0    // No decay
   };
   const sketchLFU = createEvictionStrategy('lfu', 1000, sketchConfig);
-  demonstrateStrategy(sketchLFU, 'Sketch-based LFU');
+  await demonstrateStrategy(sketchLFU, 'Sketch-based LFU');
 
   // Example 3: LFU with time-based decay
   console.log('\n3. LFU with frequency decay over time:');
@@ -89,10 +89,10 @@ function demonstrateEnhancedLFU() {
     minFrequencyThreshold: 1.0
   };
   const combinedLFU = createEvictionStrategy('lfu', 1000, combinedConfig);
-  demonstrateStrategy(combinedLFU, 'Combined Sketch+Decay LFU');
+  await demonstrateStrategy(combinedLFU, 'Combined Sketch+Decay LFU');
 }
 
-function demonstrateStrategy(strategy: any, name: string) {
+async function demonstrateStrategy(strategy: any, name: string) {
   const metadataProvider = new SimpleMetadataProvider();
 
   // Create some cache items
@@ -103,7 +103,7 @@ function demonstrateStrategy(strategy: any, name: string) {
     { key: 'temp:data', accessCount: 1 }
   ];
 
-  itemData.forEach(({ key, accessCount }) => {
+  itemData.forEach(async ({ key, accessCount }) => {
     const metadata: CacheItemMetadata = {
       key,
       addedAt: Date.now(),
@@ -113,14 +113,14 @@ function demonstrateStrategy(strategy: any, name: string) {
     };
 
     // Add item through metadata provider
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
     strategy.onItemAdded(key, metadata.estimatedSize, metadataProvider);
 
     // Simulate accesses
     for (let i = 1; i < accessCount; i++) {
       metadata.accessCount++;
       metadata.lastAccessedAt = Date.now();
-      metadataProvider.setMetadata(key, metadata);
+      await metadataProvider.setMetadata(key, metadata);
       strategy.onItemAccessed(key, metadataProvider);
     }
   });
@@ -135,7 +135,7 @@ function demonstrateStrategy(strategy: any, name: string) {
 
   // Show frequency information
   console.log('  Frequency data:');
-  const allMetadata = metadataProvider.getAllMetadata();
+  const allMetadata = await metadataProvider.getAllMetadata();
   for (const [key, metadata] of allMetadata) {
     const freq = metadata.rawFrequency || metadata.accessCount;
     const score = metadata.frequencyScore ? ` (score: ${metadata.frequencyScore.toFixed(2)})` : '';
@@ -143,7 +143,7 @@ function demonstrateStrategy(strategy: any, name: string) {
   }
 }
 
-function demonstrateDecayStrategy(strategy: any, name: string) {
+async function demonstrateDecayStrategy(strategy: any, name: string) {
   const metadataProvider = new SimpleMetadataProvider();
 
   // Create items with different ages
@@ -157,7 +157,7 @@ function demonstrateDecayStrategy(strategy: any, name: string) {
     { key: 'new-rare', accessCount: 3, addedAt: newTime }
   ];
 
-  itemData.forEach(({ key, accessCount, addedAt }) => {
+  itemData.forEach(async ({ key, accessCount, addedAt }) => {
     const metadata: CacheItemMetadata = {
       key,
       addedAt,
@@ -167,14 +167,14 @@ function demonstrateDecayStrategy(strategy: any, name: string) {
     };
 
     // Add item through metadata provider
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
     strategy.onItemAdded(key, metadata.estimatedSize, metadataProvider);
 
     // Simulate accesses
     for (let i = 1; i < accessCount; i++) {
       metadata.accessCount++;
       metadata.lastAccessedAt = Date.now();
-      metadataProvider.setMetadata(key, metadata);
+      await metadataProvider.setMetadata(key, metadata);
       strategy.onItemAccessed(key, metadataProvider);
     }
   });
@@ -189,7 +189,7 @@ function demonstrateDecayStrategy(strategy: any, name: string) {
 
   // Show frequency scores with decay
   console.log('  Decay-adjusted frequency scores:');
-  const allMetadata = metadataProvider.getAllMetadata();
+  const allMetadata = await metadataProvider.getAllMetadata();
   for (const [key, metadata] of allMetadata) {
     const score = metadata.frequencyScore || metadata.rawFrequency || metadata.accessCount;
     const age = Math.round((Date.now() - metadata.addedAt) / 1000);

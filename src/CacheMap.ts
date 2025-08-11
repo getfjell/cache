@@ -46,7 +46,7 @@ export abstract class CacheMap<
   /**
    * Store an item with its key
    */
-  public abstract set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void;
+  public abstract set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): Promise<void>;
 
   /**
    * Check if a key exists in the cache
@@ -56,7 +56,7 @@ export abstract class CacheMap<
   /**
    * Delete an item by its key
    */
-  public abstract delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void;
+  public abstract delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<void>;
 
   /**
    * Get all items in the specified locations
@@ -81,7 +81,7 @@ export abstract class CacheMap<
   /**
    * Get all keys in the cache
    */
-  public abstract keys(): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[];
+  public abstract keys(): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]>;
 
   /**
    * Get all values in the cache
@@ -91,14 +91,14 @@ export abstract class CacheMap<
   /**
    * Clear all items from the cache
    */
-  public abstract clear(): void;
+  public abstract clear(): Promise<void>;
 
   // Query result caching methods
 
   /**
    * Set a query result as a collection of item keys
    */
-  public abstract setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void;
+  public abstract setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void>;
 
   /**
    * Get a query result as a collection of item keys
@@ -108,17 +108,17 @@ export abstract class CacheMap<
   /**
    * Check if a query result exists in cache
    */
-  public abstract hasQueryResult(queryHash: string): boolean;
+  public abstract hasQueryResult(queryHash: string): Promise<boolean>;
 
   /**
    * Delete a specific query result
    */
-  public abstract deleteQueryResult(queryHash: string): void;
+  public abstract deleteQueryResult(queryHash: string): Promise<void>;
 
   /**
    * Invalidate all cached items by their keys
    */
-  public abstract invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void;
+  public abstract invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void>;
 
   /**
    * Invalidate all items in specified locations and clear related query results
@@ -128,7 +128,7 @@ export abstract class CacheMap<
   /**
    * Clear all query result cache entries
    */
-  public abstract clearQueryResults(): void;
+  public abstract clearQueryResults(): Promise<void>;
 
   // CacheMapMetadataProvider implementation
   // These methods must be implemented by all CacheMap implementations to support eviction
@@ -138,47 +138,47 @@ export abstract class CacheMap<
    * @param key - Item key
    * @returns Metadata if exists, null otherwise
    */
-  public abstract getMetadata(key: string): CacheItemMetadata | null;
+  public abstract getMetadata(key: string): Promise<CacheItemMetadata | null>;
 
   /**
    * Set metadata for a specific item
    * @param key - Item key
    * @param metadata - Metadata to store
    */
-  public abstract setMetadata(key: string, metadata: CacheItemMetadata): void;
+  public abstract setMetadata(key: string, metadata: CacheItemMetadata): Promise<void>;
 
   /**
    * Delete metadata for a specific item
    * @param key - Item key
    */
-  public abstract deleteMetadata(key: string): void;
+  public abstract deleteMetadata(key: string): Promise<void>;
 
   /**
    * Get all metadata entries
    * @returns Map of all metadata entries
    */
-  public abstract getAllMetadata(): Map<string, CacheItemMetadata>;
+  public abstract getAllMetadata(): Promise<Map<string, CacheItemMetadata>>;
 
   /**
    * Clear all metadata
    */
-  public abstract clearMetadata(): void;
+  public abstract clearMetadata(): Promise<void>;
 
   /**
    * Get current cache size information
    * @returns Object with current size metrics
    */
-  public abstract getCurrentSize(): {
+  public abstract getCurrentSize(): Promise<{
     itemCount: number;
     sizeBytes: number;
-  };
+  }>;
 
   /**
    * Get cache size limits
    * @returns Object with size limits (null means unlimited)
    */
-  public abstract getSizeLimits(): {
+  public abstract getSizeLimits(): Promise<{
     maxItems: number | null;
     maxSizeBytes: number | null;
-  };
+  }>;
 }

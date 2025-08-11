@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { retrieve } from '../../src/ops/retrieve';
 import { CacheContext } from '../../src/CacheContext';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
@@ -73,6 +73,11 @@ describe('retrieve operation', () => {
     loc: [{ kt: 'container', lk: 'container1' as UUID }]
   };
 
+  afterEach(() => {
+    // Clear timers to prevent memory leaks
+    vi.clearAllTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -113,6 +118,7 @@ describe('retrieve operation', () => {
       cacheMap,
       pkType: 'test',
       options: {
+        cacheType: 'memory' as const,
         enableDebugLogging: false,
         autoSync: true,
         maxRetries: 3,
@@ -144,7 +150,7 @@ describe('retrieve operation', () => {
       const item1 = createContainedTestItem(comKey1, 'item1', 'Contained Item 1', 'data1');
       containedCacheMap.set(comKey1, item1);
 
-      const [returnedContext, result] = await retrieve(comKey1, containedContext);
+      const [returnedContext, result] = await retrieve(comKey1, containedContext as any);
 
       expect(returnedContext).toBeNull(); // No context returned for cache hits
       expect(result).toEqual(item1);
@@ -221,7 +227,7 @@ describe('retrieve operation', () => {
       const item1 = createContainedTestItem(comKey1, 'item1', 'Contained Item 1', 'data1');
       (getOp.get as any).mockResolvedValue([containedContext, item1]);
 
-      const [returnedContext, result] = await retrieve(comKey1, containedContext);
+      const [returnedContext, result] = await retrieve(comKey1, containedContext as any);
 
       expect(returnedContext).toBe(containedContext); // Context returned for cache misses
       expect(result).toEqual(item1);
@@ -512,7 +518,7 @@ describe('retrieve operation', () => {
         ...context,
         cacheMap: userCacheMap,
         pkType: 'user' as const
-      } as CacheContext<UserItem, 'user'>;
+      } as any;
 
       const userKey: PriKey<'user'> = { kt: 'user', pk: 'user1' as UUID };
       const userItem: UserItem = {
@@ -543,7 +549,7 @@ describe('retrieve operation', () => {
         ...context,
         cacheMap: commentCacheMap,
         pkType: 'comment' as const
-      } as CacheContext<CommentItem, 'comment', 'document', 'user'>;
+      } as any;
 
       const commentKey: ComKey<'comment', 'document', 'user'> = {
         kt: 'comment',

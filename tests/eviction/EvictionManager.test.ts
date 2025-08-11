@@ -1,51 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { EvictionManager } from '../../src/eviction/EvictionManager';
 import { LRUEvictionStrategy } from '../../src/eviction/strategies/LRUEvictionStrategy';
-import { CacheItemMetadata, CacheMapMetadataProvider } from '../../src/eviction/EvictionStrategy';
-
-// Mock metadata provider for testing
-class MockMetadataProvider implements CacheMapMetadataProvider {
-  private metadata: Map<string, CacheItemMetadata> = new Map();
-  private currentSize = { itemCount: 0, sizeBytes: 0 };
-  private sizeLimits = { maxItems: null as number | null, maxSizeBytes: null as number | null };
-
-  getMetadata(key: string): CacheItemMetadata | null {
-    return this.metadata.get(key) || null;
-  }
-
-  setMetadata(key: string, metadata: CacheItemMetadata): void {
-    this.metadata.set(key, metadata);
-  }
-
-  deleteMetadata(key: string): void {
-    this.metadata.delete(key);
-  }
-
-  getAllMetadata(): Map<string, CacheItemMetadata> {
-    return new Map(this.metadata);
-  }
-
-  clearMetadata(): void {
-    this.metadata.clear();
-  }
-
-  getCurrentSize() {
-    return this.currentSize;
-  }
-
-  getSizeLimits() {
-    return this.sizeLimits;
-  }
-
-  // Test helpers
-  setCurrentSize(itemCount: number, sizeBytes: number): void {
-    this.currentSize = { itemCount, sizeBytes };
-  }
-
-  setSizeLimits(maxItems: number | null, maxSizeBytes: number | null): void {
-    this.sizeLimits = { maxItems, maxSizeBytes };
-  }
-}
+import { CacheItemMetadata } from '../../src/eviction/EvictionStrategy';
+import { MockMetadataProvider } from '../utils/MockMetadataProvider';
 
 describe('EvictionManager', () => {
   let evictionManager: EvictionManager;
@@ -89,7 +46,7 @@ describe('EvictionManager', () => {
       evictionManager = new EvictionManager(strategy);
     });
 
-    it('should handle item access', () => {
+    it('should handle item access', async () => {
       const now = Date.now();
       const metadata: CacheItemMetadata = {
         key: 'test-key',
@@ -98,31 +55,30 @@ describe('EvictionManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      evictionManager.onItemAccessed('test-key', metadataProvider);
+      await evictionManager.onItemAccessed('test-key', metadataProvider);
 
-      const updatedMetadata = metadataProvider.getMetadata('test-key');
+      const updatedMetadata = await metadataProvider.getMetadata('test-key');
       expect(updatedMetadata).not.toBeNull();
       expect(updatedMetadata!.lastAccessedAt).toBeGreaterThan(now - 1000);
       expect(updatedMetadata!.accessCount).toBe(2);
     });
 
-    it('should handle item addition and eviction', () => {
+    it('should handle item addition and eviction', async () => {
       // Set up a cache with limits that will trigger eviction
       metadataProvider.setSizeLimits(2, null);
-      metadataProvider.setCurrentSize(2, 200);
 
-      // Add existing items
+      // Add existing items first (this will update the count automatically)
       const now = Date.now();
-      metadataProvider.setMetadata('old-key-1', {
+      await metadataProvider.setMetadata('old-key-1', {
         key: 'old-key-1',
         addedAt: now - 2000,
         lastAccessedAt: now - 2000,
         accessCount: 1,
         estimatedSize: 100
       });
-      metadataProvider.setMetadata('old-key-2', {
+      await metadataProvider.setMetadata('old-key-2', {
         key: 'old-key-2',
         addedAt: now - 1000,
         lastAccessedAt: now - 1000,
@@ -131,18 +87,18 @@ describe('EvictionManager', () => {
       });
 
       const testValue = { id: 'new-item', data: 'test' };
-      const evictedKeys = evictionManager.onItemAdded('new-key', testValue, metadataProvider);
+      const evictedKeys = await evictionManager.onItemAdded('new-key', testValue, metadataProvider);
 
       // Should evict the least recently used item
       expect(evictedKeys).toEqual(['old-key-1']);
 
       // New item metadata should be added
-      const newMetadata = metadataProvider.getMetadata('new-key');
+      const newMetadata = await metadataProvider.getMetadata('new-key');
       expect(newMetadata).not.toBeNull();
       expect(newMetadata!.key).toBe('new-key');
     });
 
-    it('should handle item removal', () => {
+    it('should handle item removal', async () => {
       const metadata: CacheItemMetadata = {
         key: 'test-key',
         addedAt: Date.now(),
@@ -150,24 +106,24 @@ describe('EvictionManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      evictionManager.onItemRemoved('test-key', metadataProvider);
+      await evictionManager.onItemRemoved('test-key', metadataProvider);
 
-      expect(metadataProvider.getMetadata('test-key')).toBeNull();
+      expect(await metadataProvider.getMetadata('test-key')).toBeNull();
     });
 
-    it('should handle operations without strategy gracefully', () => {
+    it('should handle operations without strategy gracefully', async () => {
       evictionManager = new EvictionManager(); // No strategy
 
       // These should not throw and return empty results
-      const evictedKeys = evictionManager.onItemAdded('key', { test: 'value' }, metadataProvider);
+      const evictedKeys = await evictionManager.onItemAdded('key', { test: 'value' }, metadataProvider);
       expect(evictedKeys).toEqual([]);
 
-      evictionManager.onItemAccessed('key', metadataProvider);
-      evictionManager.onItemRemoved('key', metadataProvider);
+      await evictionManager.onItemAccessed('key', metadataProvider);
+      await evictionManager.onItemRemoved('key', metadataProvider);
 
-      const manualEvicted = evictionManager.performEviction(metadataProvider);
+      const manualEvicted = await evictionManager.performEviction(metadataProvider);
       expect(manualEvicted).toEqual([]);
     });
   });
@@ -178,20 +134,20 @@ describe('EvictionManager', () => {
       evictionManager = new EvictionManager(strategy);
     });
 
-    it('should perform manual eviction when limits exceeded', () => {
+    it('should perform manual eviction when limits exceeded', async () => {
       // Set up cache with size limits
       metadataProvider.setSizeLimits(1, null);
       metadataProvider.setCurrentSize(2, 200);
 
       const now = Date.now();
-      metadataProvider.setMetadata('key-1', {
+      await metadataProvider.setMetadata('key-1', {
         key: 'key-1',
         addedAt: now - 2000,
         lastAccessedAt: now - 2000,
         accessCount: 1,
         estimatedSize: 100
       });
-      metadataProvider.setMetadata('key-2', {
+      await metadataProvider.setMetadata('key-2', {
         key: 'key-2',
         addedAt: now - 1000,
         lastAccessedAt: now - 1000,
@@ -199,7 +155,7 @@ describe('EvictionManager', () => {
         estimatedSize: 100
       });
 
-      const evictedKeys = evictionManager.performEviction(metadataProvider);
+      const evictedKeys = await evictionManager.performEviction(metadataProvider);
 
       // Should evict items to get within limits (1 item max, 2 items present, so evict 1)
       // LRU strategy will evict the oldest (key-1) first, but may need to evict more
@@ -207,12 +163,12 @@ describe('EvictionManager', () => {
       expect(evictedKeys.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('should not evict when within limits', () => {
+    it('should not evict when within limits', async () => {
       metadataProvider.setSizeLimits(5, null);
       metadataProvider.setCurrentSize(2, 200);
 
       const now = Date.now();
-      metadataProvider.setMetadata('key-1', {
+      await metadataProvider.setMetadata('key-1', {
         key: 'key-1',
         addedAt: now,
         lastAccessedAt: now,
@@ -220,13 +176,13 @@ describe('EvictionManager', () => {
         estimatedSize: 100
       });
 
-      const evictedKeys = evictionManager.performEviction(metadataProvider);
+      const evictedKeys = await evictionManager.performEviction(metadataProvider);
       expect(evictedKeys).toEqual([]);
     });
   });
 
   describe('error handling', () => {
-    it('should handle strategy errors gracefully', () => {
+    it('should handle strategy errors gracefully', async () => {
       // Create a strategy that throws errors
       const faultyStrategy = {
         selectForEviction: () => { throw new Error('Strategy error'); },
@@ -239,12 +195,10 @@ describe('EvictionManager', () => {
       evictionManager = new EvictionManager(faultyStrategy as any);
 
       // These should not throw, errors should be logged
-      expect(() => {
-        evictionManager.onItemAccessed('key', metadataProvider);
-        evictionManager.onItemAdded('key', { test: 'value' }, metadataProvider);
-        evictionManager.onItemRemoved('key', metadataProvider);
-        evictionManager.performEviction(metadataProvider);
-      }).not.toThrow();
+      await expect(evictionManager.onItemAccessed('key', metadataProvider)).resolves.toBeUndefined();
+      await expect(evictionManager.onItemAdded('key', { test: 'value' }, metadataProvider)).resolves.toEqual([]);
+      expect(() => evictionManager.onItemRemoved('key', metadataProvider)).not.toThrow();
+      await expect(evictionManager.performEviction(metadataProvider)).resolves.toEqual([]);
     });
   });
 });

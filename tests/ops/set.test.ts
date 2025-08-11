@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { set } from '../../src/ops/set';
 import { CacheContext } from '../../src/CacheContext';
 import { CacheMap } from '../../src/CacheMap';
@@ -51,6 +51,11 @@ describe('set operation', () => {
   function createTestItem(key: PriKey<'test'> | ComKey<'test', 'container'>, id: string, name: string, value: number): TestItem {
     return { key, id, name, value } as TestItem;
   }
+
+  afterEach(() => {
+    // Clear timers to prevent memory leaks
+    vi.clearAllTimers();
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -430,7 +435,7 @@ describe('set operation', () => {
       const nestedContext = { ...context, cacheMap: nestedCacheMap };
 
       expect(() => {
-        set(nestedKey, nestedItem, nestedContext);
+        set(nestedKey, nestedItem, nestedContext as any);
       }).not.toThrow();
     });
 
@@ -509,7 +514,7 @@ describe('set operation', () => {
       const compositeContext = { ...context, cacheMap: new MemoryCacheMap(['test', 'container']) };
 
       expect(() => {
-        set(compositeKey, itemWithExtendedLoc, compositeContext);
+        set(compositeKey, itemWithExtendedLoc, compositeContext as any);
       }).not.toThrow();
     });
   });
@@ -711,8 +716,8 @@ describe('set operation', () => {
 
       // Should have the last item
       const finalItem = mockCacheMap.get(key1);
-      expect(finalItem?.name).toBe('Test Item 99');
-      expect(finalItem?.value).toBe(99);
+      expect((finalItem as any)?.name).toBe('Test Item 99');
+      expect((finalItem as any)?.value).toBe(99);
     });
 
     it('should handle mixed key types in rapid succession', () => {
@@ -731,9 +736,9 @@ describe('set operation', () => {
       // Set both types rapidly
       expect(() => {
         set(priKey, priItem, context);
-        set(comKey, comItem, compositeContext);
+        set(comKey, comItem, compositeContext as any);
         set(priKey, priItem, context);
-        set(comKey, comItem, compositeContext);
+        set(comKey, comItem, compositeContext as any);
       }).not.toThrow();
     });
   });
@@ -748,7 +753,7 @@ describe('set operation', () => {
       const endTime = Date.now();
 
       expect(endTime - startTime).toBeLessThan(100); // Should be fast
-      expect(mockCacheMap.get(key1)?.name).toBe(largeData);
+      expect((await mockCacheMap.get(key1))?.name).toBe(largeData);
     });
 
     it('should handle items with complex nested objects', async () => {
@@ -778,7 +783,7 @@ describe('set operation', () => {
 
       await set(key1, circularItem, context);
 
-      const retrieved = mockCacheMap.get(key1);
+      const retrieved = await mockCacheMap.get(key1);
       expect(retrieved?.id).toBe('item1');
       expect((retrieved as any).self).toBe(retrieved);
     });

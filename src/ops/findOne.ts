@@ -56,12 +56,12 @@ export const findOne = async <
   ttlManager.onItemAdded(keyStr, cacheMap);
 
   // Handle eviction for the newly cached item
-  const evictedKeys = context.evictionManager.onItemAdded(keyStr, ret, cacheMap);
+  const evictedKeys = await context.evictionManager.onItemAdded(keyStr, ret, cacheMap);
   // Remove evicted items from cache
-  evictedKeys.forEach(evictedKey => {
+  for (const evictedKey of evictedKeys) {
     const parsedKey = JSON.parse(evictedKey);
-    cacheMap.delete(parsedKey);
-  });
+    await cacheMap.delete(parsedKey);
+  }
 
   // Store query result (single item key) in query cache
   cacheMap.setQueryResult(queryHash, [ret.key]);

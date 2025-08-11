@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TwoQueueEvictionStrategy } from '../../../src/eviction/strategies/TwoQueueEvictionStrategy';
 import { CacheItemMetadata, EvictionContext } from '../../../src/eviction/EvictionStrategy';
 import { TwoQueueConfig } from '../../../src/eviction/EvictionStrategyConfig';
@@ -7,6 +7,15 @@ import { MockMetadataProvider } from '../../utils/MockMetadataProvider';
 describe('TwoQueueEvictionStrategy', () => {
   let strategy: TwoQueueEvictionStrategy;
   let metadataProvider: MockMetadataProvider;
+
+  afterEach(() => {
+    // Clean up any strategy resources
+    if (strategy) {
+      strategy.reset();
+    }
+    // Clear timers to prevent memory leaks
+    vi.clearAllTimers();
+  });
 
   function createMockMetadata(key: string, addedAt = 1000, accessCount = 1): CacheItemMetadata {
     return {
@@ -31,42 +40,42 @@ describe('TwoQueueEvictionStrategy', () => {
       strategy = new TwoQueueEvictionStrategy(100);
     });
 
-    it('should evict from recent queue before hot queue', () => {
+    it('should evict from recent queue before hot queue', async () => {
       // Add items
-      strategy.onItemAdded('recent1', 100, metadataProvider);
-      strategy.onItemAdded('hot1', 100, metadataProvider);
+      await strategy.onItemAdded('recent1', 100, metadataProvider);
+      await strategy.onItemAdded('hot1', 100, metadataProvider);
 
       // Promote hot1 to hot queue by accessing it again
-      strategy.onItemAccessed('hot1', metadataProvider);
+      await strategy.onItemAccessed('hot1', metadataProvider);
 
       const context = createEvictionContext();
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toContain('recent1'); // Should evict from recent queue first
     });
 
-    it('should promote items from recent to hot queue on second access', () => {
+    it('should promote items from recent to hot queue on second access', async () => {
       const metadata = createMockMetadata('key1');
-      metadataProvider.setMetadata('key1', metadata);
-      strategy.onItemAdded('key1', 100, metadataProvider);
+      await metadataProvider.setMetadata('key1', metadata);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       expect(metadata.accessCount).toBe(1);
 
       // Access again should promote to hot queue
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
       expect(metadata.accessCount).toBe(2);
     });
 
-    it('should use ghost queue for promoting previously evicted items', () => {
+    it('should use ghost queue for promoting previously evicted items', async () => {
       const metadata = createMockMetadata('key1');
-      metadataProvider.setMetadata('key1', metadata);
+      await metadataProvider.setMetadata('key1', metadata);
 
       // Simulate item that was previously in cache and evicted to ghost queue
-      strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
       // Force eviction to ghost queue would happen normally through cache size limits
 
       // Remove and re-add (simulating ghost queue behavior)
-      strategy.onItemRemoved('key1', metadataProvider);
-      strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemRemoved('key1', metadataProvider);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       expect(metadata.accessCount).toBe(1);
     });
@@ -86,46 +95,46 @@ describe('TwoQueueEvictionStrategy', () => {
       strategy = new TwoQueueEvictionStrategy(100, config);
     });
 
-    it('should use frequency threshold for promotion instead of simple count', () => {
+    it('should use frequency threshold for promotion instead of simple count', async () => {
       const metadata = createMockMetadata('key1');
-      metadataProvider.setMetadata('key1', metadata);
-      strategy.onItemAdded('key1', 100, metadataProvider);
+      await metadataProvider.setMetadata('key1', metadata);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Access twice - should not promote yet (threshold is 3)
-      strategy.onItemAccessed('key1', metadataProvider);
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
       expect(metadata.accessCount).toBe(3);
 
       // Access once more to reach threshold
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
       expect(metadata.accessCount).toBe(4);
     });
 
-    it('should use frequency-weighted LRU in hot queue', () => {
+    it('should use frequency-weighted LRU in hot queue', async () => {
       const freqHighMeta = createMockMetadata('freq-high');
       const freqLowMeta = createMockMetadata('freq-low');
 
       // Add items to metadata provider
-      metadataProvider.setMetadata('freq-high', freqHighMeta);
-      metadataProvider.setMetadata('freq-low', freqLowMeta);
+      await metadataProvider.setMetadata('freq-high', freqHighMeta);
+      await metadataProvider.setMetadata('freq-low', freqLowMeta);
 
       // Add items to strategy
-      strategy.onItemAdded('freq-high', 100, metadataProvider);
-      strategy.onItemAdded('freq-low', 100, metadataProvider);
+      await strategy.onItemAdded('freq-high', 100, metadataProvider);
+      await strategy.onItemAdded('freq-low', 100, metadataProvider);
 
       // Promote both to hot queue
       for (let i = 0; i < 3; i++) {
-        strategy.onItemAccessed('freq-high', metadataProvider);
-        strategy.onItemAccessed('freq-low', metadataProvider);
+        await strategy.onItemAccessed('freq-high', metadataProvider);
+        await strategy.onItemAccessed('freq-low', metadataProvider);
       }
 
       // Access high frequency item more times
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('freq-high', metadataProvider);
+        await strategy.onItemAccessed('freq-high', metadataProvider);
       }
 
       const context = createEvictionContext();
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toContain('freq-low'); // Should evict lower frequency item
     });
   });
@@ -154,35 +163,35 @@ describe('TwoQueueEvictionStrategy', () => {
       expect(returnedConfig.hotQueueDecayFactor).toBe(0.2);
     });
 
-    it('should reset internal state when requested', () => {
+    it('should reset internal state when requested', async () => {
       strategy = new TwoQueueEvictionStrategy(100);
       const metadata = createMockMetadata('key1');
-      metadataProvider.setMetadata('key1', metadata);
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      strategy.onItemAccessed('key1', metadataProvider);
+      await metadataProvider.setMetadata('key1', metadata);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
       // Reset should clear internal queues
       strategy.reset();
 
       // After reset, adding same key should work as if fresh
-      strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
       expect(metadata.accessCount).toBe(2); // accessCount should continue from previous value
     });
 
-    it('should handle empty item sets gracefully', () => {
+    it('should handle empty item sets gracefully', async () => {
       strategy = new TwoQueueEvictionStrategy(100);
       const context = createEvictionContext();
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toEqual([]);
     });
 
-    it('should maintain queue size limits', () => {
+    it('should maintain queue size limits', async () => {
       const smallStrategy = new TwoQueueEvictionStrategy(4); // Very small cache
 
       // Add more items than recent queue can hold
       for (let i = 0; i < 10; i++) {
         const metadata = createMockMetadata(`key${i}`);
-        metadataProvider.setMetadata(`key${i}`, metadata);
+        await metadataProvider.setMetadata(`key${i}`, metadata);
         smallStrategy.onItemAdded(`key${i}`, 100, metadataProvider);
       }
 
@@ -192,7 +201,7 @@ describe('TwoQueueEvictionStrategy', () => {
   });
 
   describe('Traditional vs Enhanced Comparison', () => {
-    it('should behave differently with and without frequency enhancements', () => {
+    it('should behave differently with and without frequency enhancements', async () => {
       metadataProvider = new MockMetadataProvider();
 
       const traditionalConfig: TwoQueueConfig = {
@@ -214,12 +223,12 @@ describe('TwoQueueEvictionStrategy', () => {
       const enhanced = new TwoQueueEvictionStrategy(100, enhancedConfig);
 
       // Setup same initial state for both
-      ['item1', 'item2'].forEach(key => {
+      for (const key of ['item1', 'item2']) {
         const metadata = createMockMetadata(key);
-        metadataProvider.setMetadata(key, metadata);
-        traditional.onItemAdded(key, 100, metadataProvider);
-        enhanced.onItemAdded(key, 100, metadataProvider);
-      });
+        await metadataProvider.setMetadata(key, metadata);
+        await traditional.onItemAdded(key, 100, metadataProvider);
+        await enhanced.onItemAdded(key, 100, metadataProvider);
+      }
 
       // Access item1 multiple times for both strategies
       for (let i = 0; i < 5; i++) {
@@ -243,31 +252,31 @@ describe('TwoQueueEvictionStrategy', () => {
       strategy = new TwoQueueEvictionStrategy(4); // Small cache for easier testing
     });
 
-    it('should promote items from ghost queue to hot queue', () => {
+    it('should promote items from ghost queue to hot queue', async () => {
       // Fill up the recent queue completely (25% of 4 = 1 item)
       for (let i = 0; i < 3; i++) {
         const metadata = createMockMetadata(`recent${i}`);
-        metadataProvider.setMetadata(`recent${i}`, metadata);
-        strategy.onItemAdded(`recent${i}`, 100, metadataProvider);
+        await metadataProvider.setMetadata(`recent${i}`, metadata);
+        await strategy.onItemAdded(`recent${i}`, 100, metadataProvider);
       }
 
       // Add one more item to force eviction to ghost queue
       const metadata = createMockMetadata('ghost-item');
-      metadataProvider.setMetadata('ghost-item', metadata);
-      strategy.onItemAdded('ghost-item', 100, metadataProvider);
+      await metadataProvider.setMetadata('ghost-item', metadata);
+      await strategy.onItemAdded('ghost-item', 100, metadataProvider);
 
       // Remove the ghost item
-      strategy.onItemRemoved('ghost-item', metadataProvider);
+      await strategy.onItemRemoved('ghost-item', metadataProvider);
 
       // Re-add the same item - should go directly to hot queue
-      strategy.onItemAdded('ghost-item', 100, metadataProvider);
+      await strategy.onItemAdded('ghost-item', 100, metadataProvider);
 
       expect(metadata.accessCount).toBe(1);
     });
   });
 
   describe('Frequency Fallback Coverage', () => {
-    it('should handle metadata without lastFrequencyUpdate in calculateFrequencyScore', () => {
+    it('should handle metadata without lastFrequencyUpdate in calculateFrequencyScore', async () => {
       metadataProvider = new MockMetadataProvider();
       const config: TwoQueueConfig = {
         type: '2q',
@@ -284,7 +293,7 @@ describe('TwoQueueEvictionStrategy', () => {
       // Don't set lastFrequencyUpdate to test fallback (lines 223-224)
       delete metadata.lastFrequencyUpdate;
 
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
       testStrategy.onItemAdded('test-key', 100, metadataProvider);
       testStrategy.onItemAccessed('test-key', metadataProvider);
 
@@ -298,17 +307,17 @@ describe('TwoQueueEvictionStrategy', () => {
       strategy = new TwoQueueEvictionStrategy(100);
     });
 
-    it('should handle selecting from hot queue when no items exist in queues', () => {
+    it('should handle selecting from hot queue when no items exist in queues', async () => {
       const metadata = createMockMetadata('orphan');
-      metadataProvider.setMetadata('orphan', metadata);
+      await metadataProvider.setMetadata('orphan', metadata);
 
       // Don't add item to strategy queues, just to metadata provider
       const context = createEvictionContext();
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toContain('orphan'); // Should fallback to first available item
     });
 
-    it('should handle frequency-weighted selection with zero frequency', () => {
+    it('should handle frequency-weighted selection with zero frequency', async () => {
       const config: TwoQueueConfig = {
         type: '2q',
         maxCacheSize: 100,
@@ -321,8 +330,8 @@ describe('TwoQueueEvictionStrategy', () => {
       const lowFreqMeta = createMockMetadata('low-freq');
       const zeroFreqMeta = createMockMetadata('zero-freq');
 
-      metadataProvider.setMetadata('low-freq', lowFreqMeta);
-      metadataProvider.setMetadata('zero-freq', zeroFreqMeta);
+      await metadataProvider.setMetadata('low-freq', lowFreqMeta);
+      await metadataProvider.setMetadata('zero-freq', zeroFreqMeta);
 
       // Add items and promote to hot queue
       testStrategy.onItemAdded('low-freq', 100, metadataProvider);
@@ -343,20 +352,20 @@ describe('TwoQueueEvictionStrategy', () => {
       expect(result).toBeTruthy();
     });
 
-    it('should handle ghost queue size limits', () => {
+    it('should handle ghost queue size limits', async () => {
       const smallStrategy = new TwoQueueEvictionStrategy(2);
 
       // Add many items to exceed ghost queue limits
       for (let i = 0; i < 10; i++) {
         const metadata = createMockMetadata(`item${i}`);
-        metadataProvider.setMetadata(`item${i}`, metadata);
+        await metadataProvider.setMetadata(`item${i}`, metadata);
         smallStrategy.onItemAdded(`item${i}`, 100, metadataProvider);
       }
 
       expect(true).toBe(true); // Should not throw errors
     });
 
-    it('should handle empty recent queue in selectForEviction', () => {
+    it('should handle empty recent queue in selectForEviction', async () => {
       const config: TwoQueueConfig = {
         type: '2q',
         maxCacheSize: 100,
@@ -366,7 +375,7 @@ describe('TwoQueueEvictionStrategy', () => {
       const testStrategy = new TwoQueueEvictionStrategy(100, config);
 
       const metadata = createMockMetadata('hot-item');
-      metadataProvider.setMetadata('hot-item', metadata);
+      await metadataProvider.setMetadata('hot-item', metadata);
 
       // Add item and immediately promote to hot queue
       testStrategy.onItemAdded('hot-item', 100, metadataProvider);
@@ -383,12 +392,12 @@ describe('TwoQueueEvictionStrategy', () => {
       metadataProvider = new MockMetadataProvider();
     });
 
-    it('should cover ghost queue promotion with proper setup', () => {
+    it('should cover ghost queue promotion with proper setup', async () => {
       const testStrategy = new TwoQueueEvictionStrategy(4);
 
       // Add item to recent queue
       const metadata = createMockMetadata('ghost-test');
-      metadataProvider.setMetadata('ghost-test', metadata);
+      await metadataProvider.setMetadata('ghost-test', metadata);
       testStrategy.onItemAdded('ghost-test', 100, metadataProvider);
 
       // Remove it (should go to ghost queue)
@@ -400,7 +409,7 @@ describe('TwoQueueEvictionStrategy', () => {
       expect(metadata.accessCount).toBe(1);
     });
 
-    it('should use rawFrequency fallback in getEffectiveFrequency', () => {
+    it('should use rawFrequency fallback in getEffectiveFrequency', async () => {
       const config: TwoQueueConfig = {
         type: '2q',
         maxCacheSize: 100,
@@ -416,14 +425,14 @@ describe('TwoQueueEvictionStrategy', () => {
       // Don't set frequencyScore to test fallback
       delete metadata.frequencyScore;
 
-      metadataProvider.setMetadata('freq-test', metadata);
+      await metadataProvider.setMetadata('freq-test', metadata);
       testStrategy.onItemAdded('freq-test', 100, metadataProvider);
       testStrategy.onItemAccessed('freq-test', metadataProvider);
 
       expect(metadata.accessCount).toBeGreaterThan(0);
     });
 
-    it('should handle calculateFrequencyScore with missing lastFrequencyUpdate', () => {
+    it('should handle calculateFrequencyScore with missing lastFrequencyUpdate', async () => {
       const config: TwoQueueConfig = {
         type: '2q',
         maxCacheSize: 100,
@@ -439,14 +448,14 @@ describe('TwoQueueEvictionStrategy', () => {
       // Don't set lastFrequencyUpdate to test fallback
       delete metadata.lastFrequencyUpdate;
 
-      metadataProvider.setMetadata('score-test', metadata);
+      await metadataProvider.setMetadata('score-test', metadata);
       testStrategy.onItemAdded('score-test', 100, metadataProvider);
       testStrategy.onItemAccessed('score-test', metadataProvider);
 
       expect(metadata.accessCount).toBeGreaterThan(0);
     });
 
-    it('should fallback to accessCount when rawFrequency is falsy in getEffectiveFrequency', () => {
+    it('should fallback to accessCount when rawFrequency is falsy in getEffectiveFrequency', async () => {
       const config: TwoQueueConfig = {
         type: '2q',
         maxCacheSize: 100,
@@ -460,7 +469,7 @@ describe('TwoQueueEvictionStrategy', () => {
       metadata.rawFrequency = 0; // Falsy value
       metadata.accessCount = 3;
 
-      metadataProvider.setMetadata('fallback-test', metadata);
+      await metadataProvider.setMetadata('fallback-test', metadata);
       testStrategy.onItemAdded('fallback-test', 100, metadataProvider);
       testStrategy.onItemAccessed('fallback-test', metadataProvider);
 

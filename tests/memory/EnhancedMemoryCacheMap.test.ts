@@ -387,16 +387,16 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(statsAfterClear.currentSizeBytes).toBe(0);
     });
 
-    it('should preserve query results when cache is cleared', () => {
+    it('should preserve query results when cache is cleared', async () => {
       const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
-      cache.set(key1, item1);
-      cache.setQueryResult('query1', [key1]);
-      expect(cache.hasQueryResult('query1')).toBe(true);
+      await cache.set(key1, item1);
+      await cache.setQueryResult('query1', [key1]);
+      expect(await cache.hasQueryResult('query1')).toBe(true);
 
-      cache.clear();
+      await cache.clear();
 
       // Query results should still exist (clear doesn't clear queries)
-      expect(cache.hasQueryResult('query1')).toBe(true);
+      expect(await cache.hasQueryResult('query1')).toBe(true);
     });
 
     it('should update stats when items are deleted', async () => {
@@ -431,7 +431,7 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(await cache.getQueryResult(queryHash)).toEqual([key2]);
 
       cache.delete(key2);
-      expect(cache.hasQueryResult(queryHash)).toBe(false);
+      expect(await cache.hasQueryResult(queryHash)).toBe(false);
     });
   });
 
@@ -477,14 +477,14 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(result).toEqual(itemKeys);
     });
 
-    it('should check if query result exists', () => {
+    it('should check if query result exists', async () => {
       const queryHash = 'query123';
       const itemKeys = [key1, key2];
 
-      expect(cache.hasQueryResult(queryHash)).toBe(false);
+      expect(await cache.hasQueryResult(queryHash)).toBe(false);
 
       cache.setQueryResult(queryHash, itemKeys);
-      expect(cache.hasQueryResult(queryHash)).toBe(true);
+      expect(await cache.hasQueryResult(queryHash)).toBe(true);
     });
 
     it('should delete specific query result', async () => {
@@ -496,13 +496,13 @@ describe('EnhancedMemoryCacheMap', () => {
       cache.setQueryResult(queryHash1, itemKeys1);
       cache.setQueryResult(queryHash2, itemKeys2);
 
-      expect(cache.hasQueryResult(queryHash1)).toBe(true);
-      expect(cache.hasQueryResult(queryHash2)).toBe(true);
+      expect(await cache.hasQueryResult(queryHash1)).toBe(true);
+      expect(await cache.hasQueryResult(queryHash2)).toBe(true);
 
       cache.deleteQueryResult(queryHash1);
 
-      expect(cache.hasQueryResult(queryHash1)).toBe(false);
-      expect(cache.hasQueryResult(queryHash2)).toBe(true);
+      expect(await cache.hasQueryResult(queryHash1)).toBe(false);
+      expect(await cache.hasQueryResult(queryHash2)).toBe(true);
       expect(await cache.getQueryResult(queryHash2)).toEqual(itemKeys2);
     });
 
@@ -515,13 +515,13 @@ describe('EnhancedMemoryCacheMap', () => {
       cache.setQueryResult(queryHash1, itemKeys1);
       cache.setQueryResult(queryHash2, itemKeys2);
 
-      expect(cache.hasQueryResult(queryHash1)).toBe(true);
-      expect(cache.hasQueryResult(queryHash2)).toBe(true);
+      expect(await cache.hasQueryResult(queryHash1)).toBe(true);
+      expect(await cache.hasQueryResult(queryHash2)).toBe(true);
 
       cache.clearQueryResults();
 
-      expect(cache.hasQueryResult(queryHash1)).toBe(false);
-      expect(cache.hasQueryResult(queryHash2)).toBe(false);
+      expect(await cache.hasQueryResult(queryHash1)).toBe(false);
+      expect(await cache.hasQueryResult(queryHash2)).toBe(false);
       expect(await cache.getQueryResult(queryHash1)).toBeNull();
       expect(await cache.getQueryResult(queryHash2)).toBeNull();
     });
@@ -540,7 +540,7 @@ describe('EnhancedMemoryCacheMap', () => {
 
       const result = await containedCache.getQueryResult(queryHash);
       expect(result).toEqual(itemKeys);
-      expect(containedCache.hasQueryResult(queryHash)).toBe(true);
+      expect(await containedCache.hasQueryResult(queryHash)).toBe(true);
     });
 
     it('should handle empty query results', async () => {
@@ -549,7 +549,7 @@ describe('EnhancedMemoryCacheMap', () => {
 
       cache.setQueryResult(queryHash, itemKeys);
 
-      expect(cache.hasQueryResult(queryHash)).toBe(true);
+      expect(await cache.hasQueryResult(queryHash)).toBe(true);
       expect(await cache.getQueryResult(queryHash)).toEqual([]);
     });
 
@@ -610,14 +610,14 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(containedCache.getStats().currentItemCount).toBe(1);
     });
 
-    it('should list all composite keys', () => {
+    it('should list all composite keys', async () => {
       const item1: ContainedTestItem = createContainedTestItem(comKey1, 'item1', 'contained1', 'data1');
       const item2: ContainedTestItem = createContainedTestItem(comKey2, 'item2', 'contained2', 'data2');
 
       containedCache.set(comKey1, item1);
       containedCache.set(comKey2, item2);
 
-      const keys = containedCache.keys();
+      const keys = await containedCache.keys();
       expect(keys).toHaveLength(2);
       expect(keys).toContainEqual(comKey1);
       expect(keys).toContainEqual(comKey2);
@@ -1031,14 +1031,14 @@ describe('EnhancedMemoryCacheMap', () => {
         containedCache.setQueryResult(queryHash1, [comKey1]);
         containedCache.setQueryResult(queryHash2, [comKey1]);
 
-        expect(containedCache.hasQueryResult(queryHash1)).toBe(true);
-        expect(containedCache.hasQueryResult(queryHash2)).toBe(true);
+        expect(await containedCache.hasQueryResult(queryHash1)).toBe(true);
+        expect(await containedCache.hasQueryResult(queryHash2)).toBe(true);
 
         // Invalidate location should clear all query results
         await containedCache.invalidateLocation([{ kt: 'container', lk: 'container1' as UUID }]);
 
-        expect(containedCache.hasQueryResult(queryHash1)).toBe(false);
-        expect(containedCache.hasQueryResult(queryHash2)).toBe(false);
+        expect(await containedCache.hasQueryResult(queryHash1)).toBe(false);
+        expect(await containedCache.hasQueryResult(queryHash2)).toBe(false);
       });
 
       it('should handle invalidating non-existent location', async () => {
@@ -1152,7 +1152,7 @@ describe('EnhancedMemoryCacheMap', () => {
 
       expect(cache.getStats().currentItemCount).toBe(0);
       expect(await cache.values()).toHaveLength(0);
-      expect(cache.keys()).toHaveLength(0);
+      expect(await cache.keys()).toHaveLength(0);
     });
 
     it.skip('should trigger eviction if initial data exceeds limits (now handled at Cache level)', async () => {
@@ -1460,17 +1460,17 @@ describe('EnhancedMemoryCacheMap', () => {
         cache.setQueryResult('query2', [key3, key4]);
 
         expect(cache.getStats().currentItemCount).toBe(5);
-        expect(cache.hasQueryResult('query1')).toBe(true);
+        expect(await cache.hasQueryResult('query1')).toBe(true);
 
         cache.clear();
 
         expect(cache.getStats().currentItemCount).toBe(0);
         expect(cache.getStats().currentSizeBytes).toBe(0);
         expect(await cache.values()).toHaveLength(0);
-        expect(cache.keys()).toHaveLength(0);
+        expect(await cache.keys()).toHaveLength(0);
 
         // Query results should still exist (clear doesn't clear queries)
-        expect(cache.hasQueryResult('query1')).toBe(true);
+        expect(await cache.hasQueryResult('query1')).toBe(true);
       });
 
       it('should handle clone with empty cache', async () => {
@@ -1478,7 +1478,7 @@ describe('EnhancedMemoryCacheMap', () => {
 
         expect((cloned as EnhancedMemoryCacheMap<TestItem, 'test'>).getStats().currentItemCount).toBe(0);
         expect(await cloned.values()).toHaveLength(0);
-        expect(cloned.keys()).toHaveLength(0);
+        expect(await cloned.keys()).toHaveLength(0);
       });
     });
 
@@ -1522,11 +1522,11 @@ describe('EnhancedMemoryCacheMap', () => {
       cache = new EnhancedMemoryCacheMap(types);
     });
 
-    it('should get metadata for specific keys', () => {
+    it('should get metadata for specific keys', async () => {
       const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
       cache.set(key1, item1);
 
-      const metadata = cache.getMetadata('{"kt":"test","pk":"item1"}');
+      const metadata = await cache.getMetadata('{"kt":"test","pk":"item1"}');
       expect(metadata).toBeDefined();
       expect(metadata?.key).toBe('{"kt":"test","pk":"item1"}');
       expect(metadata?.addedAt).toBeTypeOf('number');
@@ -1535,12 +1535,12 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(metadata?.estimatedSize).toBeGreaterThan(0);
     });
 
-    it('should return null for non-existent metadata keys', () => {
-      const metadata = cache.getMetadata('non-existent-key');
+    it('should return null for non-existent metadata keys', async () => {
+      const metadata = await cache.getMetadata('non-existent-key');
       expect(metadata).toBeNull();
     });
 
-    it('should set metadata for specific keys', () => {
+    it('should set metadata for specific keys', async () => {
       const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
       cache.set(key1, item1);
 
@@ -1553,12 +1553,12 @@ describe('EnhancedMemoryCacheMap', () => {
       };
 
       cache.setMetadata('{"kt":"test","pk":"item1"}', customMetadata);
-      const retrievedMetadata = cache.getMetadata('{"kt":"test","pk":"item1"}');
+      const retrievedMetadata = await cache.getMetadata('{"kt":"test","pk":"item1"}');
 
       expect(retrievedMetadata).toEqual(customMetadata);
     });
 
-    it('should handle setting metadata for non-existent keys', () => {
+    it('should handle setting metadata for non-existent keys', async () => {
       const customMetadata = {
         addedAt: Date.now(),
         lastAccessedAt: Date.now(),
@@ -1573,23 +1573,23 @@ describe('EnhancedMemoryCacheMap', () => {
       }).not.toThrow();
 
       // Should be able to retrieve the metadata
-      const retrievedMetadata = cache.getMetadata('non-existent-key');
+      const retrievedMetadata = await cache.getMetadata('non-existent-key');
       expect(retrievedMetadata).toEqual(customMetadata);
     });
 
-    it('should delete metadata for specific keys', () => {
+    it('should delete metadata for specific keys', async () => {
       const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
       cache.set(key1, item1);
 
       // Verify metadata exists
-      const metadata = cache.getMetadata('{"kt":"test","pk":"item1"}');
+      const metadata = await cache.getMetadata('{"kt":"test","pk":"item1"}');
       expect(metadata).toBeDefined();
 
       // Delete metadata
       cache.deleteMetadata('{"kt":"test","pk":"item1"}');
 
       // Should still exist since deleteMetadata is a no-op in this implementation
-      const afterDeleteMetadata = cache.getMetadata('{"kt":"test","pk":"item1"}');
+      const afterDeleteMetadata = await cache.getMetadata('{"kt":"test","pk":"item1"}');
       expect(afterDeleteMetadata).toBeDefined(); // deleteMetadata doesn't actually delete in this implementation
     });
 
@@ -1600,7 +1600,7 @@ describe('EnhancedMemoryCacheMap', () => {
       cache.set(key1, item1);
       cache.set(key2, item2);
 
-      const allMetadata = cache.getAllMetadata();
+      const allMetadata = await cache.getAllMetadata();
 
       expect(allMetadata).toBeInstanceOf(Map);
       expect(allMetadata.size).toBe(2);
@@ -1611,8 +1611,8 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(allMetadata.has(key1Hash)).toBe(true);
       expect(allMetadata.has(key2Hash)).toBe(true);
 
-      const metadata1 = await allMetadata.get(key1Hash);
-      const metadata2 = await allMetadata.get(key2Hash);
+      const metadata1 = allMetadata.get(key1Hash);
+      const metadata2 = allMetadata.get(key2Hash);
 
       expect(metadata1?.key).toBe(key1Hash);
       expect(metadata2?.key).toBe(key2Hash);
@@ -1626,14 +1626,14 @@ describe('EnhancedMemoryCacheMap', () => {
       cache.set(key2, item2);
 
       // Verify metadata exists
-      const allMetadataBefore = cache.getAllMetadata();
+      const allMetadataBefore = await cache.getAllMetadata();
       expect(allMetadataBefore.size).toBe(2);
 
       // Clear metadata
       cache.clearMetadata();
 
       // All metadata should be cleared
-      const allMetadataAfter = cache.getAllMetadata();
+      const allMetadataAfter = await cache.getAllMetadata();
       expect(allMetadataAfter.size).toBe(0);
 
       // But the cache entries should still exist
@@ -1651,34 +1651,34 @@ describe('EnhancedMemoryCacheMap', () => {
       cache = new EnhancedMemoryCacheMap(types, sizeConfig);
     });
 
-    it('should get current size information', () => {
+    it('should get current size information', async () => {
       const item1: TestItem = createTestItem(key1, 'item1', 'test1', 100);
       const item2: TestItem = createTestItem(key2, 'item2', 'test2', 200);
 
-      const initialSize = cache.getCurrentSize();
+      const initialSize = await cache.getCurrentSize();
       expect(initialSize.itemCount).toBe(0);
       expect(initialSize.sizeBytes).toBe(0);
 
       cache.set(key1, item1);
-      const afterFirstItem = cache.getCurrentSize();
+      const afterFirstItem = await cache.getCurrentSize();
       expect(afterFirstItem.itemCount).toBe(1);
       expect(afterFirstItem.sizeBytes).toBeGreaterThan(0);
 
       cache.set(key2, item2);
-      const afterSecondItem = cache.getCurrentSize();
+      const afterSecondItem = await cache.getCurrentSize();
       expect(afterSecondItem.itemCount).toBe(2);
       expect(afterSecondItem.sizeBytes).toBeGreaterThan(afterFirstItem.sizeBytes);
     });
 
-    it('should get size limits', () => {
-      const limits = cache.getSizeLimits();
+    it('should get size limits', async () => {
+      const limits = await cache.getSizeLimits();
       expect(limits.maxItems).toBe(10);
       expect(limits.maxSizeBytes).toBe(2000); // 2KB in bytes (decimal)
     });
 
-    it('should get size limits when not configured', () => {
+    it('should get size limits when not configured', async () => {
       const unlimitedCache = new EnhancedMemoryCacheMap(types);
-      const limits = unlimitedCache.getSizeLimits();
+      const limits = await unlimitedCache.getSizeLimits();
       expect(limits.maxItems).toBeNull();
       expect(limits.maxSizeBytes).toBeNull();
     });
@@ -1715,7 +1715,7 @@ describe('EnhancedMemoryCacheMap', () => {
       const result = await cache.getQueryResult('empty-query');
       expect(result).toEqual([]);
 
-      expect(cache.hasQueryResult('empty-query')).toBe(true);
+      expect(await cache.hasQueryResult('empty-query')).toBe(true);
     });
 
     it('should handle setting query results with duplicate keys', async () => {
@@ -1737,7 +1737,7 @@ describe('EnhancedMemoryCacheMap', () => {
       const longQueryHash = 'very-long-query-hash-'.repeat(100);
       cache.setQueryResult(longQueryHash, [key1, key2]);
 
-      expect(cache.hasQueryResult(longQueryHash)).toBe(true);
+      expect(await cache.hasQueryResult(longQueryHash)).toBe(true);
       const result = await cache.getQueryResult(longQueryHash);
       expect(result).toEqual([key1, key2]);
     });
@@ -1746,7 +1746,7 @@ describe('EnhancedMemoryCacheMap', () => {
       const specialQueryHash = 'query-with-!@#$%^&*()_+{}|:"<>?[];,./`~特殊字符';
       cache.setQueryResult(specialQueryHash, [key1]);
 
-      expect(cache.hasQueryResult(specialQueryHash)).toBe(true);
+      expect(await cache.hasQueryResult(specialQueryHash)).toBe(true);
       const result = await cache.getQueryResult(specialQueryHash);
       expect(result).toEqual([key1]);
     });
@@ -1814,10 +1814,10 @@ describe('EnhancedMemoryCacheMap', () => {
       const cloned = await cache.clone() as EnhancedMemoryCacheMap<TestItem, 'test'>;
 
       expect(cloned.implementationType).toBe('memory/enhanced');
-      expect(cloned.keys()).toEqual([]);
+      expect(await cloned.keys()).toEqual([]);
       expect(await cloned.values()).toEqual([]);
-      expect(cloned.getCurrentSize().itemCount).toBe(0);
-      expect(cloned.getCurrentSize().sizeBytes).toBe(0);
+      expect((await cloned.getCurrentSize()).itemCount).toBe(0);
+      expect((await cloned.getCurrentSize()).sizeBytes).toBe(0);
     });
   });
 
@@ -1826,7 +1826,7 @@ describe('EnhancedMemoryCacheMap', () => {
       cache = new EnhancedMemoryCacheMap(types);
     });
 
-    it('should handle invalidation of non-existent items gracefully', () => {
+    it('should handle invalidation of non-existent items gracefully', async () => {
       cache.setQueryResult('test-query', [key1, key2]);
 
       // Invalidate keys that don't exist in cache
@@ -1835,10 +1835,10 @@ describe('EnhancedMemoryCacheMap', () => {
       }).not.toThrow();
 
       // Query result should be cleared
-      expect(cache.hasQueryResult('test-query')).toBe(false);
+      expect(await cache.hasQueryResult('test-query')).toBe(false);
     });
 
-    it('should handle invalidation with empty key arrays', () => {
+    it('should handle invalidation with empty key arrays', async () => {
       cache.setQueryResult('test-query', [key1, key2]);
 
       expect(() => {
@@ -1846,7 +1846,7 @@ describe('EnhancedMemoryCacheMap', () => {
       }).not.toThrow();
 
       // Query result should still exist since no keys were invalidated
-      expect(cache.hasQueryResult('test-query')).toBe(true);
+      expect(await cache.hasQueryResult('test-query')).toBe(true);
     });
 
     it('should handle complex location invalidation scenarios', async () => {
@@ -1870,11 +1870,11 @@ describe('EnhancedMemoryCacheMap', () => {
       await containedCache.invalidateLocation([{ kt: 'container', lk: 'container1' as UUID }]);
 
       // Queries involving container1 should be cleared
-      expect(containedCache.hasQueryResult('container1-query')).toBe(false);
-      expect(containedCache.hasQueryResult('mixed-query')).toBe(false);
+      expect(await containedCache.hasQueryResult('container1-query')).toBe(false);
+      expect(await containedCache.hasQueryResult('mixed-query')).toBe(false);
 
       // Queries not involving container1 should remain
-      expect(containedCache.hasQueryResult('container2-query')).toBe(true);
+      expect(await containedCache.hasQueryResult('container2-query')).toBe(true);
     });
   });
 
@@ -1930,8 +1930,8 @@ describe('EnhancedMemoryCacheMap', () => {
 
       await Promise.all(promises);
 
-      expect(cache.getCurrentSize().itemCount).toBe(100);
-      expect(cache.keys().length).toBe(100);
+      expect((await cache.getCurrentSize()).itemCount).toBe(100);
+      expect((await cache.keys()).length).toBe(100);
     });
 
     it('should maintain consistency during mixed operations', async () => {
@@ -1944,24 +1944,26 @@ describe('EnhancedMemoryCacheMap', () => {
       cache.set(key2, item2);
       cache.setQueryResult('query2', [key1, key2]);
 
-      const initialSize = cache.getCurrentSize();
-      const initialQueryCount = (cache.hasQueryResult('query1') ? 1 : 0) + (cache.hasQueryResult('query2') ? 1 : 0);
+      const initialSize = await cache.getCurrentSize();
+      const hasQuery1 = await cache.hasQueryResult('query1');
+      const hasQuery2 = await cache.hasQueryResult('query2');
+      const initialQueryCount = (hasQuery1 ? 1 : 0) + (hasQuery2 ? 1 : 0);
 
       cache.delete(key1);
 
-      const afterDeleteSize = cache.getCurrentSize();
+      const afterDeleteSize = await cache.getCurrentSize();
       expect(afterDeleteSize.itemCount).toBe(initialSize.itemCount - 1);
 
       // Query1 should be completely removed (it only contained key1)
-      expect(cache.hasQueryResult('query1')).toBe(false);
+      expect(await cache.hasQueryResult('query1')).toBe(false);
       // Query2 should be filtered to only contain key2
-      expect(cache.hasQueryResult('query2')).toBe(true);
+      expect(await cache.hasQueryResult('query2')).toBe(true);
       expect(await cache.getQueryResult('query2')).toEqual([key2]);
     });
   });
 
   describe('Memory efficiency and performance', () => {
-    it('should efficiently handle many small items', () => {
+    it('should efficiently handle many small items', async () => {
       const startTime = Date.now();
 
       for (let i = 0; i < 1000; i++) {
@@ -1973,15 +1975,15 @@ describe('EnhancedMemoryCacheMap', () => {
       const endTime = Date.now();
       expect(endTime - startTime).toBeLessThan(1000); // Should complete in reasonable time
 
-      expect(cache.getCurrentSize().itemCount).toBe(1000);
-      expect(cache.keys().length).toBe(1000);
+      expect((await cache.getCurrentSize()).itemCount).toBe(1000);
+      expect((await cache.keys()).length).toBe(1000);
     });
 
     it('should handle frequent updates efficiently', async () => {
       const item: TestItem = createTestItem(key1, 'item1', 'test1', 100);
       cache.set(key1, item);
 
-      const initialSize = cache.getCurrentSize().sizeBytes;
+      const initialSize = (await cache.getCurrentSize()).sizeBytes;
 
       // Perform many updates
       for (let i = 0; i < 100; i++) {
@@ -1994,7 +1996,7 @@ describe('EnhancedMemoryCacheMap', () => {
       expect(finalItem?.value).toBe(199);
 
       // Size should reflect the final item
-      const finalSize = cache.getCurrentSize().sizeBytes;
+      const finalSize = (await cache.getCurrentSize()).sizeBytes;
       expect(finalSize).toBeGreaterThan(0);
     });
 

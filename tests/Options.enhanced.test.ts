@@ -35,7 +35,7 @@ describe('Enhanced Options System Tests', () => {
       const options = createOptions<TestItem, 'test'>({
         cacheType: 'memory',
         memoryConfig: {
-          ttl: 5000,
+
           size: {
             maxItems: 500,
             evictionPolicy: 'lfu'
@@ -43,7 +43,6 @@ describe('Enhanced Options System Tests', () => {
         }
       });
 
-      expect(options.memoryConfig?.ttl).toBe(5000);
       expect(options.memoryConfig?.size?.maxItems).toBe(500);
       expect(options.memoryConfig?.size?.evictionPolicy).toBe('lfu');
       expect(options.memoryConfig?.size?.maxSizeBytes).toBeUndefined();
@@ -280,7 +279,7 @@ describe('Enhanced Options System Tests', () => {
       const options = createOptions<TestItem, 'test'>({
         cacheType: 'memory',
         memoryConfig: {
-          ttl: 5000
+
           // No size configuration
         }
       });
@@ -355,7 +354,7 @@ describe('Enhanced Options System Tests', () => {
         cacheType: 'memory',
         memoryConfig: {
           maxItems: 100,
-          ttl: 5000
+
         }
       });
 
@@ -367,7 +366,7 @@ describe('Enhanced Options System Tests', () => {
         cacheType: 'memory',
         memoryConfig: {
           maxItems: 100,
-          ttl: 5000,
+
           size: {
             maxItems: 200,
             evictionPolicy: 'lru'
@@ -469,7 +468,7 @@ describe('Enhanced Options System Tests', () => {
         retryDelay: 2000,
         memoryConfig: {
           maxItems: 1000,
-          ttl: 600000,
+
           size: {
             maxSizeBytes: '10MB',
             maxItems: 2000, // Different from memoryConfig.maxItems
@@ -486,7 +485,7 @@ describe('Enhanced Options System Tests', () => {
       expect(options.maxRetries).toBe(5);
       expect(options.retryDelay).toBe(2000);
       expect(options.memoryConfig?.maxItems).toBe(1000);
-      expect(options.memoryConfig?.ttl).toBe(600000);
+
       expect(options.memoryConfig?.size?.maxSizeBytes).toBe('10MB');
       expect(options.memoryConfig?.size?.maxItems).toBe(2000);
       expect(options.memoryConfig?.size?.evictionPolicy).toBe('lru');

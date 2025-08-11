@@ -69,12 +69,12 @@ beforeAll(async () => {
     globalThis.localStorage = globalThis.window.localStorage;
     globalThis.sessionStorage = globalThis.window.sessionStorage;
 
-    // Mock IndexedDB
-    let mockStorage = new Map<string, any>();
+    // Mock IndexedDB with simpler implementation to avoid serialization issues
+    const mockStorage = new Map<string, any>();
 
     // Create function to reset storage for test isolation
     (globalThis as any).__resetMockIndexedDBStorage = () => {
-      mockStorage = new Map<string, any>();
+      mockStorage.clear();
     };
 
     const mockIndexedDB = {
@@ -89,34 +89,35 @@ beforeAll(async () => {
                     onerror: null as any,
                     result: mockStorage.get(JSON.stringify(key)) ?? null
                   };
-                  setTimeout(() => {
+                  // Use synchronous callback to avoid serialization issues
+                  process.nextTick(() => {
                     if (request.onsuccess) request.onsuccess({ target: request });
-                  }, 0);
+                  });
                   return request;
                 }),
                 put: vi.fn((value: any, key?: any) => {
                   const request = { onsuccess: null as any, onerror: null as any };
                   const storageKey = key ? JSON.stringify(key) : JSON.stringify(value.key || value.id);
                   mockStorage.set(storageKey, value);
-                  setTimeout(() => {
+                  process.nextTick(() => {
                     if (request.onsuccess) request.onsuccess({ target: request });
-                  }, 0);
+                  });
                   return request;
                 }),
                 delete: vi.fn((key: any) => {
                   const request = { onsuccess: null as any, onerror: null as any };
                   mockStorage.delete(JSON.stringify(key));
-                  setTimeout(() => {
+                  process.nextTick(() => {
                     if (request.onsuccess) request.onsuccess({ target: request });
-                  }, 0);
+                  });
                   return request;
                 }),
                 clear: vi.fn(() => {
                   const request = { onsuccess: null as any, onerror: null as any };
                   mockStorage.clear();
-                  setTimeout(() => {
+                  process.nextTick(() => {
                     if (request.onsuccess) request.onsuccess({ target: request });
-                  }, 0);
+                  });
                   return request;
                 }),
                 openCursor: vi.fn(() => {
@@ -132,20 +133,20 @@ beforeAll(async () => {
                       if (index < entries.length && cursor) {
                         cursor.key = entries[index][0]; // Use the raw key instead of parsing
                         cursor.value = entries[index][1];
-                        setTimeout(() => {
+                        process.nextTick(() => {
                           if (request.onsuccess) request.onsuccess({ target: { ...request, result: cursor } });
-                        }, 0);
+                        });
                       } else {
-                        setTimeout(() => {
+                        process.nextTick(() => {
                           if (request.onsuccess) request.onsuccess({ target: { ...request, result: null } });
-                        }, 0);
+                        });
                       }
                     })
                   } : null;
 
-                  setTimeout(() => {
+                  process.nextTick(() => {
                     if (request.onsuccess) request.onsuccess({ target: { ...request, result: cursor } });
-                  }, 0);
+                  });
                   return request;
                 })
               })),

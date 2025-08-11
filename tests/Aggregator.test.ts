@@ -2,7 +2,7 @@ import { Aggregator, CacheConfig, createAggregator, toCacheConfig } from '../src
 import { Cache } from '../src/Cache';
 import { CacheMap } from '../src/CacheMap';
 import { Item, PriKey } from '@fjell/core';
-import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
 vi.mock('../src/CacheMap');
 
@@ -56,6 +56,11 @@ describe('Aggregator', () => {
       }
     }
   ];
+
+  afterEach(() => {
+    // Clear timers to prevent memory leaks
+    vi.clearAllTimers();
+  });
 
   beforeEach(async () => {
     cacheMapMock = {

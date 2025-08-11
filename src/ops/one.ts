@@ -7,6 +7,7 @@ import {
 import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";
 import { createQueryHash } from "../normalization";
+import { estimateValueSize } from "../utils/CacheSize";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('one');
@@ -56,26 +57,40 @@ export const one = async <
     retItem = await api.one(query, locations);
     if (retItem) {
       // Store individual item in cache
-      cacheMap.set(retItem.key, retItem);
+      await cacheMap.set(retItem.key, retItem);
+
+      // Create base metadata if it doesn't exist (needed for TTL and eviction)
+      const keyStr = JSON.stringify(retItem.key);
+      const metadata = await cacheMap.getMetadata(keyStr);
+      if (!metadata) {
+        const now = Date.now();
+        const baseMetadata = {
+          key: keyStr,
+          addedAt: now,
+          lastAccessedAt: now,
+          accessCount: 1,
+          estimatedSize: estimateValueSize(retItem)
+        };
+        await cacheMap.setMetadata(keyStr, baseMetadata);
+      }
 
       // Set TTL metadata for the newly cached item
-      const keyStr = JSON.stringify(retItem.key);
-      ttlManager.onItemAdded(keyStr, cacheMap);
+      await ttlManager.onItemAdded(keyStr, cacheMap);
 
       // Handle eviction for the newly cached item
-      const evictedKeys = context.evictionManager.onItemAdded(keyStr, retItem, cacheMap);
+      const evictedKeys = await context.evictionManager.onItemAdded(keyStr, retItem, cacheMap);
       // Remove evicted items from cache
-      evictedKeys.forEach(evictedKey => {
+      for (const evictedKey of evictedKeys) {
         const parsedKey = JSON.parse(evictedKey);
-        cacheMap.delete(parsedKey);
-      });
+        await cacheMap.delete(parsedKey);
+      }
 
       // Store query result (single item key) in query cache
-      cacheMap.setQueryResult(queryHash, [retItem.key]);
+      await cacheMap.setQueryResult(queryHash, [retItem.key]);
       logger.debug('Cached query result', { queryHash, itemKey: retItem.key });
     } else {
       // Store empty result in query cache
-      cacheMap.setQueryResult(queryHash, []);
+      await cacheMap.setQueryResult(queryHash, []);
       logger.debug('Cached empty query result', { queryHash });
     }
   } catch (e: unknown) {
