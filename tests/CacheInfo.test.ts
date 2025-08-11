@@ -60,7 +60,7 @@ describe('CacheMap Implementation Types', () => {
       cache = new MemoryCacheMap<TestItem, 'test'>(['test']);
     });
 
-    it('should support metadata operations', () => {
+    it('should support metadata operations', async () => {
       const metadata = {
         key: 'test-key',
         addedAt: Date.now(),
@@ -70,28 +70,28 @@ describe('CacheMap Implementation Types', () => {
       };
 
       // Set metadata
-      cache.setMetadata('test-key', metadata);
+      await cache.setMetadata('test-key', metadata);
 
       // Get metadata
-      const retrieved = cache.getMetadata('test-key');
+      const retrieved = await cache.getMetadata('test-key');
       expect(retrieved).toEqual(metadata);
 
       // Get all metadata
-      const allMetadata = cache.getAllMetadata();
+      const allMetadata = await cache.getAllMetadata();
       expect(allMetadata.size).toBe(1);
       expect(allMetadata.get('test-key')).toEqual(metadata);
 
       // Delete metadata
-      cache.deleteMetadata('test-key');
-      expect(cache.getMetadata('test-key')).toBeNull();
+      await cache.deleteMetadata('test-key');
+      expect(await cache.getMetadata('test-key')).toBeNull();
     });
 
-    it('should provide size information', () => {
-      const sizeInfo = cache.getCurrentSize();
+    it('should provide size information', async () => {
+      const sizeInfo = await cache.getCurrentSize();
       expect(typeof sizeInfo.itemCount).toBe('number');
       expect(typeof sizeInfo.sizeBytes).toBe('number');
 
-      const limits = cache.getSizeLimits();
+      const limits = await cache.getSizeLimits();
       expect(limits.maxItems).toBeNull();
       expect(limits.maxSizeBytes).toBeNull();
     });

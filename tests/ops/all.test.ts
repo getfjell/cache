@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { all } from '../../src/ops/all';
 import { CacheContext } from '../../src/CacheContext';
 import { CacheMap } from '../../src/CacheMap';
@@ -38,6 +38,11 @@ describe('all operation', () => {
   let mockTtlManager: any;
   let mockEvictionManager: any;
   let context: CacheContext<TestItem, 'test', 'container'>;
+
+  afterEach(() => {
+    // Clear timers to prevent memory leaks
+    vi.clearAllTimers();
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -104,7 +109,8 @@ describe('all operation', () => {
       } as any,
       eventEmitter: mockEventEmitter,
       ttlManager: mockTtlManager,
-      evictionManager: mockEvictionManager
+      evictionManager: mockEvictionManager,
+      statsManager: {} as any
     };
   });
 
@@ -114,7 +120,7 @@ describe('all operation', () => {
       const items = [testItem1, testItem2];
 
       vi.mocked(mockApi.all).mockResolvedValue(items);
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(null);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       const [resultContext, result] = await all(query, testLocations, context);
 
@@ -129,10 +135,10 @@ describe('all operation', () => {
       const query = { limit: 10 };
       const cachedItemKeys = [testItem1.key, testItem2.key];
 
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(cachedItemKeys);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(cachedItemKeys);
       vi.mocked(mockCacheMap.get)
-        .mockReturnValueOnce(testItem1)
-        .mockReturnValueOnce(testItem2);
+        .mockResolvedValueOnce(testItem1)
+        .mockResolvedValueOnce(testItem2);
 
       const [resultContext, result] = await all(query, testLocations, context);
 
@@ -147,10 +153,10 @@ describe('all operation', () => {
       const query = { limit: 10 };
       const cachedItemKeys = [testItem1.key, testItem2.key];
 
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(cachedItemKeys);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(cachedItemKeys);
       vi.mocked(mockCacheMap.get)
-        .mockReturnValueOnce(testItem1)
-        .mockReturnValueOnce(null); // Second item missing
+        .mockResolvedValueOnce(testItem1)
+        .mockResolvedValueOnce(null); // Second item missing
 
       vi.mocked(mockApi.all).mockResolvedValue([testItem1, testItem2]);
 
@@ -167,7 +173,7 @@ describe('all operation', () => {
       const items = [testItem1, testItem2];
 
       vi.mocked(mockApi.all).mockResolvedValue(items);
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(null);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       await all(query, testLocations, context);
 
@@ -185,7 +191,7 @@ describe('all operation', () => {
       const items = [testItem1, testItem2];
 
       vi.mocked(mockApi.all).mockResolvedValue(items);
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(null);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       await all(query, testLocations, context);
 
@@ -210,7 +216,7 @@ describe('all operation', () => {
       const notFoundError = new NotFoundError('Not found', 'TEST_ERROR', { details: 'No items found' });
 
       vi.mocked(mockApi.all).mockRejectedValue(notFoundError);
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(null);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       const [resultContext, result] = await all(query, testLocations, context);
 
@@ -229,7 +235,7 @@ describe('all operation', () => {
       const apiError = new Error('API failure');
 
       vi.mocked(mockApi.all).mockRejectedValue(apiError);
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(null);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       await expect(all(query, testLocations, context)).rejects.toThrow('API failure');
     });
@@ -242,7 +248,7 @@ describe('all operation', () => {
       const items = [testItem1];
 
       vi.mocked(mockApi.all).mockResolvedValue(items);
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(null);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       await all(query1, testLocations, context);
       await all(query2, testLocations, context);
@@ -262,7 +268,7 @@ describe('all operation', () => {
       const items = [testItem1];
 
       vi.mocked(mockApi.all).mockResolvedValue(items);
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(null);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       await all(query, locations1, context);
       await all(query, locations2, context);
@@ -279,7 +285,7 @@ describe('all operation', () => {
       const items = [testItem1, testItem2];
 
       vi.mocked(mockApi.all).mockResolvedValue(items);
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(null);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       const [resultContext, result] = await all(undefined, undefined, context);
 
@@ -293,7 +299,7 @@ describe('all operation', () => {
       const items = [testItem1];
 
       vi.mocked(mockApi.all).mockResolvedValue(items);
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(null);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       const [resultContext, result] = await all(query, [], context);
 
@@ -308,8 +314,8 @@ describe('all operation', () => {
       const query = { limit: 10 };
       const cachedItemKeys = [testItem1.key, testItem2.key];
 
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(cachedItemKeys);
-      vi.mocked(mockCacheMap.get).mockReturnValue(null); // First item missing
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(cachedItemKeys);
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null); // First item missing
 
       vi.mocked(mockApi.all).mockResolvedValue([testItem1, testItem2]);
 
@@ -324,11 +330,11 @@ describe('all operation', () => {
       const testItem4: TestItem = { key: { kt: 'test', pk: '4' as UUID }, id: '4', name: 'Item 4', value: 400 } as TestItem;
       const cachedItemKeys = [testItem1.key, testItem2.key, testItem4.key];
 
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(cachedItemKeys);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(cachedItemKeys);
       vi.mocked(mockCacheMap.get)
-        .mockReturnValueOnce(testItem1)
-        .mockReturnValueOnce(testItem2)
-        .mockReturnValueOnce(null); // Third item missing
+        .mockResolvedValueOnce(testItem1)
+        .mockResolvedValueOnce(testItem2)
+        .mockResolvedValueOnce(null); // Third item missing
 
       vi.mocked(mockApi.all).mockResolvedValue([testItem1, testItem2, testItem4]);
 
@@ -345,7 +351,7 @@ describe('all operation', () => {
       const items = [testItem1];
 
       vi.mocked(mockApi.all).mockResolvedValue(items);
-      vi.mocked(mockCacheMap.getQueryResult).mockReturnValue(null);
+      vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       await all(query, testLocations, context);
 

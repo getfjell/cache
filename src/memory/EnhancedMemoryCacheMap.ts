@@ -106,7 +106,7 @@ export class EnhancedMemoryCacheMap<
     return null;
   }
 
-  public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
+  public async set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): Promise<void> {
     logger.trace('set', { key, value });
     const hashedKey = this.normalizedHashFunction(key);
     const estimatedSize = estimateValueSize(value);
@@ -164,7 +164,7 @@ export class EnhancedMemoryCacheMap<
     return !!entry && this.normalizedHashFunction(entry.originalKey) === hashedKey && entry.value !== null;
   }
 
-  public delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
+  public async delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<void> {
     this.deleteInternal(key, true, 'filter');
   }
 
@@ -196,7 +196,7 @@ export class EnhancedMemoryCacheMap<
     }
   }
 
-  public keys(): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] {
+  public async keys(): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]> {
     return Object.values(this.map)
       .filter(entry => entry.value !== null)
       .map(entry => entry.originalKey);
@@ -208,7 +208,7 @@ export class EnhancedMemoryCacheMap<
       .map(entry => entry.value);
   }
 
-  public clear(): void {
+  public async clear(): Promise<void> {
     logger.debug('Clearing cache', {
       itemsCleared: this.currentItemCount,
       bytesFreed: this.currentSizeBytes
@@ -267,16 +267,17 @@ export class EnhancedMemoryCacheMap<
     const clone = new EnhancedMemoryCacheMap<V, S, L1, L2, L3, L4, L5>(this.types, sizeConfig);
 
     // Copy entries (this will trigger proper size tracking)
-    for (const key of this.keys()) {
+    const keys = await this.keys();
+    for (const key of keys) {
       const value = await this.get(key);
       if (value) {
-        clone.set(key, value);
+        await clone.set(key, value);
       }
     }
 
     // Copy query results
     for (const [queryHash, entry] of Object.entries(this.queryResultCache)) {
-      clone.setQueryResult(queryHash, entry.itemKeys);
+      await clone.setQueryResult(queryHash, entry.itemKeys);
     }
 
     return clone;
@@ -315,7 +316,7 @@ export class EnhancedMemoryCacheMap<
   }
 
   // Query result caching methods
-  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+  public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
     logger.trace('setQueryResult', { queryHash, itemKeys });
 
     // Remove existing entry to get accurate size tracking
@@ -343,24 +344,24 @@ export class EnhancedMemoryCacheMap<
     return [...entry.itemKeys]; // Return a copy to avoid external mutations
   }
 
-  public hasQueryResult(queryHash: string): boolean {
+  public async hasQueryResult(queryHash: string): Promise<boolean> {
     const entry = this.queryResultCache[queryHash];
     return !!entry;
   }
 
-  public deleteQueryResult(queryHash: string): void {
+  public async deleteQueryResult(queryHash: string): Promise<void> {
     if (queryHash in this.queryResultCache) {
       this.removeQueryResultFromSizeTracking(queryHash);
       delete this.queryResultCache[queryHash];
     }
   }
 
-  public clearQueryResults(): void {
+  public async clearQueryResults(): Promise<void> {
     this.queryResultCache = {};
     this.queryResultsCacheSize = 0;
   }
 
-  public invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+  public async invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
     logger.debug('invalidateItemKeys', { keys });
 
     if (keys.length === 0) {
@@ -369,9 +370,9 @@ export class EnhancedMemoryCacheMap<
     }
 
     // Delete the actual cache entries without triggering individual query invalidations
-    keys.forEach(key => {
+    for (const key of keys) {
       this.deleteInternal(key, false);
-    });
+    }
 
     // For bulk invalidation, remove entire queries (don't filter)
     this.invalidateQueriesReferencingKeys(keys);
@@ -444,7 +445,7 @@ export class EnhancedMemoryCacheMap<
 
     if (locations.length === 0) {
       // For primary items (no location), clear all primary keys
-      const allKeys = this.keys();
+      const allKeys = await this.keys();
       const primaryKeys = allKeys.filter(key => !isComKey(key));
       keysToInvalidate = primaryKeys;
     } else {
@@ -454,7 +455,7 @@ export class EnhancedMemoryCacheMap<
     }
 
     // Use invalidateItemKeys which will selectively clear only affected queries
-    this.invalidateItemKeys(keysToInvalidate);
+    await this.invalidateItemKeys(keysToInvalidate);
   }
 
   /**
@@ -501,7 +502,7 @@ export class EnhancedMemoryCacheMap<
   }
 
   // CacheMapMetadataProvider implementation
-  public getMetadata(key: string): CacheItemMetadata | null {
+  public async getMetadata(key: string): Promise<CacheItemMetadata | null> {
     const entry = this.map[key];
     if (entry && !entry.metadataCleared) {
       return entry.metadata;
@@ -509,7 +510,7 @@ export class EnhancedMemoryCacheMap<
     return null;
   }
 
-  public setMetadata(key: string, metadata: CacheItemMetadata): void {
+  public async setMetadata(key: string, metadata: CacheItemMetadata): Promise<void> {
     const entry = this.map[key];
     if (entry) {
       entry.metadata = metadata;
@@ -536,12 +537,12 @@ export class EnhancedMemoryCacheMap<
     }
   }
 
-  public deleteMetadata(_key: string): void {
+  public async deleteMetadata(_key: string): Promise<void> {
     // Metadata is deleted when the item is deleted
     // This is a no-op since metadata is part of the item entry
   }
 
-  public getAllMetadata(): Map<string, CacheItemMetadata> {
+  public async getAllMetadata(): Promise<Map<string, CacheItemMetadata>> {
     const metadata = new Map<string, CacheItemMetadata>();
     for (const [hashedKey, entry] of Object.entries(this.map)) {
       // Only include metadata if it hasn't been cleared
@@ -552,7 +553,7 @@ export class EnhancedMemoryCacheMap<
     return metadata;
   }
 
-  public clearMetadata(): void {
+  public async clearMetadata(): Promise<void> {
     // Mark all entries as having cleared metadata
     const keysToRemove: string[] = [];
 
@@ -572,14 +573,14 @@ export class EnhancedMemoryCacheMap<
     }
   }
 
-  public getCurrentSize(): { itemCount: number; sizeBytes: number } {
+  public async getCurrentSize(): Promise<{ itemCount: number; sizeBytes: number }> {
     return {
       itemCount: this.currentItemCount,
       sizeBytes: this.currentSizeBytes
     };
   }
 
-  public getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+  public async getSizeLimits(): Promise<{ maxItems: number | null; maxSizeBytes: number | null }> {
     return {
       maxItems: this.maxItems ?? null,
       maxSizeBytes: this.maxSizeBytes ?? null

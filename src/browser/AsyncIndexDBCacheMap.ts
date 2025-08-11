@@ -9,6 +9,7 @@ import {
   PriKey
 } from "@fjell/core";
 import { createNormalizedHashFunction, isLocKeyArrayEqual } from "../normalization";
+import { CacheItemMetadata } from "../eviction/EvictionStrategy";
 import LibLogger from "../logger";
 import safeStringify from 'fast-safe-stringify';
 
@@ -17,6 +18,8 @@ const logger = LibLogger.get("AsyncIndexDBCacheMap");
 interface StoredItem<V> {
   originalKey: ComKey<any, any, any, any, any, any> | PriKey<any>;
   value: V;
+  metadata?: CacheItemMetadata;
+  version: number; // For future migration support
 }
 
 /**
@@ -43,6 +46,9 @@ export class AsyncIndexDBCacheMap<
   private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
   private dbPromise: Promise<IDBDatabase> | null = null;
 
+  // Current storage format version
+  private static readonly CURRENT_VERSION = 1;
+
   public constructor(
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
     dbName: string = 'fjell-indexdb-cache',
@@ -59,6 +65,12 @@ export class AsyncIndexDBCacheMap<
   private async getDB(): Promise<IDBDatabase> {
     if (!this.dbPromise) {
       this.dbPromise = new Promise((resolve, reject) => {
+        // Check if IndexedDB is available (not in server-side environment)
+        if (typeof indexedDB === 'undefined') {
+          reject(new Error('IndexedDB is not available in this environment'));
+          return;
+        }
+
         const request = indexedDB.open(this.dbName, this.version);
 
         request.onerror = () => {
@@ -121,8 +133,45 @@ export class AsyncIndexDBCacheMap<
     }
   }
 
-  public async set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): Promise<void> {
-    logger.trace('set', { key, value });
+  /**
+   * Get both the value and metadata for an item
+   */
+  public async getWithMetadata(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<{ value: V; metadata?: CacheItemMetadata } | null> {
+    logger.trace('getWithMetadata', { key });
+    try {
+      const db = await this.getDB();
+      const transaction = db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      const storageKey = this.getStorageKey(key);
+
+      return new Promise((resolve, reject) => {
+        const request = store.get(storageKey);
+
+        request.onerror = () => {
+          logger.error('Error getting from IndexedDB', { key, error: request.error });
+          reject(request.error);
+        };
+
+        request.onsuccess = () => {
+          const stored: StoredItem<V> | undefined = request.result;
+          if (stored && this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key)) {
+            resolve({
+              value: stored.value,
+              metadata: stored.metadata
+            });
+          } else {
+            resolve(null);
+          }
+        };
+      });
+    } catch (error) {
+      logger.error('Error in IndexedDB getWithMetadata operation', { key, error });
+      return null;
+    }
+  }
+
+  public async set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V, metadata?: CacheItemMetadata): Promise<void> {
+    logger.trace('set', { key, value, hasMetadata: !!metadata });
     try {
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readwrite');
@@ -131,7 +180,9 @@ export class AsyncIndexDBCacheMap<
 
       const storedItem: StoredItem<V> = {
         originalKey: key,
-        value: value
+        value: value,
+        metadata: metadata,
+        version: AsyncIndexDBCacheMap.CURRENT_VERSION
       };
 
       return new Promise((resolve, reject) => {
@@ -149,6 +200,24 @@ export class AsyncIndexDBCacheMap<
     } catch (error) {
       logger.error('Error in IndexedDB set operation', { key, value, error });
       throw new Error(`Failed to store item in IndexedDB: ${error}`);
+    }
+  }
+
+  /**
+   * Update only the metadata for an existing item
+   */
+  public async setMetadata(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, metadata: CacheItemMetadata): Promise<void> {
+    logger.trace('setMetadata', { key, metadata });
+    try {
+      const existing = await this.getWithMetadata(key);
+      if (existing) {
+        await this.set(key, existing.value, metadata);
+      } else {
+        logger.warning('Attempted to set metadata for non-existent item', { key });
+      }
+    } catch (error) {
+      logger.error('Error in IndexedDB setMetadata operation', { key, error });
+      throw new Error(`Failed to update metadata in IndexedDB: ${error}`);
     }
   }
 
@@ -286,6 +355,45 @@ export class AsyncIndexDBCacheMap<
     } catch (error) {
       logger.error('Error in IndexedDB keys operation', { error });
       return [];
+    }
+  }
+
+  /**
+   * Get all metadata entries from IndexedDB
+   */
+  public async getAllMetadata(): Promise<Map<string, CacheItemMetadata>> {
+    const metadataMap = new Map<string, CacheItemMetadata>();
+
+    try {
+      const db = await this.getDB();
+      const transaction = db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+
+      return new Promise((resolve, reject) => {
+        const request = store.openCursor();
+
+        request.onerror = () => {
+          logger.error('Error getting metadata from IndexedDB', { error: request.error });
+          reject(request.error);
+        };
+
+        request.onsuccess = (event) => {
+          const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+          if (cursor) {
+            const stored: StoredItem<V> = cursor.value;
+            if (stored.metadata) {
+              const keyStr = JSON.stringify(stored.originalKey);
+              metadataMap.set(keyStr, stored.metadata);
+            }
+            cursor.continue();
+          } else {
+            resolve(metadataMap);
+          }
+        };
+      });
+    } catch (error) {
+      logger.error('Error in IndexedDB getAllMetadata operation', { error });
+      return metadataMap;
     }
   }
 

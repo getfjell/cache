@@ -50,7 +50,7 @@ describe('Options', () => {
         cacheType: 'memory',
         memoryConfig: {
           maxItems: 100,
-          ttl: 60000
+
         }
       });
 
@@ -234,7 +234,7 @@ describe('Options', () => {
         enableDebugLogging: true,
         memoryConfig: {
           maxItems: 500,
-          ttl: 300000
+
         }
       });
 
@@ -244,7 +244,7 @@ describe('Options', () => {
       expect(options.autoSync).toBe(false);
       expect(options.enableDebugLogging).toBe(true);
       expect(options.memoryConfig?.maxItems).toBe(500);
-      expect(options.memoryConfig?.ttl).toBe(300000);
+
     });
   });
 

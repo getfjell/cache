@@ -18,58 +18,67 @@ describe('LFUEvictionStrategy', () => {
     };
   }
 
+  afterEach(() => {
+    // Clean up any strategy resources
+    if (strategy) {
+      strategy.reset();
+    }
+    // Clear timers to prevent memory leaks
+    vi.clearAllTimers();
+  });
+
   describe('Backwards Compatible Mode (Default)', () => {
     beforeEach(() => {
       strategy = new LFUEvictionStrategy();
       metadataProvider = new MockMetadataProvider();
     });
 
-    it('should select item with lowest access count', () => {
+    it('should select item with lowest access count', async () => {
       // Add items to metadata provider
-      metadataProvider.setMetadata('key1', createMockMetadata('key1', 1000, 5));
-      metadataProvider.setMetadata('key2', createMockMetadata('key2', 2000, 2)); // Should be evicted
-      metadataProvider.setMetadata('key3', createMockMetadata('key3', 3000, 8));
+      await metadataProvider.setMetadata('key1', createMockMetadata('key1', 1000, 5));
+      await metadataProvider.setMetadata('key2', createMockMetadata('key2', 2000, 2)); // Should be evicted
+      await metadataProvider.setMetadata('key3', createMockMetadata('key3', 3000, 8));
 
       const context = {
         currentSize: { itemCount: 3, sizeBytes: 300 },
         limits: { maxItems: 3, maxSizeBytes: null }
       };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toContain('key2');
     });
 
-    it('should use access time as tiebreaker when access counts are equal', () => {
+    it('should use access time as tiebreaker when access counts are equal', async () => {
       // Add items to metadata provider
-      metadataProvider.setMetadata('key1', createMockMetadata('key1', 1000, 3)); // Older, should be evicted
-      metadataProvider.setMetadata('key2', createMockMetadata('key2', 2000, 3));
+      await metadataProvider.setMetadata('key1', createMockMetadata('key1', 1000, 3)); // Older, should be evicted
+      await metadataProvider.setMetadata('key2', createMockMetadata('key2', 2000, 3));
 
       const context = {
         currentSize: { itemCount: 2, sizeBytes: 200 },
         limits: { maxItems: 2, maxSizeBytes: null }
       };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toContain('key1');
     });
 
-    it('should increment access count on item access', () => {
+    it('should increment access count on item access', async () => {
       const metadata = createMockMetadata('key1', 1000, 5);
-      metadataProvider.setMetadata('key1', metadata);
+      await metadataProvider.setMetadata('key1', metadata!);
 
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
-      expect(updatedMetadata.accessCount).toBe(6);
-      expect(updatedMetadata.rawFrequency).toBe(6);
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      expect(updatedMetadata!.accessCount).toBe(6);
+      expect(updatedMetadata!.rawFrequency).toBe(6);
     });
 
-    it('should initialize new items correctly', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should initialize new items correctly', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
-      const metadata = metadataProvider.getMetadata('key1')!;
-      expect(metadata.accessCount).toBe(1);
-      expect(metadata.rawFrequency).toBe(1);
-      expect(metadata.frequencyScore).toBe(1); // Always initialized for consistency
-      expect(metadata.estimatedSize).toBe(100);
+      const metadata = await metadataProvider.getMetadata('key1');
+      expect(metadata!.accessCount).toBe(1);
+      expect(metadata!.rawFrequency).toBe(1);
+      expect(metadata!.frequencyScore).toBe(1); // Always initialized for consistency
+      expect(metadata!.estimatedSize).toBe(100);
     });
   });
 
@@ -86,37 +95,37 @@ describe('LFUEvictionStrategy', () => {
       strategy = new LFUEvictionStrategy(config);
     });
 
-    it('should use count-min sketch for frequency estimation', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should use count-min sketch for frequency estimation', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Access multiple times
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('key1', metadataProvider);
+        await strategy.onItemAccessed('key1', metadataProvider);
       }
 
-      const metadata = metadataProvider.getMetadata('key1')!;
-      expect(metadata.rawFrequency).toBeGreaterThan(0);
-      expect(metadata.accessCount).toBe(6); // 1 from add + 5 from access
+      const metadata = await metadataProvider.getMetadata('key1')!;
+      expect(metadata!.rawFrequency).toBeGreaterThan(0);
+      expect(metadata!.accessCount).toBe(6); // 1 from add + 5 from access
     });
 
-    it('should handle frequency estimation for multiple keys', () => {
+    it('should handle frequency estimation for multiple keys', async () => {
       // Add items
-      strategy.onItemAdded('frequent', 100, metadataProvider);
-      strategy.onItemAdded('rare', 100, metadataProvider);
+      await strategy.onItemAdded('frequent', 100, metadataProvider);
+      await strategy.onItemAdded('rare', 100, metadataProvider);
 
       // Access frequent item multiple times
       for (let i = 0; i < 10; i++) {
-        strategy.onItemAccessed('frequent', metadataProvider);
+        await strategy.onItemAccessed('frequent', metadataProvider);
       }
 
       // Access rare item once
-      strategy.onItemAccessed('rare', metadataProvider);
+      await strategy.onItemAccessed('rare', metadataProvider);
 
       const context = {
         currentSize: { itemCount: 2, sizeBytes: 200 },
         limits: { maxItems: 2, maxSizeBytes: null }
       };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toContain('rare'); // Should evict the less frequent item
     });
   });
@@ -139,37 +148,37 @@ describe('LFUEvictionStrategy', () => {
       vi.useRealTimers();
     });
 
-    it('should apply decay to frequency scores over time', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      const metadata = metadataProvider.getMetadata('key1')!;
+    it('should apply decay to frequency scores over time', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = await metadataProvider.getMetadata('key1')!;
 
-      expect(metadata.frequencyScore).toBe(1);
+      expect(metadata!.frequencyScore).toBe(1);
 
       // Advance time and access item
       vi.advanceTimersByTime(30000); // 30 seconds
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
-      const initialScore = updatedMetadata.frequencyScore!;
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      const initialScore = updatedMetadata!.frequencyScore!;
       expect(initialScore).toBeGreaterThan(1);
 
       // Advance time significantly and check decay
       vi.advanceTimersByTime(60000); // 1 minute
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
       // Score should have some decay applied
-      const finalMetadata = metadataProvider.getMetadata('key1')!;
-      expect(finalMetadata.frequencyScore).toBeGreaterThanOrEqual(1); // At least min threshold
+      const finalMetadata = await metadataProvider.getMetadata('key1')!;
+      expect(finalMetadata!.frequencyScore).toBeGreaterThanOrEqual(1); // At least min threshold
     });
 
-    it('should apply periodic decay to the entire cache', () => {
+    it('should apply periodic decay to the entire cache', async () => {
       // Initialize items
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      strategy.onItemAdded('key2', 100, metadataProvider);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAdded('key2', 100, metadataProvider);
 
       // Build up frequencies
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('key1', metadataProvider);
+        await strategy.onItemAccessed('key1', metadataProvider);
       }
 
       // Advance time past decay interval
@@ -180,14 +189,14 @@ describe('LFUEvictionStrategy', () => {
         currentSize: { itemCount: 2, sizeBytes: 200 },
         limits: { maxItems: 2, maxSizeBytes: null }
       };
-      strategy.selectForEviction(metadataProvider, context);
+      await strategy.selectForEviction(metadataProvider, context);
 
       // The periodic decay should have been applied
       // (Specific values depend on implementation details)
     });
 
-    it('should respect minimum frequency threshold', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should respect minimum frequency threshold', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Advance time way past decay interval
       vi.advanceTimersByTime(600000); // 10 minutes
@@ -196,10 +205,10 @@ describe('LFUEvictionStrategy', () => {
         currentSize: { itemCount: 1, sizeBytes: 100 },
         limits: { maxItems: 1, maxSizeBytes: null }
       };
-      strategy.selectForEviction(metadataProvider, context); // Apply decay
+      await strategy.selectForEviction(metadataProvider, context); // Apply decay
 
       // Even with significant decay, frequency should not go below threshold
-      const metadata = metadataProvider.getMetadata('key1')!;
+      const metadata = (await metadataProvider.getMetadata('key1'))!;
       const config = strategy.getConfig();
       expect(metadata.frequencyScore).toBeGreaterThanOrEqual(config.minFrequencyThreshold!);
     });
@@ -225,14 +234,14 @@ describe('LFUEvictionStrategy', () => {
       vi.useRealTimers();
     });
 
-    it('should combine probabilistic counting with time-based decay', () => {
+    it('should combine probabilistic counting with time-based decay', async () => {
       // Initialize items
-      strategy.onItemAdded('old-frequent', 100, metadataProvider);
-      strategy.onItemAdded('new-frequent', 100, metadataProvider);
+      await strategy.onItemAdded('old-frequent', 100, metadataProvider);
+      await strategy.onItemAdded('new-frequent', 100, metadataProvider);
 
       // Make old item very frequent initially
       for (let i = 0; i < 20; i++) {
-        strategy.onItemAccessed('old-frequent', metadataProvider);
+        await strategy.onItemAccessed('old-frequent', metadataProvider);
       }
 
       // Advance time significantly
@@ -240,14 +249,14 @@ describe('LFUEvictionStrategy', () => {
 
       // Make new item moderately frequent
       for (let i = 0; i < 10; i++) {
-        strategy.onItemAccessed('new-frequent', metadataProvider);
+        await strategy.onItemAccessed('new-frequent', metadataProvider);
       }
 
       const context = {
         currentSize: { itemCount: 2, sizeBytes: 200 },
         limits: { maxItems: 1, maxSizeBytes: null }
       };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
 
       // Due to decay, the old frequent item might now be less valuable than new frequent
       // The exact result depends on decay parameters, but both should be valid candidates
@@ -275,22 +284,22 @@ describe('LFUEvictionStrategy', () => {
       expect(returnedConfig.useProbabilisticCounting).toBe(true);
     });
 
-    it('should reset frequency tracking when requested', () => {
+    it('should reset frequency tracking when requested', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: true
       };
       strategy = new LFUEvictionStrategy(config);
 
-      strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Build up frequency
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('key1', metadataProvider);
+        await strategy.onItemAccessed('key1', metadataProvider);
       }
 
-      const metadata = metadataProvider.getMetadata('key1')!;
-      expect(metadata.rawFrequency).toBeGreaterThan(1);
+      const metadata = await metadataProvider.getMetadata('key1');
+      expect(metadata!.rawFrequency).toBeGreaterThan(1);
 
       // Reset should clear internal sketch state
       strategy.reset();
@@ -299,20 +308,20 @@ describe('LFUEvictionStrategy', () => {
       // (Note: existing metadata is not cleared, only internal sketch state)
     });
 
-    it('should handle empty item sets gracefully', () => {
+    it('should handle empty item sets gracefully', async () => {
       const context = {
         currentSize: { itemCount: 0, sizeBytes: 0 },
         limits: { maxItems: 10, maxSizeBytes: null }
       };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toEqual([]);
     });
 
-    it('should handle onItemRemoved calls', () => {
+    it('should handle onItemRemoved calls', async () => {
       strategy = new LFUEvictionStrategy();
 
       // This method should execute without error
-      expect(() => strategy.onItemRemoved('key1', metadataProvider)).not.toThrow();
+      await expect(strategy.onItemRemoved('key1', metadataProvider)).resolves.not.toThrow();
     });
   });
 
@@ -326,7 +335,7 @@ describe('LFUEvictionStrategy', () => {
       vi.useRealTimers();
     });
 
-    it('should handle metadata without frequencyScore in decay mode', () => {
+    it('should handle metadata without frequencyScore in decay mode', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: false,
@@ -335,25 +344,25 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      const metadata = metadataProvider.getMetadata('key1')!;
-      metadata.rawFrequency = 5;
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = await metadataProvider.getMetadata('key1')!;
+      metadata!.rawFrequency = 5;
       // Deliberately not setting frequencyScore or lastFrequencyUpdate
-      delete metadata.frequencyScore;
-      delete metadata.lastFrequencyUpdate;
-      metadataProvider.setMetadata('key1', metadata);
+      delete metadata!.frequencyScore;
+      delete metadata!.lastFrequencyUpdate;
+      await metadataProvider.setMetadata('key1', metadata!);
 
       const context = {
         currentSize: { itemCount: 1, sizeBytes: 100 },
         limits: { maxItems: 1, maxSizeBytes: null }
       };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
 
       // Should fallback to rawFrequency
       expect(result).toContain('key1');
     });
 
-    it('should handle metadata without lastFrequencyUpdate in calculateFrequencyScore', () => {
+    it('should handle metadata without lastFrequencyUpdate in calculateFrequencyScore', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: false,
@@ -362,43 +371,43 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      const metadata = metadataProvider.getMetadata('key1')!;
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = (await metadataProvider.getMetadata('key1'))!;
       metadata.rawFrequency = 3;
       metadata.accessCount = 1;
       // Deliberately not setting lastFrequencyUpdate (should be undefined)
       delete metadata.lastFrequencyUpdate;
-      metadataProvider.setMetadata('key1', metadata);
+      await metadataProvider.setMetadata('key1', metadata);
 
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
       // The calculateFrequencyScore should return rawFrequency when lastFrequencyUpdate is not a number
       // Note: rawFrequency gets updated to accessCount (2) during onItemAccessed since useProbabilisticCounting is false
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
-      expect(updatedMetadata.frequencyScore).toBe(2);
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      expect(updatedMetadata!.frequencyScore).toBe(2);
     });
 
-    it('should handle undefined rawFrequency in fallback paths', () => {
+    it('should handle undefined rawFrequency in fallback paths', async () => {
       strategy = new LFUEvictionStrategy(); // Default config with no decay
 
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      const metadata = metadataProvider.getMetadata('key1')!;
-      metadata.accessCount = 7;
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = await metadataProvider.getMetadata('key1')!;
+      metadata!.accessCount = 7;
       // Deliberately not setting rawFrequency
-      delete metadata.rawFrequency;
-      metadataProvider.setMetadata('key1', metadata);
+      delete metadata!.rawFrequency;
+      await metadataProvider.setMetadata('key1', metadata!);
 
       const context = {
         currentSize: { itemCount: 1, sizeBytes: 100 },
         limits: { maxItems: 1, maxSizeBytes: null }
       };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
 
       // Should use accessCount as fallback
       expect(result).toContain('key1');
     });
 
-    it('should handle metadata with undefined rawFrequency in decay calculation', () => {
+    it('should handle metadata with undefined rawFrequency in decay calculation', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: false,
@@ -407,21 +416,21 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      const metadata = metadataProvider.getMetadata('key1')!;
-      metadata.accessCount = 4;
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = await metadataProvider.getMetadata('key1')!;
+      metadata!.accessCount = 4;
       // Deliberately set rawFrequency to undefined
-      delete metadata.rawFrequency;
-      metadataProvider.setMetadata('key1', metadata);
+      delete metadata!.rawFrequency;
+      await metadataProvider.setMetadata('key1', metadata!);
 
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
       // Should fall back to accessCount for calculations
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
-      expect(updatedMetadata.frequencyScore).toBeGreaterThan(0);
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      expect(updatedMetadata!.frequencyScore).toBeGreaterThan(0);
     });
 
-    it('should calculate frequency score with full decay path', () => {
+    it('should calculate frequency score with full decay path', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: false,
@@ -431,23 +440,23 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // First access to establish baseline
-      strategy.onItemAccessed('key1', metadataProvider);
-      const metadata = metadataProvider.getMetadata('key1')!;
-      const firstScore = metadata.frequencyScore!;
+      await strategy.onItemAccessed('key1', metadataProvider);
+      const metadata = await metadataProvider.getMetadata('key1')!;
+      const firstScore = metadata!.frequencyScore!;
 
       // Advance time and access again to test full decay calculation
       vi.advanceTimersByTime(30000); // 30 seconds
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
       // Should have calculated with decay
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
-      expect(updatedMetadata.frequencyScore).toBeGreaterThan(firstScore);
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      expect(updatedMetadata!.frequencyScore).toBeGreaterThan(firstScore);
     });
 
-    it('should handle undefined frequencyScore in calculateFrequencyScore', () => {
+    it('should handle undefined frequencyScore in calculateFrequencyScore', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: false,
@@ -456,22 +465,22 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      const metadata = metadataProvider.getMetadata('key1')!;
-      metadata.rawFrequency = 5;
-      metadata.lastFrequencyUpdate = Date.now() - 10000; // 10 seconds ago
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = await metadataProvider.getMetadata('key1')!;
+      metadata!.rawFrequency = 5;
+      metadata!.lastFrequencyUpdate = Date.now() - 10000; // 10 seconds ago
       // Deliberately not setting frequencyScore
-      delete metadata.frequencyScore;
-      metadataProvider.setMetadata('key1', metadata);
+      delete metadata!.frequencyScore;
+      await metadataProvider.setMetadata('key1', metadata!);
 
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
       // Should use rawFreq as fallback for previousScore
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
-      expect(updatedMetadata.frequencyScore).toBeGreaterThan(0);
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      expect(updatedMetadata!.frequencyScore).toBeGreaterThan(0);
     });
 
-    it('should test periodic decay with probabilistic counting', () => {
+    it('should test periodic decay with probabilistic counting', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: true,
@@ -482,11 +491,11 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Build up frequency
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('key1', metadataProvider);
+        await strategy.onItemAccessed('key1', metadataProvider);
       }
 
       // Advance time past decay interval
@@ -497,33 +506,33 @@ describe('LFUEvictionStrategy', () => {
         currentSize: { itemCount: 1, sizeBytes: 100 },
         limits: { maxItems: 1, maxSizeBytes: null }
       };
-      strategy.selectForEviction(metadataProvider, context);
+      await strategy.selectForEviction(metadataProvider, context);
 
       // The decay should have been applied (exact values depend on implementation)
-      const metadata = metadataProvider.getMetadata('key1')!;
-      expect(metadata.rawFrequency).toBeGreaterThan(0);
+      const metadata = await metadataProvider.getMetadata('key1');
+      expect(metadata!.rawFrequency).toBeGreaterThan(0);
     });
 
-    it('should handle rawFrequency being 0 or falsy', () => {
+    it('should handle rawFrequency being 0 or falsy', async () => {
       strategy = new LFUEvictionStrategy(); // Default config
 
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      const metadata = metadataProvider.getMetadata('key1')!;
-      metadata.accessCount = 3;
-      metadata.rawFrequency = 0; // Explicitly set to 0
-      metadataProvider.setMetadata('key1', metadata);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = await metadataProvider.getMetadata('key1')!;
+      metadata!.accessCount = 3;
+      metadata!.rawFrequency = 0; // Explicitly set to 0
+      await metadataProvider.setMetadata('key1', metadata!);
 
       const context = {
         currentSize: { itemCount: 1, sizeBytes: 100 },
         limits: { maxItems: 1, maxSizeBytes: null }
       };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
 
       // Should use accessCount when rawFrequency is 0
       expect(result).toContain('key1');
     });
 
-    it('should test periodic decay without probabilistic counting', () => {
+    it('should test periodic decay without probabilistic counting', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: false, // No sketch
@@ -532,7 +541,7 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Advance time past decay interval
       vi.advanceTimersByTime(35000); // 35 seconds
@@ -542,11 +551,11 @@ describe('LFUEvictionStrategy', () => {
         currentSize: { itemCount: 1, sizeBytes: 100 },
         limits: { maxItems: 1, maxSizeBytes: null }
       };
-      strategy.selectForEviction(metadataProvider, context);
+      await strategy.selectForEviction(metadataProvider, context);
 
       // Should complete without error even without sketch
-      const metadata = metadataProvider.getMetadata('key1')!;
-      expect(metadata.accessCount).toBe(1);
+      const metadata = await metadataProvider.getMetadata('key1')!;
+      expect(metadata!.accessCount).toBe(1);
     });
   });
 
@@ -555,7 +564,7 @@ describe('LFUEvictionStrategy', () => {
       metadataProvider = new MockMetadataProvider();
     });
 
-    it('should test hash function with edge case inputs', () => {
+    it('should test hash function with edge case inputs', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: true,
@@ -582,17 +591,17 @@ describe('LFUEvictionStrategy', () => {
         JSON.stringify({ nested: { object: 'as-key' } }) // JSON as key
       ];
 
-      testKeys.forEach(key => {
-        strategy.onItemAdded(key, 100, metadataProvider);
-        strategy.onItemAccessed(key, metadataProvider);
+      for (const key of testKeys) {
+        await strategy.onItemAdded(key, 100, metadataProvider);
+        await strategy.onItemAccessed(key, metadataProvider);
 
-        const metadata = metadataProvider.getMetadata(key);
+        const metadata = await metadataProvider.getMetadata(key);
         expect(metadata).toBeTruthy();
         expect(metadata!.rawFrequency).toBeGreaterThan(0);
-      });
+      }
     });
 
-    it('should test hash function distribution with power-of-2 sketch width', () => {
+    it('should test hash function distribution with power-of-2 sketch width', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: true,
@@ -604,19 +613,19 @@ describe('LFUEvictionStrategy', () => {
       // Add many items to test distribution
       for (let i = 0; i < 1000; i++) {
         const key = `key-${i}`;
-        strategy.onItemAdded(key, 100, metadataProvider);
-        strategy.onItemAccessed(key, metadataProvider);
+        await strategy.onItemAdded(key, 100, metadataProvider);
+        await strategy.onItemAccessed(key, metadataProvider);
       }
 
       // Verify all items have frequencies
-      const allMetadata = metadataProvider.getAllMetadata();
+      const allMetadata = await metadataProvider.getAllMetadata();
       expect(allMetadata.size).toBe(1000);
-      allMetadata.forEach(metadata => {
+      for (const metadata of Array.from(allMetadata.values())) {
         expect(metadata.rawFrequency).toBeGreaterThan(0);
-      });
+      }
     });
 
-    it('should test hash function distribution with non-power-of-2 sketch width', () => {
+    it('should test hash function distribution with non-power-of-2 sketch width', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: true,
@@ -628,19 +637,19 @@ describe('LFUEvictionStrategy', () => {
       // Add many items to test distribution
       for (let i = 0; i < 500; i++) {
         const key = `key-${i}`;
-        strategy.onItemAdded(key, 100, metadataProvider);
-        strategy.onItemAccessed(key, metadataProvider);
+        await strategy.onItemAdded(key, 100, metadataProvider);
+        await strategy.onItemAccessed(key, metadataProvider);
       }
 
       // Verify all items have frequencies
-      const allMetadata = metadataProvider.getAllMetadata();
+      const allMetadata = await metadataProvider.getAllMetadata();
       expect(allMetadata.size).toBe(500);
-      allMetadata.forEach(metadata => {
+      for (const metadata of Array.from(allMetadata.values())) {
         expect(metadata.rawFrequency).toBeGreaterThan(0);
-      });
+      }
     });
 
-    it('should handle sketch operations with minimum dimensions', () => {
+    it('should handle sketch operations with minimum dimensions', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: true,
@@ -649,18 +658,18 @@ describe('LFUEvictionStrategy', () => {
       };
       strategy = new LFUEvictionStrategy(config);
 
-      strategy.onItemAdded('test-key', 100, metadataProvider);
+      await strategy.onItemAdded('test-key', 100, metadataProvider);
 
       // Access multiple times to test sketch increments
       for (let i = 0; i < 10; i++) {
-        strategy.onItemAccessed('test-key', metadataProvider);
+        await strategy.onItemAccessed('test-key', metadataProvider);
       }
 
-      const metadata = metadataProvider.getMetadata('test-key')!;
-      expect(metadata.rawFrequency).toBeGreaterThan(10); // Should be at least access count
+      const metadata = await metadataProvider.getMetadata('test-key')!;
+      expect(metadata!.rawFrequency).toBeGreaterThan(10); // Should be at least access count
     });
 
-    it('should handle sketch reset functionality', () => {
+    it('should handle sketch reset functionality', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: true,
@@ -670,21 +679,21 @@ describe('LFUEvictionStrategy', () => {
       strategy = new LFUEvictionStrategy(config);
 
       // Build up frequencies
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      strategy.onItemAdded('key2', 100, metadataProvider);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAdded('key2', 100, metadataProvider);
 
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('key1', metadataProvider);
-        strategy.onItemAccessed('key2', metadataProvider);
+        await strategy.onItemAccessed('key1', metadataProvider);
+        await strategy.onItemAccessed('key2', metadataProvider);
       }
 
       // Reset should clear internal sketch
       strategy.reset();
 
       // New items should start fresh
-      strategy.onItemAdded('new-key', 100, metadataProvider);
-      const newMetadata = metadataProvider.getMetadata('new-key')!;
-      expect(newMetadata.rawFrequency).toBe(1);
+      await strategy.onItemAdded('new-key', 100, metadataProvider);
+      const newMetadata = await metadataProvider.getMetadata('new-key')!;
+      expect(newMetadata!.rawFrequency).toBe(1);
     });
   });
 
@@ -764,7 +773,7 @@ describe('LFUEvictionStrategy', () => {
       strategy = new LFUEvictionStrategy();
     });
 
-    it('should handle zero limits correctly', () => {
+    it('should handle zero limits correctly', async () => {
       metadataProvider.setSizeLimits(0, 0);
 
       const context = {
@@ -772,16 +781,16 @@ describe('LFUEvictionStrategy', () => {
         limits: { maxItems: 0, maxSizeBytes: 0 }
       };
 
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toEqual([]);
     });
 
-    it('should handle null limits correctly', () => {
+    it('should handle null limits correctly', async () => {
       metadataProvider.setSizeLimits(null, null);
 
       // Add some items
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      strategy.onItemAdded('key2', 200, metadataProvider);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAdded('key2', 200, metadataProvider);
 
       const context = {
         currentSize: { itemCount: 2, sizeBytes: 300 },
@@ -789,26 +798,26 @@ describe('LFUEvictionStrategy', () => {
       };
 
       // Should not evict anything when no limits
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toEqual([]);
     });
 
-    it('should handle mixed null and non-null limits', () => {
+    it('should handle mixed null and non-null limits', async () => {
       // Only item count limit
       const context1 = {
         currentSize: { itemCount: 3, sizeBytes: 300 },
         limits: { maxItems: 2, maxSizeBytes: null }
       };
 
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      strategy.onItemAdded('key2', 100, metadataProvider);
-      strategy.onItemAdded('key3', 100, metadataProvider);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAdded('key2', 100, metadataProvider);
+      await strategy.onItemAdded('key3', 100, metadataProvider);
 
-      const result1 = strategy.selectForEviction(metadataProvider, context1);
+      const result1 = await strategy.selectForEviction(metadataProvider, context1);
       expect(result1.length).toBeGreaterThan(0);
 
       // Reset for next test
-      metadataProvider.clearMetadata();
+      await metadataProvider.clearMetadata();
 
       // Only size limit
       const context2 = {
@@ -816,15 +825,15 @@ describe('LFUEvictionStrategy', () => {
         limits: { maxItems: null, maxSizeBytes: 250 }
       };
 
-      strategy.onItemAdded('key1', 150, metadataProvider);
-      strategy.onItemAdded('key2', 150, metadataProvider);
+      await strategy.onItemAdded('key1', 150, metadataProvider);
+      await strategy.onItemAdded('key2', 150, metadataProvider);
 
-      const result2 = strategy.selectForEviction(metadataProvider, context2);
+      const result2 = await strategy.selectForEviction(metadataProvider, context2);
       expect(result2.length).toBeGreaterThan(0);
     });
 
-    it('should handle newItemSize in eviction context', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should handle newItemSize in eviction context', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       const context = {
         currentSize: { itemCount: 1, sizeBytes: 100 },
@@ -832,17 +841,17 @@ describe('LFUEvictionStrategy', () => {
         newItemSize: 100 // Would exceed size limit
       };
 
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result.length).toBeGreaterThan(0);
       expect(result).toContain('key1');
     });
 
-    it('should calculate correct eviction count for multiple scenarios', () => {
+    it('should calculate correct eviction count for multiple scenarios', async () => {
       // Setup multiple items with different sizes
-      strategy.onItemAdded('small1', 50, metadataProvider);
-      strategy.onItemAdded('small2', 50, metadataProvider);
-      strategy.onItemAdded('large1', 200, metadataProvider);
-      strategy.onItemAdded('large2', 200, metadataProvider);
+      await strategy.onItemAdded('small1', 50, metadataProvider);
+      await strategy.onItemAdded('small2', 50, metadataProvider);
+      await strategy.onItemAdded('large1', 200, metadataProvider);
+      await strategy.onItemAdded('large2', 200, metadataProvider);
 
       // Test eviction count calculation based on size
       const context = {
@@ -851,17 +860,17 @@ describe('LFUEvictionStrategy', () => {
         newItemSize: 100
       };
 
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result.length).toBeGreaterThan(0);
 
       // Should evict enough items to make room
       let totalEvictedSize = 0;
-      result.forEach(key => {
-        const metadata = metadataProvider.getMetadata(key);
+      for (const key of result) {
+        const metadata = await metadataProvider.getMetadata(key);
         if (metadata) {
           totalEvictedSize += metadata.estimatedSize;
         }
-      });
+      }
 
       expect(totalEvictedSize).toBeGreaterThan(0);
     });
@@ -873,97 +882,87 @@ describe('LFUEvictionStrategy', () => {
       strategy = new LFUEvictionStrategy();
     });
 
-    it('should handle accessing non-existent keys gracefully', () => {
-      expect(() => {
-        strategy.onItemAccessed('non-existent-key', metadataProvider);
-      }).not.toThrow();
+    it('should handle accessing non-existent keys gracefully', async () => {
+      await expect(strategy.onItemAccessed('non-existent-key', metadataProvider)).resolves.not.toThrow();
     });
 
-    it('should handle metadata with missing optional fields', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      const metadata = metadataProvider.getMetadata('key1')!;
+    it('should handle metadata with missing optional fields', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = await metadataProvider.getMetadata('key1')!;
 
       // Remove optional fields
-      delete metadata.frequencyScore;
-      delete metadata.lastFrequencyUpdate;
-      delete metadata.rawFrequency;
-      delete metadata.strategyData;
+      delete metadata!.frequencyScore;
+      delete metadata!.lastFrequencyUpdate;
+      delete metadata!.rawFrequency;
+      delete metadata!.strategyData;
 
-      metadataProvider.setMetadata('key1', metadata);
+      await metadataProvider.setMetadata('key1', metadata!);
 
       // Should handle gracefully
-      expect(() => {
-        strategy.onItemAccessed('key1', metadataProvider);
-      }).not.toThrow();
+      await expect(strategy.onItemAccessed('key1', metadataProvider)).resolves.not.toThrow();
 
       const context = {
         currentSize: { itemCount: 1, sizeBytes: 100 },
         limits: { maxItems: 1, maxSizeBytes: null }
       };
 
-      expect(() => {
-        strategy.selectForEviction(metadataProvider, context);
-      }).not.toThrow();
+      await expect(strategy.selectForEviction(metadataProvider, context)).resolves.not.toThrow();
     });
 
-    it('should handle metadata with zero or negative values', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      const metadata = metadataProvider.getMetadata('key1')!;
+    it('should handle metadata with zero or negative values', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      const metadata = await metadataProvider.getMetadata('key1')!;
 
       // Set problematic values
-      metadata.accessCount = 0;
-      metadata.rawFrequency = -1;
-      metadata.estimatedSize = -100;
-      metadata.lastAccessedAt = -1000;
-      metadata.addedAt = -2000;
+      metadata!.accessCount = 0;
+      metadata!.rawFrequency = -1;
+      metadata!.estimatedSize = -100;
+      metadata!.lastAccessedAt = -1000;
+      metadata!.addedAt = -2000;
 
-      metadataProvider.setMetadata('key1', metadata);
+      await metadataProvider.setMetadata('key1', metadata!);
 
-      expect(() => {
-        strategy.onItemAccessed('key1', metadataProvider);
-      }).not.toThrow();
+      await expect(strategy.onItemAccessed('key1', metadataProvider)).resolves.not.toThrow();
 
       const context = {
         currentSize: { itemCount: 1, sizeBytes: 100 },
         limits: { maxItems: 1, maxSizeBytes: null }
       };
 
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toContain('key1');
     });
 
-    it('should handle concurrent metadata modifications', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should handle concurrent metadata modifications', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Simulate concurrent modification
-      const metadata1 = metadataProvider.getMetadata('key1')!;
-      const metadata2 = { ...metadata1 };
+      const metadata1 = await metadataProvider.getMetadata('key1')!;
+      const metadata2 = { ...metadata1! };
 
       // Modify both versions
-      metadata1.accessCount = 5;
+      metadata1!.accessCount = 5;
       metadata2.accessCount = 10;
 
-      metadataProvider.setMetadata('key1', metadata1);
-      metadataProvider.setMetadata('key1', metadata2);
+      await metadataProvider.setMetadata('key1', metadata1!);
+      await metadataProvider.setMetadata('key1', metadata2);
 
       // Should use the last set metadata
-      const finalMetadata = metadataProvider.getMetadata('key1')!;
-      expect(finalMetadata.accessCount).toBe(10);
+      const finalMetadata = await metadataProvider.getMetadata('key1')!;
+      expect(finalMetadata!.accessCount).toBe(10);
     });
 
-    it('should handle extremely large numbers in metadata', () => {
-      strategy.onItemAdded('key1', Number.MAX_SAFE_INTEGER, metadataProvider);
-      const metadata = metadataProvider.getMetadata('key1')!;
+    it('should handle extremely large numbers in metadata', async () => {
+      await strategy.onItemAdded('key1', Number.MAX_SAFE_INTEGER, metadataProvider);
+      const metadata = await metadataProvider.getMetadata('key1')!;
 
-      metadata.accessCount = Number.MAX_SAFE_INTEGER;
-      metadata.rawFrequency = Number.MAX_SAFE_INTEGER;
-      metadata.lastAccessedAt = Number.MAX_SAFE_INTEGER;
+      metadata!.accessCount = Number.MAX_SAFE_INTEGER;
+      metadata!.rawFrequency = Number.MAX_SAFE_INTEGER;
+      metadata!.lastAccessedAt = Number.MAX_SAFE_INTEGER;
 
-      metadataProvider.setMetadata('key1', metadata);
+      await metadataProvider.setMetadata('key1', metadata!);
 
-      expect(() => {
-        strategy.onItemAccessed('key1', metadataProvider);
-      }).not.toThrow();
+      await expect(strategy.onItemAccessed('key1', metadataProvider)).resolves.not.toThrow();
     });
   });
 
@@ -972,7 +971,7 @@ describe('LFUEvictionStrategy', () => {
       metadataProvider = new MockMetadataProvider();
     });
 
-    it('should handle large numbers of items efficiently', () => {
+    it('should handle large numbers of items efficiently', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: true,
@@ -986,13 +985,13 @@ describe('LFUEvictionStrategy', () => {
 
       // Add many items
       for (let i = 0; i < itemCount; i++) {
-        strategy.onItemAdded(`key-${i}`, 100, metadataProvider);
+        await strategy.onItemAdded(`key-${i}`, 100, metadataProvider);
       }
 
       // Access items randomly
       for (let i = 0; i < itemCount * 2; i++) {
         const randomKey = `key-${Math.floor(Math.random() * itemCount)}`;
-        strategy.onItemAccessed(randomKey, metadataProvider);
+        await strategy.onItemAccessed(randomKey, metadataProvider);
       }
 
       const addTime = performance.now() - startTime;
@@ -1004,7 +1003,7 @@ describe('LFUEvictionStrategy', () => {
         limits: { maxItems: itemCount / 2, maxSizeBytes: null }
       };
 
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       const evictionTime = performance.now() - evictionStartTime;
 
       expect(result.length).toBeGreaterThan(0);
@@ -1012,7 +1011,7 @@ describe('LFUEvictionStrategy', () => {
       expect(evictionTime).toBeLessThan(1000); // Eviction should be fast
     });
 
-    it('should handle frequent access pattern changes', () => {
+    it('should handle frequent access pattern changes', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: true,
@@ -1025,18 +1024,18 @@ describe('LFUEvictionStrategy', () => {
 
       try {
         // Phase 1: Make key1 very frequent
-        strategy.onItemAdded('key1', 100, metadataProvider);
-        strategy.onItemAdded('key2', 100, metadataProvider);
+        await strategy.onItemAdded('key1', 100, metadataProvider);
+        await strategy.onItemAdded('key2', 100, metadataProvider);
 
         for (let i = 0; i < 100; i++) {
-          strategy.onItemAccessed('key1', metadataProvider);
+          await strategy.onItemAccessed('key1', metadataProvider);
         }
 
         // Phase 2: Switch to key2 being frequent
         vi.advanceTimersByTime(1000);
 
         for (let i = 0; i < 50; i++) {
-          strategy.onItemAccessed('key2', metadataProvider);
+          await strategy.onItemAccessed('key2', metadataProvider);
         }
 
         const context = {
@@ -1044,7 +1043,7 @@ describe('LFUEvictionStrategy', () => {
           limits: { maxItems: 1, maxSizeBytes: null }
         };
 
-        const result = strategy.selectForEviction(metadataProvider, context);
+        const result = await strategy.selectForEviction(metadataProvider, context);
         expect(result.length).toBeGreaterThan(0);
 
         // Due to decay, the result could be either key depending on timing
@@ -1054,7 +1053,7 @@ describe('LFUEvictionStrategy', () => {
       }
     });
 
-    it('should maintain consistency under rapid operations', () => {
+    it('should maintain consistency under rapid operations', async () => {
       strategy = new LFUEvictionStrategy();
 
       const keys = ['a', 'b', 'c', 'd', 'e'];
@@ -1065,28 +1064,26 @@ describe('LFUEvictionStrategy', () => {
 
         if (Math.random() < 0.7) {
           // Add or access
-          if (!metadataProvider.getMetadata(key)) {
-            strategy.onItemAdded(key, 100, metadataProvider);
+          if (!await metadataProvider.getMetadata(key)) {
+            await strategy.onItemAdded(key, 100, metadataProvider);
           } else {
-            strategy.onItemAccessed(key, metadataProvider);
+            await strategy.onItemAccessed(key, metadataProvider);
           }
         } else {
           // Remove
-          if (metadataProvider.getMetadata(key)) {
-            strategy.onItemRemoved(key, metadataProvider);
+          if (await metadataProvider.getMetadata(key)) {
+            await strategy.onItemRemoved(key, metadataProvider);
           }
         }
       }
 
       // Should still function correctly
       const context = {
-        currentSize: metadataProvider.getCurrentSize(),
+        currentSize: await metadataProvider.getCurrentSize(),
         limits: { maxItems: 2, maxSizeBytes: null }
       };
 
-      expect(() => {
-        strategy.selectForEviction(metadataProvider, context);
-      }).not.toThrow();
+      await expect(strategy.selectForEviction(metadataProvider, context)).resolves.not.toThrow();
     });
   });
 
@@ -1095,7 +1092,7 @@ describe('LFUEvictionStrategy', () => {
       metadataProvider = new MockMetadataProvider();
     });
 
-    it('should simulate realistic cache usage pattern', () => {
+    it('should simulate realistic cache usage pattern', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: true,
@@ -1115,37 +1112,37 @@ describe('LFUEvictionStrategy', () => {
         const rarePages = ['admin', 'debug', 'test', 'old-article-1', 'old-article-2'];
 
         // Popular pages accessed frequently
-        popularPages.forEach(page => {
-          strategy.onItemAdded(page, 1024, metadataProvider);
+        for (const page of popularPages) {
+          await strategy.onItemAdded(page, 1024, metadataProvider);
           for (let i = 0; i < 20; i++) {
-            strategy.onItemAccessed(page, metadataProvider);
+            await strategy.onItemAccessed(page, metadataProvider);
           }
-        });
+        }
 
         // Occasional pages accessed moderately
-        occasionalPages.forEach(page => {
-          strategy.onItemAdded(page, 512, metadataProvider);
+        for (const page of occasionalPages) {
+          await strategy.onItemAdded(page, 512, metadataProvider);
           for (let i = 0; i < 5; i++) {
-            strategy.onItemAccessed(page, metadataProvider);
+            await strategy.onItemAccessed(page, metadataProvider);
           }
-        });
+        }
 
         // Rare pages accessed once
-        rarePages.forEach(page => {
-          strategy.onItemAdded(page, 256, metadataProvider);
-          strategy.onItemAccessed(page, metadataProvider);
-        });
+        for (const page of rarePages) {
+          await strategy.onItemAdded(page, 256, metadataProvider);
+          await strategy.onItemAccessed(page, metadataProvider);
+        }
 
         // Advance time to let some decay occur
         vi.advanceTimersByTime(45000);
 
         // Force eviction due to cache size limit
         const context = {
-          currentSize: metadataProvider.getCurrentSize(),
+          currentSize: await metadataProvider.getCurrentSize(),
           limits: { maxItems: 8, maxSizeBytes: null }
         };
 
-        const evicted = strategy.selectForEviction(metadataProvider, context);
+        const evicted = await strategy.selectForEviction(metadataProvider, context);
 
         // Should evict rare pages first
         const evictedSet = new Set(evicted);
@@ -1159,19 +1156,19 @@ describe('LFUEvictionStrategy', () => {
       }
     });
 
-    it('should handle cache warming and steady state operations', () => {
+    it('should handle cache warming and steady state operations', async () => {
       strategy = new LFUEvictionStrategy();
 
       // Phase 1: Cache warming (many new items)
       for (let i = 0; i < 100; i++) {
-        strategy.onItemAdded(`item-${i}`, 100, metadataProvider);
+        await strategy.onItemAdded(`item-${i}`, 100, metadataProvider);
       }
 
       // Phase 2: Steady state (existing items accessed)
       for (let round = 0; round < 10; round++) {
         for (let i = 0; i < 100; i++) {
           if (Math.random() < 0.8) { // 80% hit rate
-            strategy.onItemAccessed(`item-${i}`, metadataProvider);
+            await strategy.onItemAccessed(`item-${i}`, metadataProvider);
           }
         }
       }
@@ -1182,19 +1179,20 @@ describe('LFUEvictionStrategy', () => {
         limits: { maxItems: 50, maxSizeBytes: null }
       };
 
-      const evicted = strategy.selectForEviction(metadataProvider, context);
+      const evicted = await strategy.selectForEviction(metadataProvider, context);
       expect(evicted.length).toBeGreaterThan(0);
       expect(evicted.length).toBeLessThanOrEqual(100); // Should not evict more than total items
 
       // Verify that items with higher access counts are preserved
-      const remainingKeys = Array.from(metadataProvider.getAllMetadata().keys())
-        .filter(key => !evicted.includes(key));
+      const allMetadata = await metadataProvider.getAllMetadata();
+      const remainingKeys = Array.from(allMetadata.keys())
+        .filter((key: string) => !evicted.includes(key));
 
       expect(remainingKeys.length).toBeGreaterThan(0);
       expect(evicted.length + remainingKeys.length).toBe(100); // Total should match
     });
 
-    it('should handle mixed operation types in realistic sequence', () => {
+    it('should handle mixed operation types in realistic sequence', async () => {
       const config: LFUConfig = {
         type: 'lfu',
         useProbabilisticCounting: false, // Simple mode for predictable behavior
@@ -1220,53 +1218,53 @@ describe('LFUEvictionStrategy', () => {
         { type: 'access', key: 'user:3' }
       ];
 
-      operations.forEach(op => {
+      for (const op of operations) {
         switch (op.type) {
           case 'add':
-            strategy.onItemAdded(op.key, op.size!, metadataProvider);
+            await strategy.onItemAdded(op.key, op.size!, metadataProvider);
             break;
           case 'access':
-            strategy.onItemAccessed(op.key, metadataProvider);
+            await strategy.onItemAccessed(op.key, metadataProvider);
             break;
           case 'remove':
-            strategy.onItemRemoved(op.key, metadataProvider);
+            await strategy.onItemRemoved(op.key, metadataProvider);
             break;
         }
-      });
+      }
 
       // Force eviction
       const context = {
-        currentSize: metadataProvider.getCurrentSize(),
+        currentSize: await metadataProvider.getCurrentSize(),
         limits: { maxItems: 2, maxSizeBytes: null }
       };
 
-      const evicted = strategy.selectForEviction(metadataProvider, context);
+      const evicted = await strategy.selectForEviction(metadataProvider, context);
       expect(evicted.length).toBeGreaterThan(0);
 
       // user:1 should be preserved (highest access count: 4)
       expect(evicted).not.toContain('user:1');
     });
 
-    it('should handle size-based eviction scenarios', () => {
+    it('should handle size-based eviction scenarios', async () => {
       strategy = new LFUEvictionStrategy();
 
       // Add items with different sizes
-      strategy.onItemAdded('small-frequent', 10, metadataProvider);
-      strategy.onItemAdded('medium-rare', 500, metadataProvider);
-      strategy.onItemAdded('large-medium', 1000, metadataProvider);
+      await strategy.onItemAdded('small-frequent', 10, metadataProvider);
+      await strategy.onItemAdded('medium-rare', 500, metadataProvider);
+      await strategy.onItemAdded('large-medium', 1000, metadataProvider);
 
       // Make small item very frequent
       for (let i = 0; i < 100; i++) {
-        strategy.onItemAccessed('small-frequent', metadataProvider);
+        await strategy.onItemAccessed('small-frequent', metadataProvider);
       }
 
       // Make large item moderately frequent
       for (let i = 0; i < 10; i++) {
-        strategy.onItemAccessed('large-medium', metadataProvider);
+        await strategy.onItemAccessed('large-medium', metadataProvider);
       }
 
       // Access medium item once
-      strategy.onItemAccessed('medium-rare', metadataProvider);
+      await strategy.onItemAccessed('medium-rare', metadataProvider);
 
       // Force size-based eviction
       const context = {
@@ -1275,7 +1273,7 @@ describe('LFUEvictionStrategy', () => {
         newItemSize: 100
       };
 
-      const evicted = strategy.selectForEviction(metadataProvider, context);
+      const evicted = await strategy.selectForEviction(metadataProvider, context);
       expect(evicted.length).toBeGreaterThan(0);
 
       // Should prefer evicting larger, less frequent items

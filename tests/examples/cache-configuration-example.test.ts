@@ -7,7 +7,7 @@ vi.mock('@fjell/registry', () => ({
 }));
 
 vi.mock('@fjell/client-api', () => ({
-  createClientApi: vi.fn(() => ({}))
+  createCItemApi: vi.fn(() => ({}))
 }));
 
 vi.mock('../../../src/index', () => ({
@@ -72,7 +72,7 @@ describe('Cache Configuration Example', () => {
     // Verify that configuration examples were logged
     expect(consoleLogSpy).toHaveBeenCalledWith('🚀 Starting Cache Configuration Example\n');
     expect(consoleLogSpy).toHaveBeenCalledWith('📝 Example 1: Memory Cache (Default)');
-    expect(consoleLogSpy).toHaveBeenCalledWith('✅ Memory cache factory created with 1000 item limit and 5min TTL');
+    expect(consoleLogSpy).toHaveBeenCalledWith('✅ Memory cache factory created with 1000 item limit');
     expect(consoleLogSpy).toHaveBeenCalledWith('\n📝 Example 2: LocalStorage Cache');
     expect(consoleLogSpy).toHaveBeenCalledWith('✅ LocalStorage cache factory created with custom prefix and compression');
     expect(consoleLogSpy).toHaveBeenCalledWith('\n📝 Example 3: SessionStorage Cache');
@@ -161,8 +161,8 @@ describe('Cache Configuration Example', () => {
     await cacheConfigurationExample();
 
     expect(consoleLogSpy).toHaveBeenCalledWith('📊 Cache types created:');
-    expect(consoleLogSpy).toHaveBeenCalledWith('  - Memory cache: _MemoryCacheMap');
-    expect(consoleLogSpy).toHaveBeenCalledWith('  - LocalStorage cache: _LocalStorageCacheMap');
+    expect(consoleLogSpy).toHaveBeenCalledWith('  - Memory cache: MemoryCacheMap');
+    expect(consoleLogSpy).toHaveBeenCalledWith('  - LocalStorage cache: LocalStorageCacheMap');
     expect(consoleLogSpy).toHaveBeenCalledWith('  - Memory cache options: memory, debug: true');
     expect(consoleLogSpy).toHaveBeenCalledWith('  - LocalStorage cache options: localStorage, prefix: my-app:users:');
   });

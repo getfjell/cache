@@ -32,12 +32,12 @@ export const create = async <
   ttlManager.onItemAdded(keyStr, cacheMap);
 
   // Handle eviction for the newly cached item
-  const evictedKeys = evictionManager.onItemAdded(keyStr, created, cacheMap);
+  const evictedKeys = await evictionManager.onItemAdded(keyStr, created, cacheMap);
   // Remove evicted items from cache
-  evictedKeys.forEach(evictedKey => {
+  for (const evictedKey of evictedKeys) {
     const parsedKey = JSON.parse(evictedKey);
-    cacheMap.delete(parsedKey);
-  });
+    await cacheMap.delete(parsedKey);
+  }
 
   // Emit event
   const event = CacheEventFactory.itemCreated(created.key, created as V, 'api');

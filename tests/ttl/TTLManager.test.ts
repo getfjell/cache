@@ -8,31 +8,31 @@ class MockMetadataProvider implements CacheMapMetadataProvider {
   private currentSize = { itemCount: 0, sizeBytes: 0 };
   private sizeLimits = { maxItems: null as number | null, maxSizeBytes: null as number | null };
 
-  getMetadata(key: string): CacheItemMetadata | null {
+  async getMetadata(key: string): Promise<CacheItemMetadata | null> {
     return this.metadata.get(key) || null;
   }
 
-  setMetadata(key: string, metadata: CacheItemMetadata): void {
+  async setMetadata(key: string, metadata: CacheItemMetadata): Promise<void> {
     this.metadata.set(key, metadata);
   }
 
-  deleteMetadata(key: string): void {
+  async deleteMetadata(key: string): Promise<void> {
     this.metadata.delete(key);
   }
 
-  getAllMetadata(): Map<string, CacheItemMetadata> {
+  async getAllMetadata(): Promise<Map<string, CacheItemMetadata>> {
     return new Map(this.metadata);
   }
 
-  clearMetadata(): void {
+  async clearMetadata(): Promise<void> {
     this.metadata.clear();
   }
 
-  getCurrentSize() {
+  async getCurrentSize() {
     return this.currentSize;
   }
 
-  getSizeLimits() {
+  async getSizeLimits() {
     return this.sizeLimits;
   }
 
@@ -162,7 +162,7 @@ describe('TTLManager', () => {
       ttlManager = new TTLManager({ defaultTTL: 1000, validateOnAccess: true });
     });
 
-    it('should set TTL metadata when item is added', () => {
+    it('should set TTL metadata when item is added', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -171,17 +171,17 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      ttlManager.onItemAdded('test-key', metadataProvider);
+      await await ttlManager.onItemAdded('test-key', metadataProvider);
 
-      const updatedMetadata = metadataProvider.getMetadata('test-key') as TTLItemMetadata;
+      const updatedMetadata = await metadataProvider.getMetadata('test-key') as TTLItemMetadata;
       expect(updatedMetadata).not.toBeNull();
       expect(updatedMetadata!.expiresAt).toBe(now + 1000);
       expect(updatedMetadata!.ttl).toBe(1000);
     });
 
-    it('should respect custom TTL for specific items', () => {
+    it('should respect custom TTL for specific items', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -190,16 +190,16 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await await metadataProvider.setMetadata('test-key', metadata);
 
-      ttlManager.onItemAdded('test-key', metadataProvider, 2000);
+      await await ttlManager.onItemAdded('test-key', metadataProvider, 2000);
 
-      const updatedMetadata = metadataProvider.getMetadata('test-key') as TTLItemMetadata;
+      const updatedMetadata = await await metadataProvider.getMetadata('test-key') as TTLItemMetadata;
       expect(updatedMetadata!.expiresAt).toBe(now + 2000);
       expect(updatedMetadata!.ttl).toBe(2000);
     });
 
-    it('should detect expired items', () => {
+    it('should detect expired items', async () => {
       const pastTime = Date.now() - 5000;
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -210,13 +210,13 @@ describe('TTLManager', () => {
         expiresAt: pastTime + 1000,
         ttl: 1000
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await await metadataProvider.setMetadata('test-key', metadata);
 
-      expect(ttlManager.isExpired('test-key', metadataProvider)).toBe(true);
-      expect(ttlManager.validateItem('test-key', metadataProvider)).toBe(false);
+      expect(await await ttlManager.isExpired('test-key', metadataProvider)).toBe(true);
+      expect(await await ttlManager.validateItem('test-key', metadataProvider)).toBe(false);
     });
 
-    it('should not detect valid items as expired', () => {
+    it('should not detect valid items as expired', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -227,13 +227,13 @@ describe('TTLManager', () => {
         expiresAt: now + 5000,
         ttl: 5000
       } as TTLItemMetadata;
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      expect(ttlManager.isExpired('test-key', metadataProvider)).toBe(false);
-      expect(ttlManager.validateItem('test-key', metadataProvider)).toBe(true);
+      expect(await ttlManager.isExpired('test-key', metadataProvider)).toBe(false);
+      expect(await ttlManager.validateItem('test-key', metadataProvider)).toBe(true);
     });
 
-    it('should find all expired items', () => {
+    it('should find all expired items', async () => {
       const now = Date.now();
 
       // Add expired item
@@ -246,7 +246,7 @@ describe('TTLManager', () => {
         expiresAt: now - 1000,
         ttl: 1000
       };
-      metadataProvider.setMetadata('expired-key', expiredMetadata);
+      await metadataProvider.setMetadata('expired-key', expiredMetadata);
 
       // Add valid item
       const validMetadata: TTLItemMetadata = {
@@ -258,13 +258,13 @@ describe('TTLManager', () => {
         expiresAt: now + 5000,
         ttl: 5000
       } as TTLItemMetadata;
-      metadataProvider.setMetadata('valid-key', validMetadata);
+      await metadataProvider.setMetadata('valid-key', validMetadata);
 
-      const expiredKeys = ttlManager.findExpiredItems(metadataProvider);
+      const expiredKeys = await ttlManager.findExpiredItems(metadataProvider);
       expect(expiredKeys).toEqual(['expired-key']);
     });
 
-    it('should get TTL information for items', () => {
+    it('should get TTL information for items', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -275,9 +275,9 @@ describe('TTLManager', () => {
         expiresAt: now + 3000,
         ttl: 3000
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      const ttlInfo = ttlManager.getItemTTLInfo('test-key', metadataProvider);
+      const ttlInfo = await ttlManager.getItemTTLInfo('test-key', metadataProvider);
       expect(ttlInfo.hasTTL).toBe(true);
       expect(ttlInfo.ttl).toBe(3000);
       expect(ttlInfo.expiresAt).toBe(now + 3000);
@@ -285,7 +285,7 @@ describe('TTLManager', () => {
       expect(ttlInfo.remainingTTL).toBeGreaterThan(2000);
     });
 
-    it('should extend TTL for items', () => {
+    it('should extend TTL for items', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -296,16 +296,16 @@ describe('TTLManager', () => {
         expiresAt: now + 1000,
         ttl: 1000
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      const extended = ttlManager.extendTTL('test-key', metadataProvider, 2000);
+      const extended = await ttlManager.extendTTL('test-key', metadataProvider, 2000);
       expect(extended).toBe(true);
 
-      const updatedMetadata = metadataProvider.getMetadata('test-key') as TTLItemMetadata;
+      const updatedMetadata = await metadataProvider.getMetadata('test-key') as TTLItemMetadata;
       expect(updatedMetadata!.expiresAt).toBe(now + 3000);
     });
 
-    it('should refresh TTL for items', () => {
+    it('should refresh TTL for items', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -316,16 +316,16 @@ describe('TTLManager', () => {
         expiresAt: now - 1000, // Already expired
         ttl: 1000
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      const refreshed = ttlManager.refreshTTL('test-key', metadataProvider);
+      const refreshed = await ttlManager.refreshTTL('test-key', metadataProvider);
       expect(refreshed).toBe(true);
 
-      const updatedMetadata = metadataProvider.getMetadata('test-key') as TTLItemMetadata;
+      const updatedMetadata = await metadataProvider.getMetadata('test-key') as TTLItemMetadata;
       expect(updatedMetadata!.expiresAt).toBeGreaterThan(now);
     });
 
-    it('should get remaining TTL for valid items', () => {
+    it('should get remaining TTL for valid items', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -336,14 +336,14 @@ describe('TTLManager', () => {
         expiresAt: now + 5000,
         ttl: 5000
       } as TTLItemMetadata;
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      const remainingTTL = ttlManager.getRemainingTTL('test-key', metadataProvider);
+      const remainingTTL = await ttlManager.getRemainingTTL('test-key', metadataProvider);
       expect(remainingTTL).toBeGreaterThan(4000);
       expect(remainingTTL).toBeLessThanOrEqual(5000);
     });
 
-    it('should handle cleanupExpiredItems method', () => {
+    it('should handle cleanupExpiredItems method', async () => {
       const now = Date.now();
 
       // Add expired item
@@ -356,9 +356,9 @@ describe('TTLManager', () => {
         expiresAt: now - 1000,
         ttl: 1000
       };
-      metadataProvider.setMetadata('expired-key', expiredMetadata);
+      await metadataProvider.setMetadata('expired-key', expiredMetadata);
 
-      const expiredKeys = ttlManager.cleanupExpiredItems(metadataProvider);
+      const expiredKeys = await ttlManager.cleanupExpiredItems(metadataProvider);
       expect(expiredKeys).toEqual(['expired-key']);
     });
   });
@@ -368,7 +368,7 @@ describe('TTLManager', () => {
       ttlManager = new TTLManager({ defaultTTL: 1000, validateOnAccess: true });
     });
 
-    it('should handle onItemAdded with no TTL configured', () => {
+    it('should handle onItemAdded with no TTL configured', async () => {
       ttlManager = new TTLManager(); // No default TTL
       const now = Date.now();
       const metadata: TTLItemMetadata = {
@@ -378,26 +378,26 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
       // Should not throw and should not modify metadata
-      ttlManager.onItemAdded('test-key', metadataProvider);
+      await ttlManager.onItemAdded('test-key', metadataProvider);
 
-      const updatedMetadata = metadataProvider.getMetadata('test-key') as TTLItemMetadata;
+      const updatedMetadata = await metadataProvider.getMetadata('test-key') as TTLItemMetadata;
       expect((updatedMetadata as TTLItemMetadata)!.expiresAt).toBeUndefined();
       expect((updatedMetadata as TTLItemMetadata)!.ttl).toBeUndefined();
     });
 
-    it('should handle onItemAdded with missing metadata', () => {
+    it('should handle onItemAdded with missing metadata', async () => {
       // Call onItemAdded without setting metadata first
-      ttlManager.onItemAdded('nonexistent-key', metadataProvider);
+      await ttlManager.onItemAdded('nonexistent-key', metadataProvider);
 
       // Should not throw and no metadata should be created
-      const metadata = metadataProvider.getMetadata('nonexistent-key');
+      const metadata = await metadataProvider.getMetadata('nonexistent-key');
       expect(metadata).toBeNull();
     });
 
-    it('should handle onItemAdded with zero TTL', () => {
+    it('should handle onItemAdded with zero TTL', async () => {
       // Create TTL manager without default TTL to test zero TTL handling
       const zeroTTLManager = new TTLManager({ validateOnAccess: true });
 
@@ -409,18 +409,18 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
       zeroTTLManager.onItemAdded('test-key', metadataProvider, 0);
 
-      const updatedMetadata = metadataProvider.getMetadata('test-key') as TTLItemMetadata;
+      const updatedMetadata = await metadataProvider.getMetadata('test-key') as TTLItemMetadata;
       expect((updatedMetadata as TTLItemMetadata)!.expiresAt).toBeUndefined();
       expect((updatedMetadata as TTLItemMetadata)!.ttl).toBeUndefined();
 
       zeroTTLManager.destroy();
     });
 
-    it('should handle onItemAdded with negative TTL', () => {
+    it('should handle onItemAdded with negative TTL', async () => {
       // Create TTL manager without default TTL to test negative TTL handling
       const negativeTTLManager = new TTLManager({ validateOnAccess: true });
 
@@ -432,23 +432,23 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
       negativeTTLManager.onItemAdded('test-key', metadataProvider, -1000);
 
-      const updatedMetadata = metadataProvider.getMetadata('test-key') as TTLItemMetadata;
+      const updatedMetadata = await metadataProvider.getMetadata('test-key') as TTLItemMetadata;
       expect((updatedMetadata as TTLItemMetadata)!.expiresAt).toBeUndefined();
       expect((updatedMetadata as TTLItemMetadata)!.ttl).toBeUndefined();
 
       negativeTTLManager.destroy();
     });
 
-    it('should handle isExpired with missing metadata', () => {
-      const expired = ttlManager.isExpired('nonexistent-key', metadataProvider);
+    it('should handle isExpired with missing metadata', async () => {
+      const expired = await ttlManager.isExpired('nonexistent-key', metadataProvider);
       expect(expired).toBe(false);
     });
 
-    it('should handle isExpired with metadata but no TTL', () => {
+    it('should handle isExpired with metadata but no TTL', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -457,14 +457,14 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      const expired = ttlManager.isExpired('test-key', metadataProvider);
+      const expired = await ttlManager.isExpired('test-key', metadataProvider);
       expect(expired).toBe(false);
     });
 
-    it('should handle getItemTTLInfo with missing metadata', () => {
-      const ttlInfo = ttlManager.getItemTTLInfo('nonexistent-key', metadataProvider);
+    it('should handle getItemTTLInfo with missing metadata', async () => {
+      const ttlInfo = await ttlManager.getItemTTLInfo('nonexistent-key', metadataProvider);
       expect(ttlInfo.hasTTL).toBe(false);
       expect(ttlInfo.isExpired).toBe(false);
       expect(ttlInfo.ttl).toBeUndefined();
@@ -472,7 +472,7 @@ describe('TTLManager', () => {
       expect(ttlInfo.remainingTTL).toBeUndefined();
     });
 
-    it('should handle getItemTTLInfo with metadata but no TTL', () => {
+    it('should handle getItemTTLInfo with metadata but no TTL', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -481,14 +481,14 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      const ttlInfo = ttlManager.getItemTTLInfo('test-key', metadataProvider);
+      const ttlInfo = await ttlManager.getItemTTLInfo('test-key', metadataProvider);
       expect(ttlInfo.hasTTL).toBe(false);
       expect(ttlInfo.isExpired).toBe(false);
     });
 
-    it('should handle getItemTTLInfo with expired item', () => {
+    it('should handle getItemTTLInfo with expired item', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -499,20 +499,20 @@ describe('TTLManager', () => {
         expiresAt: now - 1000,
         ttl: 1000
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      const ttlInfo = ttlManager.getItemTTLInfo('test-key', metadataProvider);
+      const ttlInfo = await ttlManager.getItemTTLInfo('test-key', metadataProvider);
       expect(ttlInfo.hasTTL).toBe(true);
       expect(ttlInfo.isExpired).toBe(true);
       expect(ttlInfo.remainingTTL).toBe(0);
     });
 
-    it('should handle extendTTL with missing metadata', () => {
-      const extended = ttlManager.extendTTL('nonexistent-key', metadataProvider, 1000);
+    it('should handle extendTTL with missing metadata', async () => {
+      const extended = await ttlManager.extendTTL('nonexistent-key', metadataProvider, 1000);
       expect(extended).toBe(false);
     });
 
-    it('should handle extendTTL with metadata but no TTL', () => {
+    it('should handle extendTTL with metadata but no TTL', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -521,18 +521,18 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      const extended = ttlManager.extendTTL('test-key', metadataProvider, 1000);
+      const extended = await ttlManager.extendTTL('test-key', metadataProvider, 1000);
       expect(extended).toBe(false);
     });
 
-    it('should handle refreshTTL with missing metadata', () => {
-      const refreshed = ttlManager.refreshTTL('nonexistent-key', metadataProvider);
+    it('should handle refreshTTL with missing metadata', async () => {
+      const refreshed = await ttlManager.refreshTTL('nonexistent-key', metadataProvider);
       expect(refreshed).toBe(false);
     });
 
-    it('should handle refreshTTL with metadata but no TTL available', () => {
+    it('should handle refreshTTL with metadata but no TTL available', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -541,15 +541,15 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
       // No TTL in metadata and no default TTL
       ttlManager = new TTLManager(); // No default TTL
-      const refreshed = ttlManager.refreshTTL('test-key', metadataProvider);
+      const refreshed = await ttlManager.refreshTTL('test-key', metadataProvider);
       expect(refreshed).toBe(false);
     });
 
-    it('should handle refreshTTL with custom TTL', () => {
+    it('should handle refreshTTL with custom TTL', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -558,22 +558,22 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      const refreshed = ttlManager.refreshTTL('test-key', metadataProvider, 3000);
+      const refreshed = await ttlManager.refreshTTL('test-key', metadataProvider, 3000);
       expect(refreshed).toBe(true);
 
-      const updatedMetadata = metadataProvider.getMetadata('test-key') as TTLItemMetadata;
+      const updatedMetadata = await metadataProvider.getMetadata('test-key') as TTLItemMetadata;
       expect(updatedMetadata!.expiresAt).toBeGreaterThan(now);
       expect(updatedMetadata!.ttl).toBe(3000);
     });
 
-    it('should handle findExpiredItems with empty metadata', () => {
-      const expiredKeys = ttlManager.findExpiredItems(metadataProvider);
+    it('should handle findExpiredItems with empty metadata', async () => {
+      const expiredKeys = await ttlManager.findExpiredItems(metadataProvider);
       expect(expiredKeys).toEqual([]);
     });
 
-    it('should handle findExpiredItems with mixed items', () => {
+    it('should handle findExpiredItems with mixed items', async () => {
       const now = Date.now();
 
       // Add item without TTL
@@ -584,7 +584,7 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('no-ttl-key', noTTLMetadata);
+      await metadataProvider.setMetadata('no-ttl-key', noTTLMetadata);
 
       // Add expired item
       const expiredMetadata: TTLItemMetadata = {
@@ -596,7 +596,7 @@ describe('TTLManager', () => {
         expiresAt: now - 1000,
         ttl: 1000
       };
-      metadataProvider.setMetadata('expired-key', expiredMetadata);
+      await metadataProvider.setMetadata('expired-key', expiredMetadata);
 
       // Add valid item
       const validMetadata: TTLItemMetadata = {
@@ -608,15 +608,15 @@ describe('TTLManager', () => {
         expiresAt: now + 5000,
         ttl: 5000
       } as TTLItemMetadata;
-      metadataProvider.setMetadata('valid-key', validMetadata);
+      await metadataProvider.setMetadata('valid-key', validMetadata);
 
-      const expiredKeys = ttlManager.findExpiredItems(metadataProvider);
+      const expiredKeys = await ttlManager.findExpiredItems(metadataProvider);
       expect(expiredKeys).toEqual(['expired-key']);
     });
   });
 
   describe('validateOnAccess configuration', () => {
-    it('should validate items when validateOnAccess is true', () => {
+    it('should validate items when validateOnAccess is true', async () => {
       ttlManager = new TTLManager({
         defaultTTL: 1000,
         validateOnAccess: true
@@ -632,12 +632,12 @@ describe('TTLManager', () => {
         expiresAt: now - 1000,
         ttl: 1000
       };
-      metadataProvider.setMetadata('expired-key', expiredMetadata);
+      await metadataProvider.setMetadata('expired-key', expiredMetadata);
 
-      expect(ttlManager.validateItem('expired-key', metadataProvider)).toBe(false);
+      expect(await ttlManager.validateItem('expired-key', metadataProvider)).toBe(false);
     });
 
-    it('should skip validation when validateOnAccess is false', () => {
+    it('should skip validation when validateOnAccess is false', async () => {
       ttlManager = new TTLManager({
         defaultTTL: 1000,
         validateOnAccess: false
@@ -653,13 +653,13 @@ describe('TTLManager', () => {
         expiresAt: now - 1000,
         ttl: 1000
       };
-      metadataProvider.setMetadata('expired-key', expiredMetadata);
+      await metadataProvider.setMetadata('expired-key', expiredMetadata);
 
       // Should return true even for expired items when validation is disabled
-      expect(ttlManager.validateItem('expired-key', metadataProvider)).toBe(true);
+      expect(await ttlManager.validateItem('expired-key', metadataProvider)).toBe(true);
     });
 
-    it('should validate non-expired items when validateOnAccess is true', () => {
+    it('should validate non-expired items when validateOnAccess is true', async () => {
       ttlManager = new TTLManager({
         defaultTTL: 1000,
         validateOnAccess: true
@@ -675,12 +675,12 @@ describe('TTLManager', () => {
         expiresAt: now + 5000,
         ttl: 5000
       } as TTLItemMetadata;
-      metadataProvider.setMetadata('valid-key', validMetadata);
+      await metadataProvider.setMetadata('valid-key', validMetadata);
 
-      expect(ttlManager.validateItem('valid-key', metadataProvider)).toBe(true);
+      expect(await ttlManager.validateItem('valid-key', metadataProvider)).toBe(true);
     });
 
-    it('should handle validateItem with items that have no TTL', () => {
+    it('should handle validateItem with items that have no TTL', async () => {
       ttlManager = new TTLManager({
         defaultTTL: 1000,
         validateOnAccess: true
@@ -694,10 +694,10 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('no-ttl-key', noTTLMetadata);
+      await metadataProvider.setMetadata('no-ttl-key', noTTLMetadata);
 
       // Items without TTL should always be valid
-      expect(ttlManager.validateItem('no-ttl-key', metadataProvider)).toBe(true);
+      expect(await ttlManager.validateItem('no-ttl-key', metadataProvider)).toBe(true);
     });
   });
 
@@ -706,7 +706,7 @@ describe('TTLManager', () => {
       ttlManager = new TTLManager({ defaultTTL: 1000, validateOnAccess: true });
     });
 
-    it('should handle items expiring exactly at current time', () => {
+    it('should handle items expiring exactly at current time', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'edge-key',
@@ -717,18 +717,18 @@ describe('TTLManager', () => {
         expiresAt: now, // Expires exactly now
         ttl: 1000
       };
-      metadataProvider.setMetadata('edge-key', metadata);
+      await metadataProvider.setMetadata('edge-key', metadata);
 
       // Should be considered expired when expiresAt === now
-      expect(ttlManager.isExpired('edge-key', metadataProvider)).toBe(true);
-      expect(ttlManager.validateItem('edge-key', metadataProvider)).toBe(false);
+      expect(await ttlManager.isExpired('edge-key', metadataProvider)).toBe(true);
+      expect(await ttlManager.validateItem('edge-key', metadataProvider)).toBe(false);
 
-      const ttlInfo = ttlManager.getItemTTLInfo('edge-key', metadataProvider);
+      const ttlInfo = await ttlManager.getItemTTLInfo('edge-key', metadataProvider);
       expect(ttlInfo.isExpired).toBe(true);
       expect(ttlInfo.remainingTTL).toBe(0);
     });
 
-    it('should handle very small TTL values', () => {
+    it('should handle very small TTL values', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'test-key',
@@ -737,16 +737,16 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      ttlManager.onItemAdded('test-key', metadataProvider, 1); // 1ms TTL
+      await ttlManager.onItemAdded('test-key', metadataProvider, 1); // 1ms TTL
 
-      const updatedMetadata = metadataProvider.getMetadata('test-key') as TTLItemMetadata;
+      const updatedMetadata = await metadataProvider.getMetadata('test-key') as TTLItemMetadata;
       expect(updatedMetadata!.expiresAt).toBe(now + 1);
       expect(updatedMetadata!.ttl).toBe(1);
     });
 
-    it('should handle very large TTL values', () => {
+    it('should handle very large TTL values', async () => {
       const now = Date.now();
       const largeTTL = Number.MAX_SAFE_INTEGER;
       const metadata: TTLItemMetadata = {
@@ -756,16 +756,16 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      ttlManager.onItemAdded('test-key', metadataProvider, largeTTL);
+      await ttlManager.onItemAdded('test-key', metadataProvider, largeTTL);
 
-      const updatedMetadata = metadataProvider.getMetadata('test-key') as TTLItemMetadata;
+      const updatedMetadata = await metadataProvider.getMetadata('test-key') as TTLItemMetadata;
       expect(updatedMetadata!.expiresAt).toBe(now + largeTTL);
       expect(updatedMetadata!.ttl).toBe(largeTTL);
     });
 
-    it('should handle concurrent access to TTL information', () => {
+    it('should handle concurrent access to TTL information', async () => {
       const now = Date.now();
       const metadata: TTLItemMetadata = {
         key: 'concurrent-key',
@@ -776,13 +776,13 @@ describe('TTLManager', () => {
         expiresAt: now + 5000,
         ttl: 5000
       } as TTLItemMetadata;
-      metadataProvider.setMetadata('concurrent-key', metadata);
+      await metadataProvider.setMetadata('concurrent-key', metadata);
 
       // Multiple concurrent calls should all work correctly
-      const info1 = ttlManager.getItemTTLInfo('concurrent-key', metadataProvider);
-      const info2 = ttlManager.getItemTTLInfo('concurrent-key', metadataProvider);
-      const expired1 = ttlManager.isExpired('concurrent-key', metadataProvider);
-      const expired2 = ttlManager.isExpired('concurrent-key', metadataProvider);
+      const info1 = await ttlManager.getItemTTLInfo('concurrent-key', metadataProvider);
+      const info2 = await ttlManager.getItemTTLInfo('concurrent-key', metadataProvider);
+      const expired1 = await ttlManager.isExpired('concurrent-key', metadataProvider);
+      const expired2 = await ttlManager.isExpired('concurrent-key', metadataProvider);
 
       expect(info1.hasTTL).toBe(info2.hasTTL);
       expect(info1.isExpired).toBe(info2.isExpired);
@@ -874,7 +874,7 @@ describe('TTLManager', () => {
       ttlManager.destroy();
     });
 
-    it('should handle items without TTL gracefully', () => {
+    it('should handle items without TTL gracefully', async () => {
       ttlManager = new TTLManager();
 
       const metadata: TTLItemMetadata = {
@@ -884,11 +884,11 @@ describe('TTLManager', () => {
         accessCount: 1,
         estimatedSize: 100
       };
-      metadataProvider.setMetadata('test-key', metadata);
+      await metadataProvider.setMetadata('test-key', metadata);
 
-      expect(ttlManager.isExpired('test-key', metadataProvider)).toBe(false);
-      expect(ttlManager.validateItem('test-key', metadataProvider)).toBe(true);
-      expect(ttlManager.getRemainingTTL('test-key', metadataProvider)).toBeNull();
+      expect(await ttlManager.isExpired('test-key', metadataProvider)).toBe(false);
+      expect(await ttlManager.validateItem('test-key', metadataProvider)).toBe(true);
+      expect(await ttlManager.getRemainingTTL('test-key', metadataProvider)).toBeNull();
     });
 
     it('should handle destroy with no auto cleanup configured', () => {
