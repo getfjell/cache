@@ -32,49 +32,49 @@ export interface CacheMapMetadataProvider {
    * @param key - Item key
    * @returns Metadata if exists, null otherwise
    */
-  getMetadata(key: string): CacheItemMetadata | null;
+  getMetadata(key: string): Promise<CacheItemMetadata | null>;
 
   /**
    * Set metadata for a specific item
    * @param key - Item key
    * @param metadata - Metadata to store
    */
-  setMetadata(key: string, metadata: CacheItemMetadata): void;
+  setMetadata(key: string, metadata: CacheItemMetadata): Promise<void>;
 
   /**
    * Delete metadata for a specific item
    * @param key - Item key
    */
-  deleteMetadata(key: string): void;
+  deleteMetadata(key: string): Promise<void>;
 
   /**
    * Get all metadata entries
    * @returns Map of all metadata entries
    */
-  getAllMetadata(): Map<string, CacheItemMetadata>;
+  getAllMetadata(): Promise<Map<string, CacheItemMetadata>>;
 
   /**
    * Clear all metadata
    */
-  clearMetadata(): void;
+  clearMetadata(): Promise<void>;
 
   /**
    * Get current cache size information
    * @returns Object with current size metrics
    */
-  getCurrentSize(): {
+  getCurrentSize(): Promise<{
     itemCount: number;
     sizeBytes: number;
-  };
+  }>;
 
   /**
    * Get cache size limits
    * @returns Object with size limits (null means unlimited)
    */
-  getSizeLimits(): {
+  getSizeLimits(): Promise<{
     maxItems: number | null;
     maxSizeBytes: number | null;
-  };
+  }>;
 }
 
 /**
@@ -112,14 +112,14 @@ export abstract class EvictionStrategy {
   abstract selectForEviction(
     metadataProvider: CacheMapMetadataProvider,
     context: EvictionContext
-  ): string[];
+  ): Promise<string[]>;
 
   /**
    * Update metadata when an item is accessed
    * @param key - Item key
    * @param metadataProvider - Provider for accessing cache metadata
    */
-  abstract onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): void;
+  abstract onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): Promise<void>;
 
   /**
    * Update metadata when an item is added
@@ -127,14 +127,14 @@ export abstract class EvictionStrategy {
    * @param estimatedSize - Estimated size of the item in bytes
    * @param metadataProvider - Provider for accessing cache metadata
    */
-  abstract onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): void;
+  abstract onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): Promise<void>;
 
   /**
    * Clean up when an item is removed
    * @param key - Item key
    * @param metadataProvider - Provider for accessing cache metadata
    */
-  abstract onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): void;
+  abstract onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): Promise<void>;
 
   /**
    * Get the name/identifier of this eviction strategy
@@ -157,7 +157,7 @@ export abstract class EvictionStrategy {
 
     // Check size limit (including potential new item)
     if (limits.maxSizeBytes !== null &&
-        (currentSize.sizeBytes + newItemSize) > limits.maxSizeBytes) {
+      (currentSize.sizeBytes + newItemSize) > limits.maxSizeBytes) {
       return true;
     }
 
@@ -180,7 +180,7 @@ export abstract class EvictionStrategy {
 
     // Calculate based on size limit (this is more complex and approximate)
     if (limits.maxSizeBytes !== null &&
-        (currentSize.sizeBytes + newItemSize) > limits.maxSizeBytes) {
+      (currentSize.sizeBytes + newItemSize) > limits.maxSizeBytes) {
       // Conservative estimate: evict at least 1 item, possibly more
       const excessBytes = (currentSize.sizeBytes + newItemSize) - limits.maxSizeBytes;
       const avgItemSize = currentSize.itemCount > 0 ? currentSize.sizeBytes / currentSize.itemCount : 1024;

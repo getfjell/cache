@@ -7,6 +7,7 @@ import {
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
+import { estimateValueSize } from "../utils/CacheSize";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('update');
@@ -44,19 +45,33 @@ export const update = async <
 
     // Cache the result after the update
     logger.debug('Caching update result', { updatedKey: updated.key });
-    cacheMap.set(updated.key, updated);
+    await cacheMap.set(updated.key, updated);
+
+    // Create base metadata if it doesn't exist (needed for TTL and eviction)
+    const keyStr = JSON.stringify(updated.key);
+    const metadata = await cacheMap.getMetadata(keyStr);
+    if (!metadata) {
+      const now = Date.now();
+      const baseMetadata = {
+        key: keyStr,
+        addedAt: now,
+        lastAccessedAt: now,
+        accessCount: 1,
+        estimatedSize: estimateValueSize(updated)
+      };
+      await cacheMap.setMetadata(keyStr, baseMetadata);
+    }
 
     // Set TTL metadata for the newly cached item
-    const keyStr = JSON.stringify(updated.key);
-    context.ttlManager.onItemAdded(keyStr, cacheMap);
+    await context.ttlManager.onItemAdded(keyStr, cacheMap);
 
     // Handle eviction for the newly cached item
-    const evictedKeys = context.evictionManager.onItemAdded(keyStr, updated, cacheMap);
+    const evictedKeys = await context.evictionManager.onItemAdded(keyStr, updated, cacheMap);
     // Remove evicted items from cache
-    evictedKeys.forEach(evictedKey => {
+    for (const evictedKey of evictedKeys) {
       const parsedKey = JSON.parse(evictedKey);
-      cacheMap.delete(parsedKey);
-    });
+      await cacheMap.delete(parsedKey);
+    }
 
     // Emit event
     const event = CacheEventFactory.itemUpdated(updated.key, updated as V, previousItem, 'api');

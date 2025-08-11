@@ -8,12 +8,27 @@ describe('ARCEvictionStrategy', () => {
   let strategy: ARCEvictionStrategy;
   let metadataProvider: MockMetadataProvider;
 
-  beforeEach(() => {
+  afterEach(() => {
+    // Clean up any strategy resources
+    if (strategy) {
+      strategy.reset();
+    }
+    // Clear timers to prevent memory leaks
+    vi.clearAllTimers();
+  });
+
+  beforeEach(async () => {
     // Ensure clean state for each test
     if (metadataProvider) {
-      metadataProvider.clearMetadata();
+      await metadataProvider.clearMetadata();
     }
   });
+
+  function assertNonNull<T>(value: T, message?: string): asserts value is NonNullable<T> {
+    if (value == null) {
+      throw new Error(message ?? 'Expected value to be non-null');
+    }
+  }
 
   function createMockMetadata(key: string, addedAt = 1000, accessCount = 1): CacheItemMetadata {
     return {
@@ -37,27 +52,27 @@ describe('ARCEvictionStrategy', () => {
       metadataProvider = new MockMetadataProvider();
     });
 
-    it('should classify items as recent vs frequent based on simple access count', () => {
+    it('should classify items as recent vs frequent based on simple access count', async () => {
       // Add items
-      strategy.onItemAdded('recent1', 100, metadataProvider);
-      strategy.onItemAdded('frequent1', 100, metadataProvider);
+      await strategy.onItemAdded('recent1', 100, metadataProvider);
+      await strategy.onItemAdded('frequent1', 100, metadataProvider);
 
       // Access frequent1 more times
-      strategy.onItemAccessed('frequent1', metadataProvider);
-      strategy.onItemAccessed('frequent1', metadataProvider);
+      await strategy.onItemAccessed('frequent1', metadataProvider);
+      await strategy.onItemAccessed('frequent1', metadataProvider);
 
       // Should evict from recent items first
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toContain('recent1');
     });
 
-    it('should adapt target size based on ghost list hits', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should adapt target size based on ghost list hits', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Simulate ghost list hit (this would normally happen during cache management)
       // For testing, we'll manually trigger the adaptive behavior
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
       // The adaptive state should be available for monitoring
       const newState = strategy.getAdaptiveState();
@@ -81,27 +96,30 @@ describe('ARCEvictionStrategy', () => {
       metadataProvider = new MockMetadataProvider();
     });
 
-    it('should use frequency threshold for classification', () => {
+    it('should use frequency threshold for classification', async () => {
       // Add all items
-      strategy.onItemAdded('low-freq', 100, metadataProvider);
-      strategy.onItemAdded('med-freq', 100, metadataProvider);
-      strategy.onItemAdded('high-freq', 100, metadataProvider);
+      await strategy.onItemAdded('low-freq', 100, metadataProvider);
+      await strategy.onItemAdded('med-freq', 100, metadataProvider);
+      await strategy.onItemAdded('high-freq', 100, metadataProvider);
 
       // Access items different amounts
       // low-freq: 1 access (recent)
 
       // med-freq: 2 accesses (still recent, below threshold of 3)
-      strategy.onItemAccessed('med-freq', metadataProvider);
+      await strategy.onItemAccessed('med-freq', metadataProvider);
 
       // high-freq: 4 accesses (frequent, above threshold of 3)
       for (let i = 0; i < 3; i++) {
-        strategy.onItemAccessed('high-freq', metadataProvider);
+        await strategy.onItemAccessed('high-freq', metadataProvider);
       }
 
       // Check metadata from provider after operations
-      const lowFreqMeta = metadataProvider.getMetadata('low-freq')!;
-      const medFreqMeta = metadataProvider.getMetadata('med-freq')!;
-      const highFreqMeta = metadataProvider.getMetadata('high-freq')!;
+      const lowFreqMeta = await metadataProvider.getMetadata('low-freq');
+      assertNonNull(lowFreqMeta, 'low-freq metadata missing');
+      const medFreqMeta = await metadataProvider.getMetadata('med-freq');
+      assertNonNull(medFreqMeta, 'med-freq metadata missing');
+      const highFreqMeta = await metadataProvider.getMetadata('high-freq');
+      assertNonNull(highFreqMeta, 'high-freq metadata missing');
 
       expect(lowFreqMeta.accessCount).toBe(1);
       expect(medFreqMeta.accessCount).toBe(2);
@@ -110,25 +128,25 @@ describe('ARCEvictionStrategy', () => {
       // With frequency threshold of 3, only high-freq should be classified as frequent
       // The eviction selection should prioritize recent items
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result.length).toBeGreaterThan(0);
       expect(['low-freq', 'med-freq']).toContain(result[0]);
     });
 
-    it('should use frequency-weighted selection within lists', () => {
+    it('should use frequency-weighted selection within lists', async () => {
       // Items map created but not used in this test since we call methods directly
 
       // Add items with different ages
-      strategy.onItemAdded('recent-high', 100, metadataProvider);
-      strategy.onItemAdded('recent-low', 100, metadataProvider);
+      await strategy.onItemAdded('recent-high', 100, metadataProvider);
+      await strategy.onItemAdded('recent-low', 100, metadataProvider);
 
       // Make recent-high accessed more but still below frequency threshold
-      strategy.onItemAccessed('recent-high', metadataProvider);
+      await strategy.onItemAccessed('recent-high', metadataProvider);
 
       // Both should be in recent list, but the frequency-weighted selection
       // should consider both frequency and recency
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
 
       // Either item could be selected based on the algorithm's weighting
       // Just verify that a valid selection was made
@@ -157,15 +175,16 @@ describe('ARCEvictionStrategy', () => {
       vi.useRealTimers();
     });
 
-    it('should apply decay to frequency scores over time', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should apply decay to frequency scores over time', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Build up frequency
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('key1', metadataProvider);
+        await strategy.onItemAccessed('key1', metadataProvider);
       }
 
-      const metadata = metadataProvider.getMetadata('key1')!;
+      const metadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(metadata, 'metadata for key1 missing');
       const initialScore = metadata.frequencyScore!;
       expect(initialScore).toBeGreaterThan(1);
 
@@ -174,22 +193,23 @@ describe('ARCEvictionStrategy', () => {
 
       // Trigger decay by calling selectForEviction
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      strategy.selectForEviction(metadataProvider, context);
+      await strategy.selectForEviction(metadataProvider, context);
 
       // Get updated metadata after decay
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(updatedMetadata, 'updated metadata for key1 missing');
       // Frequency score should have decayed
       expect(updatedMetadata.frequencyScore!).toBeLessThan(initialScore);
       expect(updatedMetadata.frequencyScore!).toBeGreaterThanOrEqual(1);
     });
 
-    it('should reclassify items based on decayed frequency', () => {
-      strategy.onItemAdded('old-frequent', 100, metadataProvider);
-      strategy.onItemAdded('new-moderate', 100, metadataProvider);
+    it('should reclassify items based on decayed frequency', async () => {
+      await strategy.onItemAdded('old-frequent', 100, metadataProvider);
+      await strategy.onItemAdded('new-moderate', 100, metadataProvider);
 
       // Make old item very frequent initially
       for (let i = 0; i < 10; i++) {
-        strategy.onItemAccessed('old-frequent', metadataProvider);
+        await strategy.onItemAccessed('old-frequent', metadataProvider);
       }
 
       // Advance time significantly
@@ -197,11 +217,11 @@ describe('ARCEvictionStrategy', () => {
 
       // Make new item moderately frequent
       for (let i = 0; i < 3; i++) {
-        strategy.onItemAccessed('new-moderate', metadataProvider);
+        await strategy.onItemAccessed('new-moderate', metadataProvider);
       }
 
       // Due to decay, classification might change - verify item metadata exists
-      const metadata = metadataProvider.getMetadata('new-moderate');
+      const metadata = await metadataProvider.getMetadata('new-moderate');
       expect(metadata).toBeTruthy();
       if (metadata && typeof metadata.frequencyScore === 'number') {
         expect(metadata.frequencyScore).toBeGreaterThan(0);
@@ -221,8 +241,8 @@ describe('ARCEvictionStrategy', () => {
       metadataProvider = new MockMetadataProvider();
     });
 
-    it('should adjust target size with configurable learning rate', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should adjust target size with configurable learning rate', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       const initialState = strategy.getAdaptiveState();
       expect(initialState.targetRecentSize).toBe(0);
@@ -254,9 +274,9 @@ describe('ARCEvictionStrategy', () => {
       expect(returnedConfig.adaptiveLearningRate).toBe(0.5);
     });
 
-    it('should reset internal state when requested', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      strategy.onItemAccessed('key1', metadataProvider);
+    it('should reset internal state when requested', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
       // Reset should clear everything
       strategy.reset();
@@ -267,11 +287,11 @@ describe('ARCEvictionStrategy', () => {
       expect(resetState.frequentGhostSize).toBe(0);
     });
 
-    it('should handle empty item sets gracefully', () => {
+    it('should handle empty item sets gracefully', async () => {
       // Clear any existing metadata and ensure clean state
-      metadataProvider.clearMetadata();
+      await metadataProvider.clearMetadata();
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toEqual([]);
     });
 
@@ -289,11 +309,11 @@ describe('ARCEvictionStrategy', () => {
       expect(state.frequentGhostSize).toBe(0);
     });
 
-    it('should handle ghost list management', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should handle ghost list management', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Simulate item removal (would normally trigger ghost list addition)
-      strategy.onItemRemoved('key1', metadataProvider);
+      await strategy.onItemRemoved('key1', metadataProvider);
 
       const state = strategy.getAdaptiveState();
       expect(state.recentGhostSize).toBeGreaterThanOrEqual(0);
@@ -312,7 +332,7 @@ describe('ARCEvictionStrategy', () => {
       metadataProvider = new MockMetadataProvider();
     });
 
-    it('should handle recent ghost list hits and adjust target size', () => {
+    it('should handle recent ghost list hits and adjust target size', async () => {
       const initialState = strategy.getAdaptiveState();
       const initialTarget = initialState.targetRecentSize;
 
@@ -320,15 +340,15 @@ describe('ARCEvictionStrategy', () => {
       strategy['recentGhosts'].add('key1');
 
       // Now access the item to trigger the ghost hit logic
-      strategy.onItemAdded('key1', 100, metadataProvider);
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAdded('key1', 100, metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
       const finalState = strategy.getAdaptiveState();
       // Target should have been adjusted due to learning rate
       expect(finalState.targetRecentSize).toBeGreaterThanOrEqual(initialTarget);
     });
 
-    it('should handle frequent ghost list hits and decrease target size', () => {
+    it('should handle frequent ghost list hits and decrease target size', async () => {
       // First, simulate a frequent ghost hit scenario
       // We need to add the key to the frequent ghost list manually
       // since the actual ghost list management is internal
@@ -341,8 +361,8 @@ describe('ARCEvictionStrategy', () => {
       strategy['frequentGhosts'].add('frequent1');
 
       // Now access the item to trigger the ghost hit logic
-      strategy.onItemAdded('frequent1', 100, metadataProvider);
-      strategy.onItemAccessed('frequent1', metadataProvider);
+      await strategy.onItemAdded('frequent1', 100, metadataProvider);
+      await strategy.onItemAccessed('frequent1', metadataProvider);
 
       const finalState = strategy.getAdaptiveState();
       expect(finalState.targetRecentSize).toBeLessThan(50);
@@ -382,39 +402,43 @@ describe('ARCEvictionStrategy', () => {
       vi.useRealTimers();
     });
 
-    it('should handle items without frequency score during decay calculation', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should handle items without frequency score during decay calculation', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Get metadata and remove frequency score to test fallback
-      const metadata = metadataProvider.getMetadata('key1')!;
+      const metadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(metadata, 'metadata for key1 missing');
       delete metadata.frequencyScore;
       delete metadata.lastFrequencyUpdate;
-      metadataProvider.setMetadata('key1', metadata);
+      await metadataProvider.setMetadata('key1', metadata);
 
       // Access should still work and calculate frequency score
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(updatedMetadata, 'updated metadata for key1 missing');
       expect(updatedMetadata.frequencyScore).toBeGreaterThan(0);
     });
 
-    it('should handle items without lastFrequencyUpdate during frequency calculation', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should handle items without lastFrequencyUpdate during frequency calculation', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Get metadata and modify it
-      const metadata = metadataProvider.getMetadata('key1')!;
+      const metadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(metadata, 'metadata for key1 missing');
       metadata.rawFrequency = 5;
       delete metadata.lastFrequencyUpdate;
-      metadataProvider.setMetadata('key1', metadata);
+      await metadataProvider.setMetadata('key1', metadata);
 
-      strategy.onItemAccessed('key1', metadataProvider);
+      await strategy.onItemAccessed('key1', metadataProvider);
 
       // Should fallback to rawFrequency
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(updatedMetadata, 'updated metadata for key1 missing');
       expect(updatedMetadata.rawFrequency).toBeGreaterThan(0);
     });
 
-    it('should use rawFrequency when enhanced frequency is disabled', () => {
+    it('should use rawFrequency when enhanced frequency is disabled', async () => {
       const noEnhancedConfig: ARCConfig = {
         type: 'arc',
         maxCacheSize: 100,
@@ -425,32 +449,36 @@ describe('ARCEvictionStrategy', () => {
       simpleStrategy.onItemAdded('key1', 100, metadataProvider);
 
       // Get metadata and set rawFrequency
-      const metadata = metadataProvider.getMetadata('key1')!;
+      const metadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(metadata, 'metadata for key1 missing');
       metadata.rawFrequency = 10;
-      metadataProvider.setMetadata('key1', metadata);
+      await metadataProvider.setMetadata('key1', metadata);
 
       // Should use simple classification based on access count
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(updatedMetadata, 'updated metadata for key1 missing');
       expect(updatedMetadata.accessCount).toBe(1);
     });
 
-    it('should enforce minimum frequency score of 1 after decay', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should enforce minimum frequency score of 1 after decay', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Get metadata and set a very low frequency score
-      const metadata = metadataProvider.getMetadata('key1')!;
+      const metadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(metadata, 'metadata for key1 missing');
       metadata.frequencyScore = 0.5;
       metadata.lastFrequencyUpdate = Date.now();
-      metadataProvider.setMetadata('key1', metadata);
+      await metadataProvider.setMetadata('key1', metadata);
 
       // Advance time significantly to cause heavy decay
       vi.advanceTimersByTime(3000000); // 50 minutes
 
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      strategy.selectForEviction(metadataProvider, context);
+      await strategy.selectForEviction(metadataProvider, context);
 
       // Frequency score should be at least 1
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(updatedMetadata, 'updated metadata for key1 missing');
       expect(updatedMetadata.frequencyScore).toBeGreaterThanOrEqual(1);
     });
   });
@@ -468,62 +496,62 @@ describe('ARCEvictionStrategy', () => {
       metadataProvider = new MockMetadataProvider();
     });
 
-    it('should evict from frequent list when recent list is within target', () => {
-      strategy.onItemAdded('recent', 100, metadataProvider);
-      strategy.onItemAdded('frequent', 100, metadataProvider);
+    it('should evict from frequent list when recent list is within target', async () => {
+      await strategy.onItemAdded('recent', 100, metadataProvider);
+      await strategy.onItemAdded('frequent', 100, metadataProvider);
 
       // Make frequent item actually frequent
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('frequent', metadataProvider);
+        await strategy.onItemAccessed('frequent', metadataProvider);
       }
 
       // Set target size higher than recent items
       strategy['targetRecentSize'] = 10;
 
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       // Should prefer evicting from frequent list when recent is within target
       expect(result).toContain('frequent');
     });
 
-    it('should use fallback selection when both lists are empty', () => {
+    it('should use fallback selection when both lists are empty', async () => {
       // Add some items to the metadata provider but not through strategy calls
       // to test the fallback path
-      metadataProvider.setMetadata('item1', createMockMetadata('item1'));
-      metadataProvider.setMetadata('item2', createMockMetadata('item2'));
+      await metadataProvider.setMetadata('item1', createMockMetadata('item1'));
+      await metadataProvider.setMetadata('item2', createMockMetadata('item2'));
 
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result.length).toBeGreaterThan(0);
       expect(['item1', 'item2']).toContain(result[0]);
     });
 
-    it('should handle frequency-weighted selection in different contexts', () => {
+    it('should handle frequency-weighted selection in different contexts', async () => {
       // Items added through method calls below
 
-      strategy.onItemAdded('recent-old', 100, metadataProvider);
-      strategy.onItemAdded('recent-new', 100, metadataProvider);
-      strategy.onItemAdded('frequent-old', 100, metadataProvider);
-      strategy.onItemAdded('frequent-new', 100, metadataProvider);
+      await strategy.onItemAdded('recent-old', 100, metadataProvider);
+      await strategy.onItemAdded('recent-new', 100, metadataProvider);
+      await strategy.onItemAdded('frequent-old', 100, metadataProvider);
+      await strategy.onItemAdded('frequent-new', 100, metadataProvider);
 
       // Make frequent items actually frequent
       for (let i = 0; i < 5; i++) {
-        strategy.onItemAccessed('frequent-old', metadataProvider);
-        strategy.onItemAccessed('frequent-new', metadataProvider);
+        await strategy.onItemAccessed('frequent-old', metadataProvider);
+        await strategy.onItemAccessed('frequent-new', metadataProvider);
       }
 
       // Test different selection contexts
       // Force eviction from recent list
       strategy['targetRecentSize'] = 0;
       const context1 = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result1 = strategy.selectForEviction(metadataProvider, context1);
+      const result1 = await strategy.selectForEviction(metadataProvider, context1);
       expect(result1.length).toBeGreaterThan(0);
       expect(['recent-old', 'recent-new']).toContain(result1[0]);
 
       // Force eviction from frequent list
       strategy['targetRecentSize'] = 100;
       const context2 = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result2 = strategy.selectForEviction(metadataProvider, context2);
+      const result2 = await strategy.selectForEviction(metadataProvider, context2);
       expect(result2.length).toBeGreaterThan(0);
       expect(['frequent-old', 'frequent-new']).toContain(result2[0]);
     });
@@ -586,7 +614,7 @@ describe('ARCEvictionStrategy', () => {
       metadataProvider = new MockMetadataProvider();
     });
 
-    it('should select oldest item when using LRU fallback', () => {
+    it('should select oldest item when using LRU fallback', async () => {
       const now = Date.now();
       const oldest = createMockMetadata('oldest', now - 5000);
       const middle = createMockMetadata('middle', now - 3000);
@@ -597,17 +625,17 @@ describe('ARCEvictionStrategy', () => {
       newest.lastAccessedAt = now - 1000;
 
       // Add items to metadata provider
-      metadataProvider.setMetadata('oldest', oldest);
-      metadataProvider.setMetadata('middle', middle);
-      metadataProvider.setMetadata('newest', newest);
+      await metadataProvider.setMetadata('oldest', oldest);
+      await metadataProvider.setMetadata('middle', middle);
+      await metadataProvider.setMetadata('newest', newest);
 
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result.length).toBeGreaterThan(0);
       expect(result).toContain('oldest');
     });
 
-    it('should handle items with same access time in LRU selection', () => {
+    it('should handle items with same access time in LRU selection', async () => {
       const now = Date.now();
       const item1 = createMockMetadata('item1', now);
       const item2 = createMockMetadata('item2', now);
@@ -616,11 +644,11 @@ describe('ARCEvictionStrategy', () => {
       item2.lastAccessedAt = now;
 
       // Add items to metadata provider
-      metadataProvider.setMetadata('item1', item1);
-      metadataProvider.setMetadata('item2', item2);
+      await metadataProvider.setMetadata('item1', item1);
+      await metadataProvider.setMetadata('item2', item2);
 
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result.length).toBeGreaterThan(0);
       expect(['item1', 'item2']).toContain(result[0]);
     });
@@ -635,41 +663,41 @@ describe('ARCEvictionStrategy', () => {
       strategy = new ARCEvictionStrategy(5, config);
     });
 
-    it('should handle ghost list cleanup when frequent ghost list exceeds max size', () => {
+    it('should handle ghost list cleanup when frequent ghost list exceeds max size', async () => {
       // Create many frequent items and remove them to populate frequent ghost list
       for (let i = 0; i < 10; i++) {
-        strategy.onItemAdded(`frequent${i}`, 100, metadataProvider);
+        await strategy.onItemAdded(`frequent${i}`, 100, metadataProvider);
 
         // Make items frequent before removing
         for (let j = 0; j < 3; j++) {
-          strategy.onItemAccessed(`frequent${i}`, metadataProvider);
+          await strategy.onItemAccessed(`frequent${i}`, metadataProvider);
         }
 
         // Remove to add to ghost list
-        strategy.onItemRemoved(`frequent${i}`, metadataProvider);
+        await strategy.onItemRemoved(`frequent${i}`, metadataProvider);
       }
 
       const state = strategy.getAdaptiveState();
       expect(state.frequentGhostSize).toBeLessThanOrEqual(5);
     });
 
-    it('should handle ghost list cleanup when recent ghost list exceeds max size', () => {
+    it('should handle ghost list cleanup when recent ghost list exceeds max size', async () => {
       // Create many recent items and remove them
       for (let i = 0; i < 10; i++) {
-        strategy.onItemAdded(`recent${i}`, 100, metadataProvider);
+        await strategy.onItemAdded(`recent${i}`, 100, metadataProvider);
         // Don't access multiple times to keep them in recent category
-        strategy.onItemRemoved(`recent${i}`, metadataProvider);
+        await strategy.onItemRemoved(`recent${i}`, metadataProvider);
       }
 
       const state = strategy.getAdaptiveState();
       expect(state.recentGhostSize).toBeLessThanOrEqual(5);
     });
 
-    it('should handle removing items when ghost lists are empty', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should handle removing items when ghost lists are empty', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Remove item when ghost lists are empty
-      strategy.onItemRemoved('key1', metadataProvider);
+      await strategy.onItemRemoved('key1', metadataProvider);
 
       const state = strategy.getAdaptiveState();
       expect(state.recentGhostSize).toBeGreaterThan(0);
@@ -723,7 +751,7 @@ describe('ARCEvictionStrategy', () => {
       vi.useRealTimers();
     });
 
-    it('should handle frequency decay factor of 0', () => {
+    it('should handle frequency decay factor of 0', async () => {
       const noDecayConfig: ARCConfig = {
         type: 'arc',
         maxCacheSize: 100,
@@ -738,7 +766,8 @@ describe('ARCEvictionStrategy', () => {
         noDecayStrategy.onItemAccessed('key1', metadataProvider);
       }
 
-      const metadata = metadataProvider.getMetadata('key1')!;
+      const metadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(metadata, 'metadata for key1 missing');
       const initialScore = metadata.frequencyScore!;
 
       // Advance time significantly
@@ -749,40 +778,44 @@ describe('ARCEvictionStrategy', () => {
       noDecayStrategy.selectForEviction(metadataProvider, context);
 
       // Score should not have changed with no decay
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(updatedMetadata, 'updated metadata for key1 missing');
       expect(updatedMetadata.frequencyScore).toBe(initialScore);
     });
 
-    it('should handle missing frequencyScore in periodic decay', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should handle missing frequencyScore in periodic decay', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Get metadata, set frequencyScore and then delete it
-      const metadata = metadataProvider.getMetadata('key1')!;
+      const metadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(metadata, 'metadata for key1 missing');
       metadata.frequencyScore = 5;
       delete metadata.frequencyScore;
-      metadataProvider.setMetadata('key1', metadata);
+      await metadataProvider.setMetadata('key1', metadata);
 
       // Advance time to trigger periodic decay
       vi.advanceTimersByTime(350000);
 
       // This should not crash even with missing frequency score
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toContain('key1');
     });
 
-    it('should handle effective frequency calculation with missing properties', () => {
-      strategy.onItemAdded('key1', 100, metadataProvider);
+    it('should handle effective frequency calculation with missing properties', async () => {
+      await strategy.onItemAdded('key1', 100, metadataProvider);
 
       // Get metadata and remove both frequency tracking properties
-      const metadata = metadataProvider.getMetadata('key1')!;
+      const metadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(metadata, 'metadata for key1 missing');
       delete metadata.rawFrequency;
       delete metadata.frequencyScore;
       delete metadata.lastFrequencyUpdate;
-      metadataProvider.setMetadata('key1', metadata);
+      await metadataProvider.setMetadata('key1', metadata);
 
       // Should fallback to accessCount
-      const updatedMetadata = metadataProvider.getMetadata('key1')!;
+      const updatedMetadata = await metadataProvider.getMetadata('key1');
+      assertNonNull(updatedMetadata, 'updated metadata for key1 missing');
       expect(updatedMetadata.accessCount).toBe(1);
     });
   });
@@ -799,14 +832,14 @@ describe('ARCEvictionStrategy', () => {
       metadataProvider = new MockMetadataProvider();
     });
 
-    it('should handle frequency-weighted selection with zero-sized items map', () => {
+    it('should handle frequency-weighted selection with zero-sized items map', async () => {
       // Test with empty metadata provider
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toEqual([]);
     });
 
-    it('should test all frequency-weighted selection scoring contexts', () => {
+    it('should test all frequency-weighted selection scoring contexts', async () => {
       const now = Date.now();
 
       // Test recent context scoring
@@ -814,11 +847,11 @@ describe('ARCEvictionStrategy', () => {
       recentItem.lastAccessedAt = now - 5000;
       recentItem.rawFrequency = 2;
 
-      strategy.onItemAdded('recent', 100, metadataProvider);
+      await strategy.onItemAdded('recent', 100, metadataProvider);
 
       // Removed unused recentItems map([['recent', recentItem]]);
       const recentContext = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const recentResult = strategy.selectForEviction(metadataProvider, recentContext);
+      const recentResult = await strategy.selectForEviction(metadataProvider, recentContext);
       expect(recentResult.length).toBeGreaterThan(0);
       expect(recentResult[0]).toBe('recent');
 
@@ -827,21 +860,21 @@ describe('ARCEvictionStrategy', () => {
       frequentItem.lastAccessedAt = now - 3000;
       frequentItem.rawFrequency = 10;
 
-      strategy.onItemAdded('frequent', 100, metadataProvider);
+      await strategy.onItemAdded('frequent', 100, metadataProvider);
       // Make it truly frequent
       for (let i = 0; i < 8; i++) {
-        strategy.onItemAccessed('frequent', metadataProvider);
+        await strategy.onItemAccessed('frequent', metadataProvider);
       }
 
       // Force eviction from frequent by setting target high
       strategy['targetRecentSize'] = 100;
       const frequentContext = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const frequentResult = strategy.selectForEviction(metadataProvider, frequentContext);
+      const frequentResult = await strategy.selectForEviction(metadataProvider, frequentContext);
       expect(frequentResult.length).toBeGreaterThan(0);
       expect(frequentResult[0]).toBe('frequent');
     });
 
-    it('should handle items classification at frequency threshold boundary', () => {
+    it('should handle items classification at frequency threshold boundary', async () => {
       const config: ARCConfig = {
         type: 'arc',
         maxCacheSize: 100,
@@ -850,37 +883,39 @@ describe('ARCEvictionStrategy', () => {
       };
       const boundaryStrategy = new ARCEvictionStrategy(100, config);
 
-      boundaryStrategy.onItemAdded('at-threshold', 100, metadataProvider);
-      boundaryStrategy.onItemAdded('below-threshold', 100, metadataProvider);
+      await boundaryStrategy.onItemAdded('at-threshold', 100, metadataProvider);
+      await boundaryStrategy.onItemAdded('below-threshold', 100, metadataProvider);
 
       // Make at-threshold exactly at the boundary (3 accesses total)
-      boundaryStrategy.onItemAccessed('at-threshold', metadataProvider);
-      boundaryStrategy.onItemAccessed('at-threshold', metadataProvider);
+      await boundaryStrategy.onItemAccessed('at-threshold', metadataProvider);
+      await boundaryStrategy.onItemAccessed('at-threshold', metadataProvider);
 
       // Make below-threshold just below (2 accesses total)
-      boundaryStrategy.onItemAccessed('below-threshold', metadataProvider);
+      await boundaryStrategy.onItemAccessed('below-threshold', metadataProvider);
 
       // Check actual metadata from provider
-      const atThresholdMeta = metadataProvider.getMetadata('at-threshold')!;
-      const belowThresholdMeta = metadataProvider.getMetadata('below-threshold')!;
+      const atThresholdMeta = await metadataProvider.getMetadata('at-threshold');
+      assertNonNull(atThresholdMeta, 'at-threshold metadata missing');
+      const belowThresholdMeta = await metadataProvider.getMetadata('below-threshold');
+      assertNonNull(belowThresholdMeta, 'below-threshold metadata missing');
 
       expect(atThresholdMeta.accessCount).toBe(3); // Should be frequent
       expect(belowThresholdMeta.accessCount).toBe(2); // Should be recent
 
       const boundaryContext = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = boundaryStrategy.selectForEviction(metadataProvider, boundaryContext);
+      const result = await boundaryStrategy.selectForEviction(metadataProvider, boundaryContext);
       expect(result.length).toBeGreaterThan(0);
       expect(['at-threshold', 'below-threshold']).toContain(result[0]);
     });
 
-    it('should handle frequency-weighted selection fallback when items map is empty after filter', () => {
+    it('should handle frequency-weighted selection fallback when items map is empty after filter', async () => {
       // This should trigger the fallback path in selectFrequencyWeightedFromItems
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result).toEqual([]);
     });
 
-    it('should handle frequency-weighted selection with no bestKey found', () => {
+    it('should handle frequency-weighted selection with no bestKey found', async () => {
       // Create items with unusual scores to test the fallback path
       const item1 = createMockMetadata('item1');
       const item2 = createMockMetadata('item2');
@@ -890,11 +925,11 @@ describe('ARCEvictionStrategy', () => {
       item2.lastAccessedAt = Number.MAX_SAFE_INTEGER; // Very recent access
 
       // Add the items to metadata provider
-      metadataProvider.setMetadata('item1', item1);
-      metadataProvider.setMetadata('item2', item2);
+      await metadataProvider.setMetadata('item1', item1);
+      await metadataProvider.setMetadata('item2', item2);
 
       const context = { currentSize: { itemCount: 5, sizeBytes: 500 }, limits: { maxItems: 4, maxSizeBytes: 400 } };
-      const result = strategy.selectForEviction(metadataProvider, context);
+      const result = await strategy.selectForEviction(metadataProvider, context);
       expect(result.length).toBeGreaterThan(0);
       expect(['item1', 'item2']).toContain(result[0]);
     });

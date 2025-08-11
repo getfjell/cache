@@ -46,7 +46,7 @@ describe('Find Operations', () => {
 
     const options: Options<TestItem, 'test', 'container'> = {
       cacheType: 'memory' as const,
-      keyTypeArray: ['test', 'container'] as const,
+      // keyTypeArray: ['test', 'container'] as const,
       ttl: 300000
     };
 
@@ -95,7 +95,7 @@ describe('Find Operations', () => {
       const [updatedContext, results] = await find(
         finder,
         params,
-        locations,
+        locations as any,
         context
       );
 
@@ -123,7 +123,7 @@ describe('Find Operations', () => {
       const [updatedContext, results] = await find(
         finder,
         params,
-        locations,
+        locations as any,
         context
       );
 
@@ -149,7 +149,7 @@ describe('Find Operations', () => {
       const [updatedContext, results] = await find(
         finder,
         params,
-        locations,
+        locations as any,
         context
       );
 
@@ -169,7 +169,7 @@ describe('Find Operations', () => {
       const [updatedContext, results] = await find(
         finder,
         params,
-        locations,
+        locations as any,
         context
       );
 
@@ -194,7 +194,7 @@ describe('Find Operations', () => {
       const [, results] = await find(
         finder,
         params,
-        locations,
+        locations as any,
         context
       );
 
@@ -212,7 +212,7 @@ describe('Find Operations', () => {
       const [updatedContext, results] = await find(
         finder,
         params,
-        locations,
+        locations as any,
         context
       );
 
@@ -231,7 +231,7 @@ describe('Find Operations', () => {
       await expect(find(
         finder,
         params,
-        locations,
+        locations as any,
         context
       )).rejects.toThrow('API Error');
     });
@@ -309,8 +309,8 @@ describe('Find Operations', () => {
 
       const [updatedContext, result] = await findOne(
         finder,
-        finderParams,
-        locations,
+        finderParams as any,
+        locations as any,
         context
       );
 
@@ -333,8 +333,8 @@ describe('Find Operations', () => {
 
       const [updatedContext, result] = await findOne(
         finder,
-        finderParams,
-        locations,
+        finderParams as any,
+        locations as any,
         context
       );
 
@@ -356,8 +356,8 @@ describe('Find Operations', () => {
 
       const [updatedContext, result] = await findOne(
         finder,
-        finderParams,
-        locations,
+        finderParams as any,
+        locations as any,
         context
       );
 
@@ -381,8 +381,8 @@ describe('Find Operations', () => {
 
       const [, result] = await findOne(
         finder,
-        finderParams,
-        locations,
+        finderParams as any,
+        locations as any,
         context
       );
 
@@ -399,8 +399,8 @@ describe('Find Operations', () => {
 
       const [updatedContext, result] = await findOne(
         finder,
-        finderParams,
-        locations,
+        finderParams as any,
+        locations as any,
         context
       );
 
@@ -418,8 +418,8 @@ describe('Find Operations', () => {
 
       await expect(findOne(
         finder,
-        finderParams,
-        locations,
+        finderParams as any,
+        locations as any,
         context
       )).rejects.toThrow('FindOne API Error');
     });
@@ -452,7 +452,7 @@ describe('Find Operations', () => {
 
       const [, result] = await findOne(
         finder,
-        finderParams,
+        finderParams as any,
         [],
         context
       );
@@ -476,7 +476,7 @@ describe('Find Operations', () => {
 
       const [, result] = await findOne(
         finder,
-        finderParams,
+        finderParams as any,
         [],
         context
       );
@@ -500,7 +500,7 @@ describe('Find Operations', () => {
 
       const [, result] = await findOne(
         finder,
-        finderParams,
+        finderParams as any,
         [],
         context
       );
@@ -549,7 +549,7 @@ describe('Find Operations', () => {
 
       const [, result] = await findOne(
         finder,
-        finderParams,
+        finderParams as any,
         [],
         context
       );

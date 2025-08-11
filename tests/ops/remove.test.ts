@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { remove } from '../../src/ops/remove';
 import { CacheContext } from '../../src/CacheContext';
 import { ComKey, Item, PriKey } from '@fjell/core';
@@ -11,6 +11,11 @@ describe('remove operation', () => {
   let mockApi: any;
   let mockCacheMap: any;
   let context: CacheContext<TestItem, 'test', 'container'>;
+
+  afterEach(() => {
+    // Clear timers to prevent memory leaks
+    vi.clearAllTimers();
+  });
 
   beforeEach(() => {
     // Reset mocks

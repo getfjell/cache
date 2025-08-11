@@ -179,8 +179,8 @@ describe('SessionStorageCacheMap', () => {
         testItems.forEach(item => cacheMap.set(item.key, item));
       });
 
-      it('should return all keys', () => {
-        const keys = cacheMap.keys();
+      it('should return all keys', async () => {
+        const keys = await cacheMap.keys();
 
         expect(keys).toHaveLength(3);
         expect(keys.some(k => JSON.stringify(k) === JSON.stringify(priKey1))).toBe(true);
@@ -204,11 +204,11 @@ describe('SessionStorageCacheMap', () => {
       });
 
       it('should remove all cache items from sessionStorage', async () => {
-        expect(cacheMap.keys()).toHaveLength(3);
+        expect(await cacheMap.keys()).toHaveLength(3);
 
         cacheMap.clear();
 
-        expect(cacheMap.keys()).toHaveLength(0);
+        expect(await cacheMap.keys()).toHaveLength(0);
         expect(await cacheMap.values()).toHaveLength(0);
       });
 
@@ -249,7 +249,7 @@ describe('SessionStorageCacheMap', () => {
       window.sessionStorage.clear();
 
       // All data should be gone
-      expect(cacheMap.keys()).toHaveLength(0);
+      expect(await cacheMap.keys()).toHaveLength(0);
       expect(await cacheMap.get(priKey1)).toBeNull();
     });
   });
@@ -324,16 +324,16 @@ describe('SessionStorageCacheMap', () => {
   });
 
   describe('Error Handling', () => {
-    it('should handle sessionStorage setItem errors gracefully', () => {
+    it('should handle sessionStorage setItem errors gracefully', async () => {
       // Mock sessionStorage.setItem to throw an error (e.g., quota exceeded)
       // @ts-ignore
       window.sessionStorage.setItem.mockImplementationOnce(() => {
         throw new Error('QuotaExceededError');
       });
 
-      expect(() => {
-        cacheMap.set(priKey1, testItems[0]);
-      }).toThrow('Failed to store item in sessionStorage');
+      await expect(async () => {
+        await cacheMap.set(priKey1, testItems[0]);
+      }).rejects.toThrow('Failed to store item in sessionStorage');
     });
 
     it('should handle sessionStorage getItem errors gracefully', async () => {
@@ -390,7 +390,7 @@ describe('SessionStorageCacheMap', () => {
       const cloned = await cacheMap.clone();
 
       // Clone should see the same data
-      expect(cloned.keys()).toHaveLength(3);
+      expect(await cloned.keys()).toHaveLength(3);
       expect(await cloned.get(priKey1)).toEqual(testItems[0]);
     });
 
@@ -417,8 +417,8 @@ describe('SessionStorageCacheMap', () => {
       expect(await cache1.get(priKey1)).toEqual(testItems[0]);
       expect(await cache2.get(priKey1)).toEqual(testItems[1]);
 
-      expect(cache1.keys()).toHaveLength(1);
-      expect(cache2.keys()).toHaveLength(1);
+      expect(await cache1.keys()).toHaveLength(1);
+      expect(await cache2.keys()).toHaveLength(1);
     });
 
     it('should not affect other prefixes when clearing', async () => {
@@ -430,8 +430,8 @@ describe('SessionStorageCacheMap', () => {
 
       cache1.clear();
 
-      expect(cache1.keys()).toHaveLength(0);
-      expect(cache2.keys()).toHaveLength(1);
+      expect(await cache1.keys()).toHaveLength(0);
+      expect(await cache2.keys()).toHaveLength(1);
       expect(await cache2.get(priKey1)).toEqual(testItems[1]);
     });
   });
@@ -505,24 +505,24 @@ describe('SessionStorageCacheMap', () => {
     });
 
     describe('hasQueryResult()', () => {
-      it('should return true for existing query results', () => {
+      it('should return true for existing query results', async () => {
         cacheMap.setQueryResult(queryHash1, itemKeys);
-        expect(cacheMap.hasQueryResult(queryHash1)).toBe(true);
+        expect(await cacheMap.hasQueryResult(queryHash1)).toBe(true);
       });
 
-      it('should return false for non-existent query results', () => {
-        expect(cacheMap.hasQueryResult('non-existent')).toBe(false);
+      it('should return false for non-existent query results', async () => {
+        expect(await cacheMap.hasQueryResult('non-existent')).toBe(false);
       });
 
     });
 
     describe('deleteQueryResult()', () => {
-      it('should delete existing query results', () => {
+      it('should delete existing query results', async () => {
         cacheMap.setQueryResult(queryHash1, itemKeys);
-        expect(cacheMap.hasQueryResult(queryHash1)).toBe(true);
+        expect(await cacheMap.hasQueryResult(queryHash1)).toBe(true);
 
         cacheMap.deleteQueryResult(queryHash1);
-        expect(cacheMap.hasQueryResult(queryHash1)).toBe(false);
+        expect(await cacheMap.hasQueryResult(queryHash1)).toBe(false);
       });
 
       it('should handle deletion of non-existent query results gracefully', () => {
@@ -553,21 +553,21 @@ describe('SessionStorageCacheMap', () => {
         cacheMap.setQueryResult(queryHash1, [priKey1]);
         cacheMap.setQueryResult(queryHash2, [priKey2]);
 
-        expect(cacheMap.hasQueryResult(queryHash1)).toBe(true);
-        expect(cacheMap.hasQueryResult(queryHash2)).toBe(true);
+        expect(await cacheMap.hasQueryResult(queryHash1)).toBe(true);
+        expect(await cacheMap.hasQueryResult(queryHash2)).toBe(true);
 
         cacheMap.clearQueryResults();
 
         // Query results should be cleared
-        expect(cacheMap.hasQueryResult(queryHash1)).toBe(false);
-        expect(cacheMap.hasQueryResult(queryHash2)).toBe(false);
+        expect(await cacheMap.hasQueryResult(queryHash1)).toBe(false);
+        expect(await cacheMap.hasQueryResult(queryHash2)).toBe(false);
 
         // Regular cache items should remain
         expect(await cacheMap.get(priKey1)).toEqual(testItems[0]);
         expect(await cacheMap.get(priKey2)).toEqual(testItems[1]);
       });
 
-      it('should only clear query results with matching prefix', () => {
+      it('should only clear query results with matching prefix', async () => {
         // Add query result to our cache
         cacheMap.setQueryResult(queryHash1, itemKeys);
 
@@ -577,7 +577,7 @@ describe('SessionStorageCacheMap', () => {
         cacheMap.clearQueryResults();
 
         // Our query result should be cleared
-        expect(cacheMap.hasQueryResult(queryHash1)).toBe(false);
+        expect(await cacheMap.hasQueryResult(queryHash1)).toBe(false);
 
         // Other app's query result should remain
         expect(window.sessionStorage.getItem('other-app:query:other-hash')).toBeTruthy();
@@ -647,13 +647,13 @@ describe('SessionStorageCacheMap', () => {
         expect(await cacheMap.get(comKey1)).toEqual(testItems[2]); // Should remain
       });
 
-      it('should handle empty key arrays', () => {
+      it('should handle empty key arrays', async () => {
         expect(() => {
           cacheMap.invalidateItemKeys([]);
         }).not.toThrow();
 
         // All items should still be present
-        expect(cacheMap.keys()).toHaveLength(3);
+        expect(await cacheMap.keys()).toHaveLength(3);
       });
 
       it('should handle non-existent keys gracefully', () => {
@@ -681,8 +681,8 @@ describe('SessionStorageCacheMap', () => {
         expect(await cacheMap.get(comKey1)).toEqual(testItems[2]);
 
         // Query results should be cleared
-        expect(cacheMap.hasQueryResult('query1')).toBe(false);
-        expect(cacheMap.hasQueryResult('query2')).toBe(false);
+        expect(await cacheMap.hasQueryResult('query1')).toBe(false);
+        expect(await cacheMap.hasQueryResult('query2')).toBe(false);
       });
 
       it('should invalidate items in specific location', async () => {
@@ -700,8 +700,8 @@ describe('SessionStorageCacheMap', () => {
         expect(await cacheMap.get(priKey2)).toEqual(testItems[1]);
 
         // Query results should be cleared
-        expect(cacheMap.hasQueryResult('query1')).toBe(false);
-        expect(cacheMap.hasQueryResult('query2')).toBe(false);
+        expect(await cacheMap.hasQueryResult('query1')).toBe(false);
+        expect(await cacheMap.hasQueryResult('query2')).toBe(false);
       });
 
       it('should handle non-existent locations gracefully', async () => {
@@ -715,8 +715,8 @@ describe('SessionStorageCacheMap', () => {
         expect(await cacheMap.keys()).toHaveLength(3);
 
         // But query results should still be cleared
-        expect(cacheMap.hasQueryResult('query1')).toBe(false);
-        expect(cacheMap.hasQueryResult('query2')).toBe(false);
+        expect(await cacheMap.hasQueryResult('query1')).toBe(false);
+        expect(await cacheMap.hasQueryResult('query2')).toBe(false);
       });
 
       it('should properly identify primary vs composite keys', async () => {
@@ -787,20 +787,20 @@ describe('SessionStorageCacheMap', () => {
     const testKey = 'metadata-test-key';
 
     describe('setMetadata() and getMetadata()', () => {
-      it('should store and retrieve metadata', () => {
-        cacheMap.setMetadata(testKey, testMetadata);
-        const retrieved = cacheMap.getMetadata(testKey);
+      it('should store and retrieve metadata', async () => {
+        await cacheMap.setMetadata(testKey, testMetadata);
+        const retrieved = await cacheMap.getMetadata(testKey);
 
         expect(retrieved).toEqual(testMetadata);
       });
 
-      it('should return null for non-existent metadata', () => {
-        const result = cacheMap.getMetadata('non-existent-key');
+      it('should return null for non-existent metadata', async () => {
+        const result = await cacheMap.getMetadata('non-existent-key');
         expect(result).toBeNull();
       });
 
-      it('should overwrite existing metadata', () => {
-        cacheMap.setMetadata(testKey, testMetadata);
+      it('should overwrite existing metadata', async () => {
+        await cacheMap.setMetadata(testKey, testMetadata);
 
         const updatedMetadata = {
           addedAt: now - 500,
@@ -810,13 +810,13 @@ describe('SessionStorageCacheMap', () => {
           key: testKey
         };
 
-        cacheMap.setMetadata(testKey, updatedMetadata);
-        const retrieved = cacheMap.getMetadata(testKey);
+        await cacheMap.setMetadata(testKey, updatedMetadata);
+        const retrieved = await cacheMap.getMetadata(testKey);
 
         expect(retrieved).toEqual(updatedMetadata);
       });
 
-      it('should handle complex metadata objects', () => {
+      it('should handle complex metadata objects', async () => {
         const complexMetadata = {
           addedAt: now - 2000,
           lastAccessedAt: now,
@@ -828,13 +828,13 @@ describe('SessionStorageCacheMap', () => {
           rawFrequency: 15
         };
 
-        cacheMap.setMetadata(testKey, complexMetadata);
-        const retrieved = cacheMap.getMetadata(testKey);
+        await cacheMap.setMetadata(testKey, complexMetadata);
+        const retrieved = await cacheMap.getMetadata(testKey);
 
         expect(retrieved).toEqual(complexMetadata);
       });
 
-      it('should handle sessionStorage errors gracefully during metadata operations', () => {
+      it('should handle sessionStorage errors gracefully during metadata operations', async () => {
         // Test setMetadata error handling
         const originalSetItem = window.sessionStorage.setItem;
         // @ts-ignore
@@ -842,8 +842,8 @@ describe('SessionStorageCacheMap', () => {
           throw new Error('Storage quota exceeded');
         });
 
-        expect(() => {
-          cacheMap.setMetadata(testKey, testMetadata);
+        expect(async () => {
+          await cacheMap.setMetadata(testKey, testMetadata);
         }).not.toThrow(); // Should handle error gracefully
 
         // No explicit restore needed; mockImplementationOnce only affects a single call
@@ -854,47 +854,47 @@ describe('SessionStorageCacheMap', () => {
           throw new Error('Storage read error');
         });
 
-        const result = cacheMap.getMetadata(testKey);
+        const result = await cacheMap.getMetadata(testKey);
         expect(result).toBeNull();
       });
 
-      it('should handle corrupted metadata JSON gracefully', () => {
+      it('should handle corrupted metadata JSON gracefully', async () => {
         // Manually store corrupted metadata
         const metadataKey = `test-session-cache:metadata:${testKey}`;
         window.sessionStorage.setItem(metadataKey, 'invalid json {');
 
-        const result = cacheMap.getMetadata(testKey);
+        const result = await cacheMap.getMetadata(testKey);
         expect(result).toBeNull();
       });
     });
 
     describe('deleteMetadata()', () => {
-      beforeEach(() => {
-        cacheMap.setMetadata(testKey, testMetadata);
+      beforeEach(async () => {
+        await cacheMap.setMetadata(testKey, testMetadata);
       });
 
-      it('should delete existing metadata', () => {
-        expect(cacheMap.getMetadata(testKey)).toEqual(testMetadata);
+      it('should delete existing metadata', async () => {
+        expect(await cacheMap.getMetadata(testKey)).toEqual(testMetadata);
 
-        cacheMap.deleteMetadata(testKey);
+        await cacheMap.deleteMetadata(testKey);
 
-        expect(cacheMap.getMetadata(testKey)).toBeNull();
+        expect(await cacheMap.getMetadata(testKey)).toBeNull();
       });
 
-      it('should handle deletion of non-existent metadata gracefully', () => {
-        expect(() => {
-          cacheMap.deleteMetadata('non-existent-key');
+      it('should handle deletion of non-existent metadata gracefully', async () => {
+        expect(async () => {
+          await cacheMap.deleteMetadata('non-existent-key');
         }).not.toThrow();
       });
 
-      it('should handle sessionStorage errors during deletion', () => {
+      it('should handle sessionStorage errors during deletion', async () => {
         // @ts-ignore
         window.sessionStorage.removeItem.mockImplementationOnce(() => {
           throw new Error('Storage delete error');
         });
 
-        expect(() => {
-          cacheMap.deleteMetadata(testKey);
+        expect(async () => {
+          await cacheMap.deleteMetadata(testKey);
         }).not.toThrow();
       });
     });
@@ -908,15 +908,15 @@ describe('SessionStorageCacheMap', () => {
       const metadata2 = { addedAt: 1500, lastAccessedAt: 2000, accessCount: 2, estimatedSize: 1024, key: testKey2 };
       const metadata3 = { addedAt: 2500, lastAccessedAt: 3000, accessCount: 3, estimatedSize: 1536, key: testKey3 };
 
-      beforeEach(() => {
-        cacheMap.clearMetadata(); // Start with clean metadata
-        cacheMap.setMetadata(testKey1, metadata1);
-        cacheMap.setMetadata(testKey2, metadata2);
-        cacheMap.setMetadata(testKey3, metadata3);
+      beforeEach(async () => {
+        await cacheMap.clearMetadata(); // Start with clean metadata
+        await cacheMap.setMetadata(testKey1, metadata1);
+        await cacheMap.setMetadata(testKey2, metadata2);
+        await cacheMap.setMetadata(testKey3, metadata3);
       });
 
-      it('should return all metadata entries', () => {
-        const allMetadata = cacheMap.getAllMetadata();
+      it('should return all metadata entries', async () => {
+        const allMetadata = await cacheMap.getAllMetadata();
 
         expect(allMetadata.size).toBe(3);
         expect(allMetadata.get(testKey1)).toEqual(metadata1);
@@ -924,25 +924,25 @@ describe('SessionStorageCacheMap', () => {
         expect(allMetadata.get(testKey3)).toEqual(metadata3);
       });
 
-      it('should return empty map when no metadata exists', () => {
-        cacheMap.clearMetadata();
-        const allMetadata = cacheMap.getAllMetadata();
+      it('should return empty map when no metadata exists', async () => {
+        await cacheMap.clearMetadata();
+        const allMetadata = await cacheMap.getAllMetadata();
 
         expect(allMetadata.size).toBe(0);
       });
 
-      it('should only return metadata with matching prefix', () => {
+      it('should only return metadata with matching prefix', async () => {
         // Add metadata with different prefix
         window.sessionStorage.setItem('other-app:metadata:other-key', JSON.stringify({ test: true }));
 
-        const allMetadata = cacheMap.getAllMetadata();
+        const allMetadata = await cacheMap.getAllMetadata();
 
         // Should only include our cache's metadata
         expect(allMetadata.size).toBe(3);
         expect(allMetadata.has('other-key')).toBe(false);
       });
 
-      it('should skip corrupted metadata entries', () => {
+      it('should skip corrupted metadata entries', async () => {
         // Store a corrupted entry by bypassing JSON serialization
         const corruptedKey = 'test-session-cache:metadata:corrupted';
         const storageMock = window.sessionStorage as any;
@@ -953,39 +953,39 @@ describe('SessionStorageCacheMap', () => {
         const allMetadata = cacheMap.getAllMetadata();
 
         // Should still return valid entries, skip corrupted one
-        expect(allMetadata.size).toBe(3);
-        expect(allMetadata.has('corrupted')).toBe(false);
+        expect((await allMetadata).size).toBe(3);
+        expect((await allMetadata).has('corrupted')).toBe(false);
       });
 
-      it('should handle sessionStorage iteration errors gracefully', () => {
+      it('should handle sessionStorage iteration errors gracefully', async () => {
         // Mock sessionStorage.key to throw error
         // @ts-ignore
         window.sessionStorage.key.mockImplementationOnce(() => {
           throw new Error('Storage iteration error');
         });
 
-        const allMetadata = cacheMap.getAllMetadata();
+        const allMetadata = await cacheMap.getAllMetadata();
         expect(allMetadata).toBeInstanceOf(Map);
         expect(allMetadata.size).toBe(0);
       });
     });
 
     describe('clearMetadata()', () => {
-      beforeEach(() => {
-        cacheMap.setMetadata('key1', { addedAt: 500, lastAccessedAt: 1000, accessCount: 1, estimatedSize: 512, key: 'key1' });
-        cacheMap.setMetadata('key2', { addedAt: 1500, lastAccessedAt: 2000, accessCount: 2, estimatedSize: 1024, key: 'key2' });
-        cacheMap.setMetadata('key3', { addedAt: 2500, lastAccessedAt: 3000, accessCount: 3, estimatedSize: 1536, key: 'key3' });
+      beforeEach(async () => {
+        await cacheMap.setMetadata('key1', { addedAt: 500, lastAccessedAt: 1000, accessCount: 1, estimatedSize: 512, key: 'key1' });
+        await cacheMap.setMetadata('key2', { addedAt: 1500, lastAccessedAt: 2000, accessCount: 2, estimatedSize: 1024, key: 'key2' });
+        await cacheMap.setMetadata('key3', { addedAt: 2500, lastAccessedAt: 3000, accessCount: 3, estimatedSize: 1536, key: 'key3' });
       });
 
-      it('should clear all metadata entries', () => {
-        expect(cacheMap.getAllMetadata().size).toBe(3);
+      it('should clear all metadata entries', async () => {
+        expect((await cacheMap.getAllMetadata()).size).toBe(3);
 
-        cacheMap.clearMetadata();
+        await cacheMap.clearMetadata();
 
-        expect(cacheMap.getAllMetadata().size).toBe(0);
-        expect(cacheMap.getMetadata('key1')).toBeNull();
-        expect(cacheMap.getMetadata('key2')).toBeNull();
-        expect(cacheMap.getMetadata('key3')).toBeNull();
+        expect((await cacheMap.getAllMetadata()).size).toBe(0);
+        expect(await cacheMap.getMetadata('key1')).toBeNull();
+        expect(await cacheMap.getMetadata('key2')).toBeNull();
+        expect(await cacheMap.getMetadata('key3')).toBeNull();
       });
 
       it('should not affect regular cache items', async () => {
@@ -993,37 +993,37 @@ describe('SessionStorageCacheMap', () => {
         cacheMap.set(priKey1, testItems[0]);
         cacheMap.set(priKey2, testItems[1]);
 
-        cacheMap.clearMetadata();
+        await cacheMap.clearMetadata();
 
         // Regular cache items should remain
         expect(await cacheMap.get(priKey1)).toEqual(testItems[0]);
         expect(await cacheMap.get(priKey2)).toEqual(testItems[1]);
       });
 
-      it('should not affect query results', () => {
+      it('should not affect query results', async () => {
         // Add query results
         cacheMap.setQueryResult('test-query', [priKey1]);
 
-        cacheMap.clearMetadata();
+        await cacheMap.clearMetadata();
 
         // Query results should remain
-        expect(cacheMap.hasQueryResult('test-query')).toBe(true);
+        expect(await cacheMap.hasQueryResult('test-query')).toBe(true);
       });
 
-      it('should only clear metadata with matching prefix', () => {
+      it('should only clear metadata with matching prefix', async () => {
         // Add metadata with different prefix
         window.sessionStorage.setItem('other-app:metadata:other-key', JSON.stringify({ test: true }));
 
-        cacheMap.clearMetadata();
+        await cacheMap.clearMetadata();
 
         // Our metadata should be cleared
-        expect(cacheMap.getAllMetadata().size).toBe(0);
+        expect((await cacheMap.getAllMetadata()).size).toBe(0);
 
         // Other app's metadata should remain
         expect(window.sessionStorage.getItem('other-app:metadata:other-key')).toBeTruthy();
       });
 
-      it('should handle sessionStorage errors during bulk clearing', () => {
+      it('should handle sessionStorage errors during bulk clearing', async () => {
         // Mock sessionStorage iteration to cause error
         let callCount = 0;
         // @ts-ignore
@@ -1035,8 +1035,8 @@ describe('SessionStorageCacheMap', () => {
           return callCount === 1 ? 'test-session-cache:metadata:key1' : null;
         });
 
-        expect(() => {
-          cacheMap.clearMetadata();
+        expect(async () => {
+          await cacheMap.clearMetadata();
         }).not.toThrow();
       });
     });
@@ -1044,50 +1044,50 @@ describe('SessionStorageCacheMap', () => {
 
   describe('Size and Limit Reporting', () => {
     describe('getCurrentSize()', () => {
-      beforeEach(() => {
-        cacheMap.clear();
-        cacheMap.clearQueryResults();
-        cacheMap.clearMetadata();
+      beforeEach(async () => {
+        await cacheMap.clear();
+        await cacheMap.clearQueryResults();
+        await cacheMap.clearMetadata();
       });
 
-      it('should return zero size for empty cache', () => {
-        const size = cacheMap.getCurrentSize();
+      it('should return zero size for empty cache', async () => {
+        const size = await cacheMap.getCurrentSize();
 
         expect(size.itemCount).toBe(0);
         expect(size.sizeBytes).toBe(0);
       });
 
-      it('should count cache items correctly', () => {
+      it('should count cache items correctly', async () => {
         cacheMap.set(priKey1, testItems[0]);
         cacheMap.set(priKey2, testItems[1]);
         cacheMap.set(comKey1, testItems[2]);
 
-        const size = cacheMap.getCurrentSize();
+        const size = await cacheMap.getCurrentSize();
 
         expect(size.itemCount).toBe(3);
         expect(size.sizeBytes).toBeGreaterThan(0);
       });
 
-      it('should not count metadata entries in item count', () => {
+      it('should not count metadata entries in item count', async () => {
         const testNow = Date.now();
         cacheMap.set(priKey1, testItems[0]);
-        cacheMap.setMetadata('test-key', { addedAt: testNow - 1000, lastAccessedAt: testNow, accessCount: 1, estimatedSize: 256, key: 'test-key' });
+        await cacheMap.setMetadata('test-key', { addedAt: testNow - 1000, lastAccessedAt: testNow, accessCount: 1, estimatedSize: 256, key: 'test-key' });
 
-        const size = cacheMap.getCurrentSize();
+        const size = await cacheMap.getCurrentSize();
 
         expect(size.itemCount).toBe(1); // Only cache items counted
       });
 
-      it('should not count query results in item count', () => {
+      it('should not count query results in item count', async () => {
         cacheMap.set(priKey1, testItems[0]);
         cacheMap.setQueryResult('test-query', [priKey1]);
 
-        const size = cacheMap.getCurrentSize();
+        const size = await cacheMap.getCurrentSize();
 
         expect(size.itemCount).toBe(1); // Only cache items counted
       });
 
-      it('should calculate byte size using Blob measurement', () => {
+      it('should calculate byte size using Blob measurement', async () => {
         const largeItem: TestItem = {
           key: priKey1,
           id: '1',
@@ -1097,12 +1097,12 @@ describe('SessionStorageCacheMap', () => {
 
         cacheMap.set(priKey1, largeItem);
 
-        const size = cacheMap.getCurrentSize();
+        const size = await cacheMap.getCurrentSize();
 
         expect(size.sizeBytes).toBeGreaterThan(1000); // Should include the large string plus JSON overhead
       });
 
-      it('should handle storage iteration errors gracefully', () => {
+      it('should handle storage iteration errors gracefully', async () => {
         cacheMap.set(priKey1, testItems[0]);
 
         // Mock storage.key to throw error
@@ -1111,14 +1111,14 @@ describe('SessionStorageCacheMap', () => {
           throw new Error('Storage iteration error');
         });
 
-        const size = cacheMap.getCurrentSize();
+        const size = await cacheMap.getCurrentSize();
 
         // Should return default values on error
         expect(size.itemCount).toBe(0);
         expect(size.sizeBytes).toBe(0);
       });
 
-      it('should handle storage.getItem errors gracefully', () => {
+      it('should handle storage.getItem errors gracefully', async () => {
         cacheMap.set(priKey1, testItems[0]);
 
         // Mock getItem to throw error for cache items
@@ -1134,7 +1134,7 @@ describe('SessionStorageCacheMap', () => {
           return storage.getItem(key);
         });
 
-        const size = cacheMap.getCurrentSize();
+        const size = await cacheMap.getCurrentSize();
 
         // Should handle error gracefully
         expect(size.itemCount).toBe(0);
@@ -1147,16 +1147,16 @@ describe('SessionStorageCacheMap', () => {
     });
 
     describe('getSizeLimits()', () => {
-      it('should return correct SessionStorage limits', () => {
-        const limits = cacheMap.getSizeLimits();
+      it('should return correct SessionStorage limits', async () => {
+        const limits = await cacheMap.getSizeLimits();
 
         expect(limits.maxItems).toBeNull(); // SessionStorage has no specific item limit
         expect(limits.maxSizeBytes).toBe(5 * 1024 * 1024); // 5MB
       });
 
-      it('should return consistent limits across multiple calls', () => {
-        const limits1 = cacheMap.getSizeLimits();
-        const limits2 = cacheMap.getSizeLimits();
+      it('should return consistent limits across multiple calls', async () => {
+        const limits1 = await cacheMap.getSizeLimits();
+        const limits2 = await cacheMap.getSizeLimits();
 
         expect(limits1).toEqual(limits2);
       });
@@ -1220,7 +1220,7 @@ describe('SessionStorageCacheMap', () => {
         expect(result).toBeNull();
       });
 
-      it('should handle malformed JSON in keys() method', () => {
+      it('should handle malformed JSON in keys() method', async () => {
         cacheMap.set(priKey1, testItems[0]); // Add one valid item
 
         // Directly add corrupted item to storage
@@ -1228,7 +1228,7 @@ describe('SessionStorageCacheMap', () => {
         const storageMock = window.sessionStorage as any;
         storageMock.setItem(corruptedKey, 'invalid json');
 
-        const keys = cacheMap.keys();
+        const keys = await cacheMap.keys();
 
         // Should only return valid keys, skip corrupted ones
         expect(keys).toHaveLength(1);
@@ -1252,7 +1252,7 @@ describe('SessionStorageCacheMap', () => {
     });
 
     describe('Storage quota exceeded scenarios', () => {
-      it('should throw error when storage quota is exceeded during set()', () => {
+      it('should throw error when storage quota is exceeded during set()', async () => {
         // Mock setItem to simulate quota exceeded error
         // @ts-ignore
         window.sessionStorage.setItem.mockImplementationOnce(() => {
@@ -1261,9 +1261,9 @@ describe('SessionStorageCacheMap', () => {
           throw error;
         });
 
-        expect(() => {
-          cacheMap.set(priKey1, testItems[0]);
-        }).toThrow('Failed to store item in sessionStorage');
+        await expect(async () => {
+          await cacheMap.set(priKey1, testItems[0]);
+        }).rejects.toThrow('Failed to store item in sessionStorage');
       });
 
       it('should handle quota exceeded during query result storage gracefully', () => {
@@ -1401,7 +1401,7 @@ describe('SessionStorageCacheMap', () => {
       expect(duration).toBeLessThan(1000); // 1 second
 
       // Verify all items were stored
-      const storedKeys = cacheMap.keys();
+      const storedKeys = await cacheMap.keys();
       expect(storedKeys).toHaveLength(20);
 
       // Verify we can retrieve all items
@@ -1474,7 +1474,7 @@ describe('SessionStorageCacheMap', () => {
 
       // Bulk operations on metadata with verification
       const metaNow = Date.now();
-      keys.forEach((key, index) => {
+      for (let index = 0; index < keys.length; index++) {
         const metadata = {
           addedAt: metaNow - 1000,
           lastAccessedAt: metaNow,
@@ -1482,23 +1482,23 @@ describe('SessionStorageCacheMap', () => {
           estimatedSize: 512 * (index + 1),
           key: `bulk-meta-${index}`
         };
-        cacheMap.setMetadata(`bulk-meta-${index}`, metadata);
+        await cacheMap.setMetadata(`bulk-meta-${index}`, metadata);
         // Verify metadata was stored
-        const storedMetadata = cacheMap.getMetadata(`bulk-meta-${index}`);
+        const storedMetadata = await cacheMap.getMetadata(`bulk-meta-${index}`);
         expect(storedMetadata).toEqual(metadata);
-      });
+      }
 
       const endTime = Date.now();
       const duration = endTime - startTime;
 
       expect(duration).toBeLessThan(2000); // 2 seconds for bulk operations
       expect(retrievedItems.filter(item => item !== null)).toHaveLength(numItems);
-      expect(cacheMap.getAllMetadata().size).toBe(numItems);
+      expect((await cacheMap.getAllMetadata()).size).toBe(numItems);
 
       // Final verification of all data
-      const allKeys = cacheMap.keys();
+      const allKeys = await cacheMap.keys();
       expect(allKeys).toHaveLength(numItems);
-      const allMetadata = cacheMap.getAllMetadata();
+      const allMetadata = await cacheMap.getAllMetadata();
       expect(allMetadata.size).toBe(numItems);
     });
   });

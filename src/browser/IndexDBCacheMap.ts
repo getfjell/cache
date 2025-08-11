@@ -1,26 +1,38 @@
-
 import {
   AllItemTypeArrays,
   ComKey,
+  isComKey,
+  isQueryMatch,
   Item,
   ItemQuery,
   LocKeyArray,
   PriKey
 } from "@fjell/core";
-import { CacheMap } from "../CacheMap";
-import { AsyncIndexDBCacheMap } from "./AsyncIndexDBCacheMap";
-import { MemoryCacheMap } from "../memory/MemoryCacheMap";
 import { CacheItemMetadata } from "../eviction/EvictionStrategy";
+import { createNormalizedHashFunction, isLocKeyArrayEqual, QueryCacheEntry } from "../normalization";
+import { AsyncIndexDBCacheMap } from "./AsyncIndexDBCacheMap";
+import LibLogger from "../logger";
+import { CacheMap } from "../CacheMap";
+
+const logger = LibLogger.get("IndexDBCacheMap");
+
+interface MemoryEntry<K, V> {
+  originalKey: K;
+  value: V;
+  metadata?: CacheItemMetadata;
+}
 
 /**
- * Synchronous wrapper for IndexedDB CacheMap implementation.
+ * Synchronous IndexedDB CacheMap wrapper implementation.
  *
- * This implementation provides a synchronous interface over IndexedDB
- * by maintaining an in-memory cache that is periodically synchronized
- * with IndexedDB storage. For full async capabilities, use AsyncIndexDBCacheMap.
+ * This implementation provides synchronous memory operations with background IndexedDB persistence.
+ * Memory operations are immediate while IndexedDB operations happen asynchronously in the background.
  *
- * Note: This class maintains synchronous compatibility while providing
- * persistent storage benefits of IndexedDB.
+ * Benefits:
+ * - Fast memory access for immediate operations
+ * - Background persistence to IndexedDB for durability
+ * - Synchronous API compatible with other CacheMap implementations
+ * - Automatic sync between memory and IndexedDB
  */
 export class IndexDBCacheMap<
   V extends Item<S, L1, L2, L3, L4, L5>,
@@ -34,15 +46,26 @@ export class IndexDBCacheMap<
 
   public readonly implementationType = "browser/indexedDB";
 
+  // Memory storage
+  private memoryMap: { [key: string]: MemoryEntry<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, V> } = {};
+  private queryResultCache: { [queryHash: string]: QueryCacheEntry } = {};
+  private metadataMap: Map<string, CacheItemMetadata> = new Map();
+  private normalizedHashFunction: (key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>) => string;
+  protected types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>;
+
+  // IndexedDB for persistence
   public asyncCache: AsyncIndexDBCacheMap<V, S, L1, L2, L3, L4, L5>;
-  private memoryCache: MemoryCacheMap<V, S, L1, L2, L3, L4, L5>;
+
+  // Background sync management
   private syncInterval: NodeJS.Timeout | null = null;
-  private readonly SYNC_INTERVAL_MS = 5000; // Sync every 5 seconds
-  private pendingSyncOperations: Map<string, { type: 'set' | 'delete'; key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>; value?: V; sequenceId: number; promise: Promise<void>; cancelled: boolean }> = new Map();
-  private initializationPromise: Promise<void> | null = null;
-  private isInitialized = false;
-  private readonly MAX_RETRY_ATTEMPTS = 3;
-  private operationSequence = 0;
+  private pendingOperations: Array<{
+    type: 'set' | 'delete' | 'clear';
+    key?: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>;
+    value?: V;
+    metadata?: CacheItemMetadata;
+    sequenceId: number;
+  }> = [];
+  private sequenceCounter = 0;
 
   public constructor(
     types: AllItemTypeArrays<S, L1, L2, L3, L4, L5>,
@@ -51,323 +74,310 @@ export class IndexDBCacheMap<
     version: number = 1
   ) {
     super(types);
+    this.types = types;
+    this.normalizedHashFunction = createNormalizedHashFunction<ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>>();
     this.asyncCache = new AsyncIndexDBCacheMap<V, S, L1, L2, L3, L4, L5>(types, dbName, storeName, version);
-    this.memoryCache = new MemoryCacheMap<V, S, L1, L2, L3, L4, L5>(types);
 
-    // Initialize by loading data from IndexedDB into memory cache
+    // Initialize from IndexedDB and start background sync
     this.initializeFromIndexedDB();
-
-    // Set up periodic sync
     this.startPeriodicSync();
   }
 
   private async initializeFromIndexedDB(): Promise<void> {
-    if (this.initializationPromise) {
-      return this.initializationPromise;
-    }
-
-    this.initializationPromise = (async () => {
-      try {
-        const keys = await this.asyncCache.keys();
-        for (const key of keys) {
-          // Only load from IndexedDB if not already in memory cache
-          // This prevents overwriting newer data with stale data
-          if (!this.memoryCache.includesKey(key)) {
-            const value = await this.asyncCache.get(key);
-            if (value) {
-              this.memoryCache.set(key, value);
-            }
-          }
-        }
-        this.isInitialized = true;
-      } catch (error) {
-        console.warn('Failed to initialize from IndexedDB:', error);
-        // Still mark as initialized to prevent infinite retries
-        this.isInitialized = true;
-      }
-    })();
-
-    return this.initializationPromise;
-  }
-
-  private startPeriodicSync(): void {
-    this.syncInterval = setInterval(() => {
-      this.syncToIndexedDB();
-    }, this.SYNC_INTERVAL_MS);
-  }
-
-  private async syncToIndexedDB(): Promise<void> {
     try {
-      // Process pending operations first
-      await this.processPendingOperations();
-
-      // Then sync memory cache changes to IndexedDB
-      const memoryKeys = this.memoryCache.keys();
-      for (const key of memoryKeys) {
-        const value = await this.memoryCache.get(key);
-        if (value) {
-          await this.asyncCache.set(key, value);
+      const keys = await this.asyncCache.keys();
+      for (const key of keys) {
+        const hashedKey = this.normalizedHashFunction(key);
+        // Only load if not already in memory cache
+        if (!this.memoryMap[hashedKey]) {
+          const value = await this.asyncCache.get(key);
+          if (value) {
+            this.memoryMap[hashedKey] = {
+              originalKey: key,
+              value: value
+            };
+          }
         }
       }
     } catch (error) {
-      console.warn('Failed to sync to IndexedDB:', error);
+      console.warn('Failed to initialize from IndexedDB, using memory-only mode:', error);
     }
+  }
+
+  private startPeriodicSync(): void {
+    // Process pending operations every 10ms for responsive syncing
+    this.syncInterval = setInterval(() => {
+      this.processPendingOperations();
+    }, 10);
   }
 
   private async processPendingOperations(): Promise<void> {
-    const pendingOps = Array.from(this.pendingSyncOperations.entries());
+    if (this.pendingOperations.length === 0) return;
 
-    for (const [keyStr, operation] of pendingOps) {
-      // Skip cancelled operations
-      if (operation.cancelled) {
-        this.pendingSyncOperations.delete(keyStr);
-        continue;
-      }
+    const operations = [...this.pendingOperations];
+    this.pendingOperations = [];
 
+    for (const op of operations) {
       try {
-        // Wait for the operation's promise to complete
-        await operation.promise;
-
-        // The promise completion should have already handled cleanup,
-        // but ensure cleanup in case of any edge cases
-        const currentOp = this.pendingSyncOperations.get(keyStr);
-        if (currentOp && currentOp.sequenceId === operation.sequenceId) {
-          this.pendingSyncOperations.delete(keyStr);
+        switch (op.type) {
+          case 'set':
+            if (op.key && op.value) {
+              await this.asyncCache.set(op.key, op.value, op.metadata);
+            }
+            break;
+          case 'delete':
+            if (op.key) {
+              await this.asyncCache.delete(op.key);
+            }
+            break;
+          case 'clear':
+            await this.asyncCache.clear();
+            break;
         }
       } catch (error) {
-        console.warn(`Failed to process pending ${operation.type} operation:`, error);
-
-        // Check if operation was superseded or cancelled
-        const currentOp = this.pendingSyncOperations.get(keyStr);
-        if (!currentOp || currentOp.sequenceId !== operation.sequenceId || currentOp.cancelled) {
-          // Operation was superseded, remove it
-          if (currentOp && currentOp.sequenceId === operation.sequenceId) {
-            this.pendingSyncOperations.delete(keyStr);
-          }
-        }
-        // Keep in pending operations for retry only if it's still the current operation
+        console.warn('Failed to sync operation to IndexedDB:', error);
       }
     }
   }
 
-  private queueForSync(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
-    // Convert key to string for tracking
-    const keyStr = JSON.stringify(key);
-    const sequenceId = ++this.operationSequence;
+  // Synchronous memory operations
 
-    // Cancel any existing operation for this key
-    const existingOp = this.pendingSyncOperations.get(keyStr);
-    if (existingOp) {
-      existingOp.cancelled = true;
+  public async get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<V | null> {
+    const hashedKey = this.normalizedHashFunction(key);
+    const entry = this.memoryMap[hashedKey];
+
+    if (entry && this.normalizedHashFunction(entry.originalKey) === hashedKey) {
+      return entry.value;
     }
 
-    // Create the sync operation promise
-    const syncPromise = (async () => {
-      try {
-        await this.asyncCache.set(key, value);
+    return null;
+  }
 
-        // Use atomic check-and-delete to avoid race condition
-        const currentOp = this.pendingSyncOperations.get(keyStr);
-        if (currentOp && currentOp.sequenceId === sequenceId && !currentOp.cancelled) {
-          this.pendingSyncOperations.delete(keyStr);
-        }
-      } catch (error) {
-        console.warn('Failed to sync single operation to IndexedDB:', error);
+  public async set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): Promise<void> {
+    const hashedKey = this.normalizedHashFunction(key);
+    const now = Date.now();
 
-        // Only keep in pending operations if not cancelled and operation is still current
-        const currentOp = this.pendingSyncOperations.get(keyStr);
-        if (!currentOp || currentOp.sequenceId !== sequenceId || currentOp.cancelled) {
-          // This operation was superseded or cancelled, remove it
-          if (currentOp && currentOp.sequenceId === sequenceId) {
-            this.pendingSyncOperations.delete(keyStr);
-          }
-        }
-      }
-    })();
+    // Create metadata
+    const metadata: CacheItemMetadata = {
+      key: JSON.stringify(key),
+      addedAt: now,
+      lastAccessedAt: now,
+      accessCount: 1,
+      estimatedSize: JSON.stringify(value).length // rough estimate
+    };
 
-    // Store the operation with its promise and cancellation flag
-    this.pendingSyncOperations.set(keyStr, {
+    // Update memory immediately
+    this.memoryMap[hashedKey] = {
+      originalKey: key,
+      value: value
+    };
+
+    // Add to pending operations for background sync
+    this.pendingOperations.push({
       type: 'set',
       key,
       value,
-      sequenceId,
-      promise: syncPromise,
-      cancelled: false
+      metadata,
+      sequenceId: ++this.sequenceCounter
     });
-  }
 
-  private queueDeleteForSync(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
-    // Convert key to string for tracking
-    const keyStr = JSON.stringify(key);
-    const sequenceId = ++this.operationSequence;
-
-    // Cancel any existing operation for this key
-    const existingOp = this.pendingSyncOperations.get(keyStr);
-    if (existingOp) {
-      existingOp.cancelled = true;
-    }
-
-    // Create the sync operation promise
-    const syncPromise = (async () => {
-      try {
-        await this.asyncCache.delete(key);
-
-        // Use atomic check-and-delete to avoid race condition
-        const currentOp = this.pendingSyncOperations.get(keyStr);
-        if (currentOp && currentOp.sequenceId === sequenceId && !currentOp.cancelled) {
-          this.pendingSyncOperations.delete(keyStr);
-        }
-      } catch (error) {
-        console.warn('Failed to sync delete operation to IndexedDB:', error);
-
-        // Only keep in pending operations if not cancelled and operation is still current
-        const currentOp = this.pendingSyncOperations.get(keyStr);
-        if (!currentOp || currentOp.sequenceId !== sequenceId || currentOp.cancelled) {
-          // This operation was superseded or cancelled, remove it
-          if (currentOp && currentOp.sequenceId === sequenceId) {
-            this.pendingSyncOperations.delete(keyStr);
-          }
-        }
-      }
-    })();
-
-    // Store the operation with its promise and cancellation flag
-    this.pendingSyncOperations.set(keyStr, {
-      type: 'delete',
-      key,
-      sequenceId,
-      promise: syncPromise,
-      cancelled: false
-    });
-  }
-
-  private queueClearForSync(): void {
-    // Cancel all existing operations since we're clearing everything
-    for (const operation of this.pendingSyncOperations.values()) {
-      operation.cancelled = true;
-    }
-
-    // Clear all pending operations since we're clearing everything
-    this.pendingSyncOperations.clear();
-
-    // Use Promise.resolve() to ensure proper async execution order
-    Promise.resolve().then(async () => {
-      try {
-        await this.asyncCache.clear();
-      } catch (error) {
-        console.warn('Failed to sync clear operation to IndexedDB:', error);
-      }
-    });
-  }
-
-  public async get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<V | null> {
-    // Wait for initialization if still in progress
-    if (!this.isInitialized && this.initializationPromise) {
-      try {
-        await this.initializationPromise;
-      } catch (error) {
-        console.warn('IndexedDB initialization failed, using memory cache only:', error);
-      }
-    }
-    return this.memoryCache.get(key);
-  }
-
-  public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
-    // Update memory cache immediately
-    this.memoryCache.set(key, value);
-
-    // Trigger background sync to IndexedDB
-    this.queueForSync(key, value);
+    // Trigger immediate sync for critical operations
+    this.processPendingOperations();
   }
 
   public async includesKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<boolean> {
-    // Wait for initialization if still in progress
-    if (!this.isInitialized && this.initializationPromise) {
-      try {
-        await this.initializationPromise;
-      } catch (error) {
-        console.warn('IndexedDB initialization failed, using memory cache only:', error);
-      }
-    }
-    return this.memoryCache.includesKey(key);
+    const hashedKey = this.normalizedHashFunction(key);
+    const entry = this.memoryMap[hashedKey];
+    return !!(entry && this.normalizedHashFunction(entry.originalKey) === hashedKey);
   }
 
-  public delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
-    // Delete from memory cache immediately
-    this.memoryCache.delete(key);
+  public async delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<void> {
+    const hashedKey = this.normalizedHashFunction(key);
 
-    // Trigger background sync to IndexedDB
-    this.queueDeleteForSync(key);
+    // Remove from memory immediately
+    delete this.memoryMap[hashedKey];
+    this.metadataMap.delete(hashedKey);
+
+    // Add to pending operations for background sync
+    this.pendingOperations.push({
+      type: 'delete',
+      key,
+      sequenceId: ++this.sequenceCounter
+    });
+
+    // Trigger immediate sync for critical operations
+    this.processPendingOperations();
   }
 
-  public async allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]> {
-    return this.memoryCache.allIn(locations);
-  }
-
-  public async contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<boolean> {
-    return this.memoryCache.contains(query, locations);
-  }
-
-  public async queryIn(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]> {
-    return this.memoryCache.queryIn(query, locations);
-  }
-
-  public async clone(): Promise<IndexDBCacheMap<V, S, L1, L2, L3, L4, L5>> {
-    return new IndexDBCacheMap<V, S, L1, L2, L3, L4, L5>(this.types);
-  }
-
-  public keys(): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] {
-    return this.memoryCache.keys();
+  public async keys(): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]> {
+    return Object.values(this.memoryMap).map(entry => entry.originalKey);
   }
 
   public async values(): Promise<V[]> {
-    return this.memoryCache.values();
+    return Object.values(this.memoryMap).map(entry => entry.value);
   }
 
-  public clear(): void {
-    // Clear memory cache immediately
-    this.memoryCache.clear();
+  public async clear(): Promise<void> {
+    // Clear memory immediately
+    this.memoryMap = {};
+    this.queryResultCache = {};
+    this.metadataMap.clear();
 
-    // Trigger background sync to IndexedDB
-    this.queueClearForSync();
+    // Add to pending operations for background sync
+    this.pendingOperations.push({
+      type: 'clear',
+      sequenceId: ++this.sequenceCounter
+    });
+
+    // Trigger immediate sync for critical operations
+    this.processPendingOperations();
   }
 
-  // Query result caching methods implementation
+  public async allIn(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]> {
+    const result: V[] = [];
 
-  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
-    return this.memoryCache.setQueryResult(queryHash, itemKeys);
+    for (const entry of Object.values(this.memoryMap)) {
+      const key = entry.originalKey;
+
+      if (locations.length === 0) {
+        // Return all items if no locations specified
+        result.push(entry.value);
+      } else if (isComKey(key)) {
+        // Check if item is in specified locations
+        if (isLocKeyArrayEqual((key as ComKey<S, L1, L2, L3, L4, L5>).loc, locations)) {
+          result.push(entry.value);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  public async contains(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<boolean> {
+    const items = await this.queryIn(query, locations);
+    return items.length > 0;
+  }
+
+  public async queryIn(query: ItemQuery, locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<V[]> {
+    const candidates = await this.allIn(locations);
+
+    if (!query.compoundCondition) {
+      return candidates;
+    }
+
+    return candidates.filter(item => isQueryMatch(item, query));
+  }
+
+  // Query result caching methods
+
+  public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
+    this.queryResultCache[queryHash] = {
+      itemKeys
+    };
   }
 
   public async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
-    // Wait for initialization if still in progress
-    if (!this.isInitialized && this.initializationPromise) {
-      try {
-        await this.initializationPromise;
-      } catch (error) {
-        console.warn('IndexedDB initialization failed, using memory cache only:', error);
+    const entry = this.queryResultCache[queryHash];
+    return entry ? entry.itemKeys : null;
+  }
+
+  public async hasQueryResult(queryHash: string): Promise<boolean> {
+    return queryHash in this.queryResultCache;
+  }
+
+  public async deleteQueryResult(queryHash: string): Promise<void> {
+    delete this.queryResultCache[queryHash];
+  }
+
+  public async clearQueryResults(): Promise<void> {
+    this.queryResultCache = {};
+  }
+
+  // Invalidation methods
+
+  public async invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
+    // Invalidate query results that contain any of the affected keys
+    for (const queryHash in this.queryResultCache) {
+      const entry = this.queryResultCache[queryHash];
+      if (entry && entry.itemKeys.some(key => keys.some(affectedKey =>
+        this.normalizedHashFunction(affectedKey) === this.normalizedHashFunction(key)
+      ))) {
+        delete this.queryResultCache[queryHash];
       }
     }
-    return this.memoryCache.getQueryResult(queryHash);
-  }
-
-  public hasQueryResult(queryHash: string): boolean {
-    return this.memoryCache.hasQueryResult(queryHash);
-  }
-
-  public deleteQueryResult(queryHash: string): void {
-    return this.memoryCache.deleteQueryResult(queryHash);
-  }
-
-  public invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
-    return this.memoryCache.invalidateItemKeys(keys);
   }
 
   public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
-    return await this.memoryCache.invalidateLocation(locations);
+    const itemsToDelete: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] = [];
+
+    for (const entry of Object.values(this.memoryMap)) {
+      const key = entry.originalKey;
+
+      if (isComKey(key) && isLocKeyArrayEqual((key as ComKey<S, L1, L2, L3, L4, L5>).loc, locations)) {
+        itemsToDelete.push(key);
+      }
+    }
+
+    this.invalidateItemKeys(itemsToDelete);
   }
 
-  public clearQueryResults(): void {
-    return this.memoryCache.clearQueryResults();
+  // Metadata operations
+
+  public async getMetadata(key: string): Promise<CacheItemMetadata | null> {
+    return this.metadataMap.get(key) || null;
+  }
+
+  public async setMetadata(key: string, metadata: CacheItemMetadata): Promise<void> {
+    this.metadataMap.set(key, metadata);
+  }
+
+  public async deleteMetadata(key: string): Promise<void> {
+    this.metadataMap.delete(key);
+  }
+
+  public async getAllMetadata(): Promise<Map<string, CacheItemMetadata>> {
+    return new Map(this.metadataMap);
+  }
+
+  public async clearMetadata(): Promise<void> {
+    this.metadataMap.clear();
+  }
+
+  // Size operations
+
+  public async getCurrentSize(): Promise<{ itemCount: number; sizeBytes: number }> {
+    const itemCount = Object.keys(this.memoryMap).length;
+
+    // Calculate actual size
+    let sizeBytes = 0;
+    for (const entry of Object.values(this.memoryMap)) {
+      sizeBytes += JSON.stringify(entry.value).length;
+    }
+
+    return { itemCount, sizeBytes };
+  }
+
+  public async getSizeLimits(): Promise<{ maxItems: number | null; maxSizeBytes: number | null }> {
+    // Memory cache has no hard limits, but IndexedDB does
+    return { maxItems: null, maxSizeBytes: null };
+  }
+
+  // Clone operation
+
+  public async clone(): Promise<CacheMap<V, S, L1, L2, L3, L4, L5>> {
+    const cloned = new IndexDBCacheMap<V, S, L1, L2, L3, L4, L5>(
+      this.types,
+      'fjell-indexdb-cache-clone',
+      'cache-clone',
+      1
+    );
+
+    // Copy memory state
+    cloned.memoryMap = { ...this.memoryMap };
+    cloned.queryResultCache = { ...this.queryResultCache };
+    cloned.metadataMap = new Map(this.metadataMap);
+
+    return cloned;
   }
 
   /**
@@ -379,35 +389,4 @@ export class IndexDBCacheMap<
       this.syncInterval = null;
     }
   }
-
-  // CacheMapMetadataProvider implementation
-  // Delegate to the memory cache for metadata operations for consistency
-  public getMetadata(key: string): CacheItemMetadata | null {
-    return this.memoryCache.getMetadata(key);
-  }
-
-  public setMetadata(key: string, metadata: CacheItemMetadata): void {
-    this.memoryCache.setMetadata(key, metadata);
-  }
-
-  public deleteMetadata(key: string): void {
-    this.memoryCache.deleteMetadata(key);
-  }
-
-  public getAllMetadata(): Map<string, CacheItemMetadata> {
-    return this.memoryCache.getAllMetadata();
-  }
-
-  public clearMetadata(): void {
-    this.memoryCache.clearMetadata();
-  }
-
-  public getCurrentSize(): { itemCount: number; sizeBytes: number } {
-    return this.memoryCache.getCurrentSize();
-  }
-
-  public getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
-    return this.memoryCache.getSizeLimits();
-  }
-
 }

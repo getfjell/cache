@@ -61,21 +61,21 @@ export const find = async <
   const ret: V[] = await api.find(finder, params, locations);
 
   // Store individual items in cache
-  ret.forEach((v) => {
-    cacheMap.set(v.key, v);
+  for (const v of ret) {
+    await cacheMap.set(v.key, v);
 
     // Set TTL metadata for the newly cached item
     const keyStr = JSON.stringify(v.key);
     ttlManager.onItemAdded(keyStr, cacheMap);
 
     // Handle eviction for the newly cached item
-    const evictedKeys = context.evictionManager.onItemAdded(keyStr, v, cacheMap);
+    const evictedKeys = await context.evictionManager.onItemAdded(keyStr, v, cacheMap);
     // Remove evicted items from cache
-    evictedKeys.forEach(evictedKey => {
+    for (const evictedKey of evictedKeys) {
       const parsedKey = JSON.parse(evictedKey);
-      cacheMap.delete(parsedKey);
-    });
-  });
+      await cacheMap.delete(parsedKey);
+    }
+  }
 
   // Store query result (item keys) in query cache
   const itemKeys = ret.map(item => item.key);
