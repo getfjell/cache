@@ -388,19 +388,23 @@ export class CacheEventEmitter<
 
   /**
    * Check if two location arrays match
+   * Filter locations must be a prefix of event locations (in order)
    */
   private locationsMatch(
     filter: LocKeyArray<L1, L2, L3, L4, L5> | [],
     eventLocations: LocKeyArray<L1, L2, L3, L4, L5> | []
   ): boolean {
-    if (filter.length === 0 && eventLocations.length === 0) {
-      return true;
+    // Empty filter only matches empty event locations
+    if (filter.length === 0) {
+      return eventLocations.length === 0;
     }
 
-    if (filter.length !== eventLocations.length) {
+    // Filter cannot be longer than event locations
+    if (filter.length > eventLocations.length) {
       return false;
     }
 
+    // Check if filter locations are a prefix of event locations
     return filter.every((filterLoc, index) => {
       const eventLoc = eventLocations[index];
       // LocKey has different structure from ComKey/PriKey, so we need to normalize using their own properties

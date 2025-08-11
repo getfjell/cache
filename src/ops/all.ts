@@ -59,27 +59,45 @@ export const all = async <
     }
   }
 
+  // If no cached query results, try to find items directly in cache using queryIn
+  // This handles cases where individual items are cached but query results are not yet cached
+  try {
+    const directCachedItems = await cacheMap.queryIn(query, locations);
+    if (directCachedItems && directCachedItems.length > 0) {
+      logger.debug('Found items directly in cache, skipping API call', { itemCount: directCachedItems.length });
+
+      // Cache the query result for future use
+      const itemKeys = directCachedItems.map(item => item.key);
+      await cacheMap.setQueryResult(queryHash, itemKeys);
+      logger.debug('Cached query result from direct cache hit', { queryHash, itemKeyCount: itemKeys.length });
+
+      return [context, validatePK(directCachedItems, pkType) as V[]];
+    }
+  } catch (error) {
+    logger.debug('Error querying cache directly, proceeding to API', { error });
+  }
+
   // Fetch from API
   let ret: V[] = [];
   try {
     ret = await api.all(query, locations);
 
     // Store individual items in cache
-    ret.forEach((v) => {
-      cacheMap.set(v.key, v);
+    for (const v of ret) {
+      await cacheMap.set(v.key, v);
 
       // Set TTL metadata for the newly cached item
       const keyStr = JSON.stringify(v.key);
       ttlManager.onItemAdded(keyStr, cacheMap);
 
       // Handle eviction for the newly cached item
-      const evictedKeys = context.evictionManager.onItemAdded(keyStr, v, cacheMap);
+      const evictedKeys = await context.evictionManager.onItemAdded(keyStr, v, cacheMap);
       // Remove evicted items from cache
-      evictedKeys.forEach(evictedKey => {
+      for (const evictedKey of evictedKeys) {
         const parsedKey = JSON.parse(evictedKey);
-        cacheMap.delete(parsedKey);
-      });
-    });
+        await cacheMap.delete(parsedKey);
+      }
+    }
 
     // Store query result (item keys) in query cache
     const itemKeys = ret.map(item => item.key);

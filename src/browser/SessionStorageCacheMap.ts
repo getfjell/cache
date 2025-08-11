@@ -125,7 +125,7 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): void {
+  public async set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): Promise<void> {
     try {
       const storageKey = this.getStorageKey(key);
       logger.trace('set', { storageKey });
@@ -166,7 +166,7 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): void {
+  public async delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<void> {
     logger.trace('delete', { key });
     try {
       const storageKey = this.getStorageKey(key);
@@ -182,7 +182,7 @@ export class SessionStorageCacheMap<
     if (locations.length === 0) {
       logger.debug('Returning all items, LocKeys is empty');
       const items: V[] = [];
-      for (const key of allKeys) {
+      for (const key of await allKeys) {
         const item = await this.get(key);
         if (item !== null) {
           items.push(item);
@@ -191,8 +191,9 @@ export class SessionStorageCacheMap<
       return items;
     } else {
       const locKeys: LocKeyArray<L1, L2, L3, L4, L5> | [] = locations;
-      logger.debug('allIn', { locKeys, keys: allKeys.length });
-      const filteredKeys = allKeys
+      const resolvedKeys = await allKeys;
+      logger.debug('allIn', { locKeys, keys: resolvedKeys.length });
+      const filteredKeys = resolvedKeys
         .filter((key) => key && isComKey(key))
         .filter((key) => {
           const ComKey = key as ComKey<S, L1, L2, L3, L4, L5>;
@@ -234,7 +235,7 @@ export class SessionStorageCacheMap<
     return new SessionStorageCacheMap<V, S, L1, L2, L3, L4, L5>(this.types, this.keyPrefix);
   }
 
-  public keys(): (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] {
+  public async keys(): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]> {
     const keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] = [];
 
     try {
@@ -286,7 +287,7 @@ export class SessionStorageCacheMap<
     return values;
   }
 
-  public clear(): void {
+  public async clear(): Promise<void> {
     logger.debug('Clearing sessionStorage cache');
     try {
       const storageKeys = this.getAllStorageKeys();
@@ -300,7 +301,7 @@ export class SessionStorageCacheMap<
 
   // Query result caching methods implementation
 
-  public setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+  public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
     logger.trace('setQueryResult', { queryHash, itemKeys });
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
 
@@ -342,7 +343,7 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public hasQueryResult(queryHash: string): boolean {
+  public async hasQueryResult(queryHash: string): Promise<boolean> {
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
       return sessionStorage.getItem(queryKey) !== null;
@@ -352,7 +353,7 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public deleteQueryResult(queryHash: string): void {
+  public async deleteQueryResult(queryHash: string): Promise<void> {
     logger.trace('deleteQueryResult', { queryHash });
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
@@ -362,11 +363,11 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+  public async invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
     logger.debug('invalidateItemKeys', { keys });
-    keys.forEach(key => {
-      this.delete(key);
-    });
+    for (const key of keys) {
+      await this.delete(key);
+    }
   }
 
   public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
@@ -374,21 +375,21 @@ export class SessionStorageCacheMap<
 
     if (locations.length === 0) {
       // For primary items (no location), clear all primary keys
-      const allKeys = this.keys();
+      const allKeys = await this.keys();
       const primaryKeys = allKeys.filter(key => !isComKey(key));
-      this.invalidateItemKeys(primaryKeys);
+      await this.invalidateItemKeys(primaryKeys);
     } else {
       // For contained items, get all items in the location and invalidate them
       const itemsInLocation = await this.allIn(locations);
       const keysToInvalidate = itemsInLocation.map(item => item.key);
-      this.invalidateItemKeys(keysToInvalidate);
+      await this.invalidateItemKeys(keysToInvalidate);
     }
 
     // Clear all query results that might be affected
-    this.clearQueryResults();
+    await this.clearQueryResults();
   }
 
-  public clearQueryResults(): void {
+  public async clearQueryResults(): Promise<void> {
     logger.trace('clearQueryResults');
     const queryPrefix = `${this.keyPrefix}:query:`;
     try {
@@ -406,7 +407,7 @@ export class SessionStorageCacheMap<
   }
 
   // CacheMapMetadataProvider implementation
-  public getMetadata(key: string): CacheItemMetadata | null {
+  public async getMetadata(key: string): Promise<CacheItemMetadata | null> {
     try {
       const metadataKey = `${this.keyPrefix}:metadata:${key}`;
       const stored = sessionStorage.getItem(metadataKey);
@@ -416,7 +417,7 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public setMetadata(key: string, metadata: CacheItemMetadata): void {
+  public async setMetadata(key: string, metadata: CacheItemMetadata): Promise<void> {
     try {
       const metadataKey = `${this.keyPrefix}:metadata:${key}`;
       const jsonString = safeStringify(metadata);
@@ -426,7 +427,7 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public deleteMetadata(key: string): void {
+  public async deleteMetadata(key: string): Promise<void> {
     try {
       const metadataKey = `${this.keyPrefix}:metadata:${key}`;
       sessionStorage.removeItem(metadataKey);
@@ -435,7 +436,7 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public getAllMetadata(): Map<string, CacheItemMetadata> {
+  public async getAllMetadata(): Promise<Map<string, CacheItemMetadata>> {
     const metadata = new Map<string, CacheItemMetadata>();
     const metadataPrefix = `${this.keyPrefix}:metadata:`;
 
@@ -465,7 +466,7 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public clearMetadata(): void {
+  public async clearMetadata(): Promise<void> {
     try {
       const metadataPrefix = `${this.keyPrefix}:metadata:`;
       const keysToDelete: string[] = [];
@@ -483,7 +484,7 @@ export class SessionStorageCacheMap<
     }
   }
 
-  public getCurrentSize(): { itemCount: number; sizeBytes: number } {
+  public async getCurrentSize(): Promise<{ itemCount: number; sizeBytes: number }> {
     let itemCount = 0;
     let sizeBytes = 0;
 
@@ -523,7 +524,7 @@ export class SessionStorageCacheMap<
     return { itemCount, sizeBytes };
   }
 
-  public getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+  public async getSizeLimits(): Promise<{ maxItems: number | null; maxSizeBytes: number | null }> {
     // SessionStorage typically has a ~5MB limit
     return {
       maxItems: null, // No specific item limit

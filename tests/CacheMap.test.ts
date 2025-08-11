@@ -77,10 +77,10 @@ describe('CacheMap', () => {
 
   let cacheMap: MemoryCacheMap<Item<"test", "container">, "test", "container">;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     cacheMap = new MemoryCacheMap<Item<"test", "container">, "test", "container">(["test", "container"]);
-    cacheMap.set(key1, items[0]);
-    cacheMap.set(key2, items[1]);
+    await cacheMap.set(key1, items[0]);
+    await cacheMap.set(key2, items[1]);
   });
 
   describe('Constructor', () => {
@@ -95,7 +95,7 @@ describe('CacheMap', () => {
       );
 
       // Add initial data after construction
-      preloadedCacheMap.set(key1, items[0]);
+      await preloadedCacheMap.set(key1, items[0]);
 
       expect(await preloadedCacheMap.values()).toHaveLength(1);
       expect(await preloadedCacheMap.get(key1)).toEqual(items[0]);
@@ -119,18 +119,18 @@ describe('CacheMap', () => {
     });
 
     it('should set a new item', async () => {
-      cacheMap.set(key3, items[2]);
+      await cacheMap.set(key3, items[2]);
       expect(await cacheMap.get(key3)).toEqual(items[2]);
     });
 
     it('should overwrite an existing item', async () => {
       const updatedItem = { ...items[0], refs: { banana: { kt: "banana", pk: "updated" as UUID } } };
-      cacheMap.set(key1, updatedItem);
+      await cacheMap.set(key1, updatedItem);
       expect(await cacheMap.get(key1)).toEqual(updatedItem);
     });
 
     it('should work with PriKey', async () => {
-      cacheMap.set(priKey1, priItem);
+      await cacheMap.set(priKey1, priItem);
       expect(await cacheMap.get(priKey1)).toEqual(priItem);
     });
   });
@@ -138,19 +138,19 @@ describe('CacheMap', () => {
   describe('Dictionary inherited methods', () => {
     it('should delete an item by key', async () => {
       expect(await cacheMap.get(key1)).toEqual(items[0]);
-      cacheMap.delete(key1);
+      await cacheMap.delete(key1);
       expect(await cacheMap.get(key1)).toBeNull();
     });
 
-    it('should return all keys', () => {
-      const keys = cacheMap.keys();
+    it('should return all keys', async () => {
+      const keys = await cacheMap.keys();
       expect(keys).toHaveLength(2);
       expect(keys).toContainEqual(key1);
       expect(keys).toContainEqual(key2);
     });
 
     it('should return all values', async () => {
-      const values = await cacheMap.values();
+      const values = await await cacheMap.values();
       expect(values).toHaveLength(2);
       expect(values).toContainEqual(items[0]);
       expect(values).toContainEqual(items[1]);
@@ -169,7 +169,7 @@ describe('CacheMap', () => {
     });
 
     it('should check if PriKey exists with includesKey', async () => {
-      cacheMap.set(priKey1, priItem);
+      await cacheMap.set(priKey1, priItem);
       expect(await cacheMap.includesKey(priKey1)).toBe(true);
 
       const nonExistentPriKey = {
@@ -199,7 +199,7 @@ describe('CacheMap', () => {
     });
 
     it('should return items in specific locations separately', async () => {
-      cacheMap.set(key3, items[2]);
+      await cacheMap.set(key3, items[2]);
 
       // Test each location separately since allIn filters by exact location match
       const loc1Items = await cacheMap.allIn([{ kt: "container", lk: "123e4567-e89b-12d3-a456-426614174100" }]);
@@ -212,7 +212,7 @@ describe('CacheMap', () => {
     });
 
     it('should filter out PriKey items when getting items by location', async () => {
-      cacheMap.set(priKey1, priItem);
+      await cacheMap.set(priKey1, priItem);
       const locKeys: LocKeyArray<"container"> = [{ kt: "container", lk: "123e4567-e89b-12d3-a456-426614174100" }];
       const itemsInLoc = await cacheMap.allIn(locKeys);
       expect(itemsInLoc).toEqual([items[0]]);
@@ -260,8 +260,8 @@ describe('CacheMap', () => {
         }
       };
 
-      cacheMap.set(singleLocKey, singleLocItem);
-      cacheMap.set(multiLocKey, multiLocItem);
+      await cacheMap.set(singleLocKey, singleLocItem);
+      await cacheMap.set(multiLocKey, multiLocItem);
 
       // Query for single location should only return singleLocItem
       const singleLocResult = await cacheMap.allIn([{ kt: "container", lk: "single-location" }]);
@@ -344,7 +344,7 @@ describe('CacheMap', () => {
           banana: { kt: "banana", pk: "0" as UUID }, // Same banana reference as items[0]
         }
       };
-      cacheMap.set(key3, duplicateItem);
+      await cacheMap.set(key3, duplicateItem);
 
       const query: ItemQuery = IQFactory.pk("banana", "0").toQuery();
       const queriedItems = await cacheMap.queryIn(query, []);
@@ -366,7 +366,7 @@ describe('CacheMap', () => {
       const clone = await cacheMap.clone();
 
       // Modify original
-      cacheMap.set(key3, items[2]);
+      await cacheMap.set(key3, items[2]);
 
       // Clone should not have the new item since they are independent
       expect(await cacheMap.get(key3)).toEqual(items[2]);
@@ -408,7 +408,7 @@ describe('CacheMap', () => {
         }
       };
 
-      cacheMap.set(stringKey, testItem);
+      await cacheMap.set(stringKey, testItem);
 
       // Should be able to retrieve using either string or number key due to normalization
       expect(await cacheMap.get(stringKey)).toEqual(testItem);
@@ -442,7 +442,7 @@ describe('CacheMap', () => {
       };
 
       // Set with number lk
-      cacheMap.set(keyWithNumberLk, testItem);
+      await cacheMap.set(keyWithNumberLk, testItem);
 
       // Should be able to retrieve with either number or string lk due to normalization
       expect(await cacheMap.get(keyWithNumberLk)).toEqual(testItem);
@@ -473,9 +473,7 @@ describe('CacheMap', () => {
       };
 
       // Should not throw when setting with null lk
-      expect(() => {
-        cacheMap.set(keyWithNullLk, testItem);
-      }).not.toThrow();
+      await expect(cacheMap.set(keyWithNullLk, testItem)).resolves.not.toThrow();
 
       // Should be able to retrieve the item
       expect(await cacheMap.get(keyWithNullLk)).toEqual(testItem);
@@ -497,9 +495,7 @@ describe('CacheMap', () => {
       };
 
       // Should handle primitive keys using JSON.stringify
-      expect(() => {
-        cacheMap.set(primitiveKey, testItem);
-      }).not.toThrow();
+      await expect(cacheMap.set(primitiveKey, testItem)).resolves.not.toThrow();
 
       expect(await cacheMap.get(primitiveKey)).toEqual(testItem);
     });
@@ -520,9 +516,7 @@ describe('CacheMap', () => {
       };
 
       // Should handle null keys using JSON.stringify
-      expect(() => {
-        cacheMap.set(nullKey, testItem);
-      }).not.toThrow();
+      await expect(cacheMap.set(nullKey, testItem)).resolves.not.toThrow();
 
       expect(await cacheMap.get(nullKey)).toEqual(testItem);
     });
@@ -548,7 +542,7 @@ describe('CacheMap', () => {
         }
       };
 
-      cacheMap.set(keyWithNullLocItem, testItem);
+      await cacheMap.set(keyWithNullLocItem, testItem);
 
       // Test allIn which uses isLocKeyArrayEqual internally
       const result = await cacheMap.allIn([null] as any);
@@ -580,9 +574,7 @@ describe('CacheMap', () => {
       };
 
       // Should normalize number lk to string, leave string lk as is, and skip null lk
-      expect(() => {
-        cacheMap.set(keyWithMixedLocTypes, testItem);
-      }).not.toThrow();
+      await expect(cacheMap.set(keyWithMixedLocTypes, testItem)).resolves.not.toThrow();
 
       expect(await cacheMap.get(keyWithMixedLocTypes)).toEqual(testItem);
     });
@@ -609,9 +601,7 @@ describe('CacheMap', () => {
       };
 
       // Should normalize top-level lk from number to string
-      expect(() => {
-        cacheMap.set(keyWithTopLevelLk, testItem);
-      }).not.toThrow();
+      await expect(cacheMap.set(keyWithTopLevelLk, testItem)).resolves.not.toThrow();
 
       expect(await cacheMap.get(keyWithTopLevelLk)).toEqual(testItem);
 
@@ -632,13 +622,13 @@ describe('CacheMap', () => {
       const emptyCacheMap = new MemoryCacheMap<Item<"test", "container">, "test", "container">(["test", "container"]);
 
       expect(await emptyCacheMap.values()).toEqual([]);
-      expect(emptyCacheMap.keys()).toEqual([]);
+      expect(await emptyCacheMap.keys()).toEqual([]);
       expect(await emptyCacheMap.allIn([])).toEqual([]);
       expect(await emptyCacheMap.contains(IQFactory.pk("banana", "0").toQuery(), [])).toBe(false);
       expect(await emptyCacheMap.queryIn(IQFactory.pk("banana", "0").toQuery(), [])).toEqual([]);
     });
 
-    it('should handle null and undefined values gracefully', () => {
+    it('should handle null and undefined values gracefully', async () => {
       const nullKey = {
         kt: "test",
         pk: null as any,
@@ -646,9 +636,7 @@ describe('CacheMap', () => {
       } as ComKey<"test", "container">;
 
       // Should not throw when setting with null values
-      expect(() => {
-        cacheMap.set(nullKey, items[0]);
-      }).not.toThrow();
+      await expect(cacheMap.set(nullKey, items[0])).resolves.not.toThrow();
     });
 
     it('should handle complex location arrays', async () => {
@@ -673,7 +661,7 @@ describe('CacheMap', () => {
         }
       };
 
-      cacheMap.set(multiLocKey, multiLocItem);
+      await cacheMap.set(multiLocKey, multiLocItem);
       expect(await cacheMap.get(multiLocKey)).toEqual(multiLocItem);
     });
   });

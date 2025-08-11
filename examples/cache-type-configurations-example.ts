@@ -62,14 +62,13 @@ console.log('Best for: Fast access, temporary data, development');
 const memoryOptions: Partial<Options<User, 'user'>> = {
   cacheType: 'memory',
   memoryConfig: {
-    maxItems: 1000,           // Store maximum 1000 users
-    ttl: 300000               // 5 minutes expiration
+    maxItems: 1000            // Store maximum 1000 users
   },
   enableDebugLogging: true,   // Enable detailed logging
   autoSync: true,             // Automatically sync with API
   maxRetries: 3,              // Retry failed operations 3 times
   retryDelay: 1000,           // Wait 1 second between retries
-  ttl: 600000   // 10 minutes default expiration
+  ttl: 600000                 // 10 minutes default expiration
 };
 
 // Create cache instance with memory configuration
@@ -204,9 +203,9 @@ function createOptimalCacheConfiguration(): Partial<Options<User, 'user'>> {
   return {
     cacheType: 'memory',
     memoryConfig: {
-      maxItems: 5000,
-      ttl: 300000
+      maxItems: 5000
     },
+    ttl: 600000,
     enableDebugLogging: true,
     maxRetries: 3
   };
@@ -288,7 +287,7 @@ function displayConfigurationComparison() {
       cacheType: memoryOptions.cacheType,
       persistence: 'None',
       sizeLimit: `${memoryOptions.memoryConfig?.maxItems} items`,
-      ttl: `${(memoryOptions.memoryConfig?.ttl || 0) / 1000}s`,
+      ttl: `${(memoryOptions.ttl || 0) / 1000}s`,
       useCase: 'Fast access, temporary data'
     },
     {

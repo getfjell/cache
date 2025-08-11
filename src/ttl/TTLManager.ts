@@ -71,7 +71,7 @@ export class TTLManager {
 
     // Restart auto cleanup if configuration changed
     if (oldConfig.autoCleanup !== this.config.autoCleanup ||
-        oldConfig.cleanupInterval !== this.config.cleanupInterval) {
+      oldConfig.cleanupInterval !== this.config.cleanupInterval) {
       this.stopAutoCleanup();
       if (this.config.autoCleanup && this.config.cleanupInterval) {
         this.startAutoCleanup();
@@ -84,16 +84,16 @@ export class TTLManager {
   /**
    * Set TTL metadata for an item when it's added
    */
-  public onItemAdded(
+  public async onItemAdded(
     key: string,
     metadataProvider: CacheMapMetadataProvider,
     itemTTL?: number
-  ): void {
+  ): Promise<void> {
     if (!this.isTTLEnabled() && !itemTTL) {
       return; // No TTL configured
     }
 
-    const metadata = metadataProvider.getMetadata(key);
+    const metadata = await metadataProvider.getMetadata(key);
     if (!metadata) {
       logger.warning('No metadata found for item when setting TTL', { key });
       return;
@@ -106,7 +106,7 @@ export class TTLManager {
         expiresAt: metadata.addedAt + ttl,
         ttl
       };
-      metadataProvider.setMetadata(key, ttlMetadata);
+      await metadataProvider.setMetadata(key, ttlMetadata);
 
       logger.trace('TTL set for item', { key, ttl, expiresAt: ttlMetadata.expiresAt });
     }
@@ -115,8 +115,8 @@ export class TTLManager {
   /**
    * Check if an item has expired
    */
-  public isExpired(key: string, metadataProvider: CacheMapMetadataProvider): boolean {
-    const metadata = metadataProvider.getMetadata(key) as TTLItemMetadata;
+  public async isExpired(key: string, metadataProvider: CacheMapMetadataProvider): Promise<boolean> {
+    const metadata = await metadataProvider.getMetadata(key) as TTLItemMetadata;
     if (!metadata || !metadata.expiresAt) {
       return false; // No TTL set
     }
@@ -135,25 +135,25 @@ export class TTLManager {
    * Check if an item is valid (not expired) before returning it
    * Returns true if item is valid, false if expired
    */
-  public validateItem(key: string, metadataProvider: CacheMapMetadataProvider): boolean {
+  public async validateItem(key: string, metadataProvider: CacheMapMetadataProvider): Promise<boolean> {
     if (!this.config.validateOnAccess) {
       return true; // Skip validation if disabled
     }
 
-    return !this.isExpired(key, metadataProvider);
+    return !(await this.isExpired(key, metadataProvider));
   }
 
   /**
    * Get TTL information for an item
    */
-  public getItemTTLInfo(key: string, metadataProvider: CacheMapMetadataProvider): {
+  public async getItemTTLInfo(key: string, metadataProvider: CacheMapMetadataProvider): Promise<{
     hasTTL: boolean;
     ttl?: number;
     expiresAt?: number;
     remainingTTL?: number;
     isExpired: boolean;
-  } {
-    const metadata = metadataProvider.getMetadata(key) as TTLItemMetadata;
+  }> {
+    const metadata = await metadataProvider.getMetadata(key) as TTLItemMetadata;
 
     if (!metadata || !metadata.expiresAt) {
       return { hasTTL: false, isExpired: false };
@@ -175,9 +175,9 @@ export class TTLManager {
   /**
    * Find all expired items
    */
-  public findExpiredItems(metadataProvider: CacheMapMetadataProvider): string[] {
+  public async findExpiredItems(metadataProvider: CacheMapMetadataProvider): Promise<string[]> {
     const expiredKeys: string[] = [];
-    const allMetadata = metadataProvider.getAllMetadata();
+    const allMetadata = await metadataProvider.getAllMetadata();
     const now = Date.now();
 
     for (const [key, metadata] of allMetadata) {
@@ -198,33 +198,33 @@ export class TTLManager {
    * Manually clean up expired items
    * Returns the keys of items that were expired
    */
-  public cleanupExpiredItems(metadataProvider: CacheMapMetadataProvider): string[] {
-    return this.findExpiredItems(metadataProvider);
+  public async cleanupExpiredItems(metadataProvider: CacheMapMetadataProvider): Promise<string[]> {
+    return await this.findExpiredItems(metadataProvider);
   }
 
   /**
    * Get remaining TTL for an item in milliseconds
    */
-  public getRemainingTTL(key: string, metadataProvider: CacheMapMetadataProvider): number | null {
-    const info = this.getItemTTLInfo(key, metadataProvider);
+  public async getRemainingTTL(key: string, metadataProvider: CacheMapMetadataProvider): Promise<number | null> {
+    const info = await this.getItemTTLInfo(key, metadataProvider);
     return info.hasTTL ? (info.remainingTTL || 0) : null;
   }
 
   /**
    * Extend TTL for an item
    */
-  public extendTTL(
+  public async extendTTL(
     key: string,
     metadataProvider: CacheMapMetadataProvider,
     additionalTTL: number
-  ): boolean {
-    const metadata = metadataProvider.getMetadata(key) as TTLItemMetadata;
+  ): Promise<boolean> {
+    const metadata = await metadataProvider.getMetadata(key) as TTLItemMetadata;
     if (!metadata || !metadata.expiresAt) {
       return false; // No TTL set
     }
 
     metadata.expiresAt += additionalTTL;
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
 
     logger.trace('TTL extended for item', { key, additionalTTL, newExpiresAt: metadata.expiresAt });
     return true;
@@ -233,12 +233,12 @@ export class TTLManager {
   /**
    * Reset TTL for an item (refresh expiration)
    */
-  public refreshTTL(
+  public async refreshTTL(
     key: string,
     metadataProvider: CacheMapMetadataProvider,
     newTTL?: number
-  ): boolean {
-    const metadata = metadataProvider.getMetadata(key) as TTLItemMetadata;
+  ): Promise<boolean> {
+    const metadata = await metadataProvider.getMetadata(key) as TTLItemMetadata;
     if (!metadata) {
       return false;
     }
@@ -254,7 +254,7 @@ export class TTLManager {
       expiresAt: now + ttl,
       ttl
     };
-    metadataProvider.setMetadata(key, ttlMetadata);
+    await metadataProvider.setMetadata(key, ttlMetadata);
 
     logger.trace('TTL refreshed for item', { key, ttl, expiresAt: ttlMetadata.expiresAt });
     return true;

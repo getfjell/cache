@@ -36,21 +36,21 @@ export const allAction = async <
 
     // Cache all results after the action
     logger.debug('Caching allAction results', { resultCount: ret.length });
-    ret.forEach((v) => {
-      cacheMap.set(v.key, v);
+    for (const v of ret) {
+      await cacheMap.set(v.key, v);
 
       // Set TTL metadata for the newly cached item
       const keyStr = JSON.stringify(v.key);
       context.ttlManager.onItemAdded(keyStr, cacheMap);
 
       // Handle eviction for the newly cached item
-      const evictedKeys = context.evictionManager.onItemAdded(keyStr, v, cacheMap);
+      const evictedKeys = await context.evictionManager.onItemAdded(keyStr, v, cacheMap);
       // Remove evicted items from cache
-      evictedKeys.forEach(evictedKey => {
+      for (const evictedKey of evictedKeys) {
         const parsedKey = JSON.parse(evictedKey);
-        cacheMap.delete(parsedKey);
-      });
-    });
+        await cacheMap.delete(parsedKey);
+      }
+    }
   } catch (e: unknown) {
     // istanbul ignore next
     if (e instanceof NotFoundError) {
