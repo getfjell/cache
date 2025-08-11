@@ -52,6 +52,24 @@ export const one = async <
     }
   }
 
+  // If no cached query results, try to find item directly in cache using queryIn
+  // This handles cases where individual items are cached but query results are not yet cached
+  try {
+    const directCachedItems = await cacheMap.queryIn(query, locations);
+    if (directCachedItems && directCachedItems.length > 0) {
+      logger.debug('Found item directly in cache, skipping API call');
+      const foundItem = directCachedItems[0]; // Take first match for 'one' operation
+
+      // Cache the query result for future use
+      await cacheMap.setQueryResult(queryHash, [foundItem.key]);
+      logger.debug('Cached query result from direct cache hit', { queryHash, itemKey: foundItem.key });
+
+      return [context, validatePK(foundItem, pkType) as V];
+    }
+  } catch (error) {
+    logger.debug('Error querying cache directly, proceeding to API', { error });
+  }
+
   let retItem: V | null = null;
   try {
     retItem = await api.one(query, locations);
