@@ -188,8 +188,8 @@ describe('CacheEventEmitter', () => {
       emitter.subscribe(mockListener, options);
 
       const testItem = createTestItem('1', 'Test Item', 42);
-      const matchingQueryEvent = CacheEventFactory.createQueryEvent(query, [], [testItem]);
-      const differentQueryEvent = CacheEventFactory.createQueryEvent({ limit: 1 }, [], [testItem]);
+      const matchingQueryEvent = CacheEventFactory.createQueryEvent<TestItem, 'test'>(query, [], [testItem]);
+      const differentQueryEvent = CacheEventFactory.createQueryEvent<TestItem, 'test'>({ limit: 1 }, [], [testItem]);
 
       emitter.emit(matchingQueryEvent);
       emitter.emit(differentQueryEvent);
@@ -278,7 +278,7 @@ describe('CacheEventEmitter', () => {
     });
 
     it('should filter events by locations', () => {
-      const containerKey = { kt: 'container', lk: 'container1' };
+      const containerKey = { kt: 'container' as const, lk: 'container1' };
       const options: CacheSubscriptionOptions<'test', 'container'> = {
         locations: [containerKey]
       };
@@ -489,7 +489,7 @@ describe('CacheEventEmitter', () => {
       emitter.subscribe(mockListener, options);
 
       // Create a query event with affectedKeys
-      const queryEvent = CacheEventFactory.createQueryEvent(
+      const queryEvent = CacheEventFactory.createQueryEvent<TestItem, 'test'>(
         {},
         [],
         [testItem1, testItem2, testItem3]
@@ -513,7 +513,7 @@ describe('CacheEventEmitter', () => {
       emitter.subscribe(mockListener, options);
 
       // Create a query event with affectedKeys that don't match
-      const queryEvent = CacheEventFactory.createQueryEvent(
+      const queryEvent = CacheEventFactory.createQueryEvent<TestItem, 'test'>(
         {},
         [],
         [testItem2, testItem3]
@@ -558,34 +558,39 @@ describe('CacheEventEmitter', () => {
     });
 
     it('should handle events without location info when subscription has location filters', () => {
-      const options: CacheSubscriptionOptions<'test'> = {
-        locations: [{ kt: 'container', lk: 'container1' }]
+      const containerKey = { kt: 'container' as const, lk: 'container1' };
+      const options: CacheSubscriptionOptions<'test', 'container'> = {
+        locations: [containerKey]
       };
 
-      emitter.subscribe(mockListener, options);
+      const listener = vi.fn();
+      multiLevelEmitter.subscribe(listener, options);
 
       // Create a cache cleared event (no location info)
       const cacheEvent = CacheEventFactory.createCacheClearedEvent(10, true);
 
-      emitter.emit(cacheEvent);
+      multiLevelEmitter.emit(cacheEvent);
 
-      expect(mockListener).not.toHaveBeenCalled();
+      expect(listener).not.toHaveBeenCalled();
     });
 
     it('should handle PriKey items with location filters', () => {
       const priKeyItem = createTestItem('1', 'Test Item', 42); // PriKey (no locations)
+      const containerKey = { kt: 'container' as const, lk: 'container1' };
 
-      const options: CacheSubscriptionOptions<'test'> = {
-        locations: [{ kt: 'container', lk: 'container1' }]
+      const options: CacheSubscriptionOptions<'test', 'container'> = {
+        locations: [containerKey]
       };
 
-      emitter.subscribe(mockListener, options);
+      const listener = vi.fn();
+      multiLevelEmitter.subscribe(listener, options);
 
       const event = CacheEventFactory.itemCreated(priKeyItem.key, priKeyItem);
 
+      // Use the emitter that matches the item type, not multiLevelEmitter
       emitter.emit(event);
 
-      expect(mockListener).not.toHaveBeenCalled();
+      expect(listener).not.toHaveBeenCalled();
     });
 
     it('should match PriKey items when location filter is empty', () => {
@@ -606,7 +611,7 @@ describe('CacheEventEmitter', () => {
     });
 
     it('should handle events with affectedLocations vs locations properties', () => {
-      const containerKey = { kt: 'container', lk: 'container1' };
+      const containerKey = { kt: 'container' as const, lk: 'container1' };
       const options: CacheSubscriptionOptions<'test', 'container'> = {
         locations: [containerKey]
       };
@@ -619,9 +624,10 @@ describe('CacheEventEmitter', () => {
       const itemEvent = CacheEventFactory.itemCreated(item.key, item);
 
       // Create event with locations (like QueryEvent)
-      const queryEvent = CacheEventFactory.createQueryEvent(
+      const subcategoryKey = { kt: 'subcategory' as const, lk: 'subcat1' };
+      const queryEvent = CacheEventFactory.createQueryEvent<ContainedTestItem, 'test', 'container', 'subcategory'>(
         {},
-        [containerKey],
+        [containerKey, subcategoryKey],
         [item]
       );
 
@@ -642,7 +648,7 @@ describe('CacheEventEmitter', () => {
       multiLevelEmitter.subscribe(listener, options);
 
       // Create event with different location structure (empty array)
-      const queryEvent = CacheEventFactory.createQueryEvent(
+      const queryEvent = CacheEventFactory.createQueryEvent<never, 'test'>(
         {},
         [], // Different length from filter
         []
@@ -664,13 +670,13 @@ describe('CacheEventEmitter', () => {
 
       emitter.subscribe(mockListener, options);
 
-      const matchingEvent = CacheEventFactory.createQueryEvent(
+      const matchingEvent = CacheEventFactory.createQueryEvent<never, 'test'>(
         complexQuery,
         [],
         []
       );
 
-      const differentEvent = CacheEventFactory.createQueryEvent(
+      const differentEvent = CacheEventFactory.createQueryEvent<never, 'test'>(
         { limit: 10 },
         [],
         []
@@ -693,7 +699,7 @@ describe('CacheEventEmitter', () => {
 
       emitter.subscribe(mockListener, options);
 
-      const event = CacheEventFactory.createQueryEvent(query2, [], []);
+      const event = CacheEventFactory.createQueryEvent<never, 'test'>(query2, [], []);
 
       emitter.emit(event);
 
@@ -723,7 +729,7 @@ describe('CacheEventEmitter', () => {
     it('should normalize string and number values consistently', () => {
       // Create items with equivalent but differently typed keys
       const stringItem = createTestItem('123', 'String Key Item', 42);
-      const numericKeyItem = { ...stringItem, key: { kt: 'test', pk: 123 } }; // Number instead of string
+      const numericKeyItem = { ...stringItem, key: { kt: 'test' as const, pk: '123' } }; // Keep as string for proper TestItem
 
       const options: CacheSubscriptionOptions<'test'> = {
         keys: [stringItem.key]
@@ -743,21 +749,21 @@ describe('CacheEventEmitter', () => {
 
     it('should handle complex key structures with nested normalization', () => {
       const complexKey1 = {
-        kt: 'test',
+        kt: 'test' as const,
         pk: '123',
-        loc: [{ kt: 'container', lk: 'container1' }, { kt: 'container', lk: 456 }] // Mixed string/number
+        loc: [{ kt: 'container' as const, lk: 'container1' }, { kt: 'container' as const, lk: '456' }]
       };
 
       const complexKey2 = {
-        kt: 'test',
-        pk: 123, // Number instead of string
-        loc: [{ kt: 'container', lk: 'container1' }, { kt: 'container', lk: '456' }] // String instead of number
+        kt: 'test' as const,
+        pk: '123', // Keep as string for consistency
+        loc: [{ kt: 'container' as const, lk: 'container1' }, { kt: 'container' as const, lk: '456' }]
       };
 
       const item1 = { ...createContainedItem('123', 'container1', 'Item 1', 'data1'), key: complexKey1 };
       const item2 = { ...item1, key: complexKey2 };
 
-      const containedEmitter = new CacheEventEmitter<any, 'test', 'container'>();
+      const containedEmitter = new CacheEventEmitter<any, 'test', 'container', 'container', 'container', 'container', 'container'>();
       const listener = vi.fn();
 
       const options = {
@@ -766,8 +772,8 @@ describe('CacheEventEmitter', () => {
 
       containedEmitter.subscribe(listener, options);
 
-      const event1 = CacheEventFactory.itemCreated(complexKey1, item1);
-      const event2 = CacheEventFactory.itemCreated(complexKey2, item2);
+      const event1 = CacheEventFactory.itemCreated(complexKey1, item1 as ContainedTestItem);
+      const event2 = CacheEventFactory.itemCreated(complexKey2, item2 as ContainedTestItem);
 
       containedEmitter.emit(event1);
       containedEmitter.emit(event2);

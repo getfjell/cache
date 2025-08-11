@@ -43,13 +43,13 @@ export class EvictionManager {
    * @param key - Item key
    * @param metadataProvider - Cache metadata provider
    */
-  public onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): void {
+  public async onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): Promise<void> {
     if (!this.evictionStrategy) {
       return;
     }
 
     try {
-      this.evictionStrategy.onItemAccessed(key, metadataProvider);
+      await this.evictionStrategy.onItemAccessed(key, metadataProvider);
     } catch (error) {
       logger.error('Error in eviction strategy onItemAccessed', { key, error });
     }
@@ -62,11 +62,11 @@ export class EvictionManager {
    * @param metadataProvider - Cache metadata provider
    * @returns Array of keys that were evicted
    */
-  public onItemAdded<T>(
+  public async onItemAdded<T>(
     key: string,
     value: T,
     metadataProvider: CacheMapMetadataProvider
-  ): string[] {
+  ): Promise<string[]> {
     const evictedKeys: string[] = [];
 
     if (!this.evictionStrategy) {
@@ -75,19 +75,19 @@ export class EvictionManager {
 
     try {
       const estimatedSize = estimateValueSize(value);
-      const context = this.createEvictionContext(metadataProvider, estimatedSize);
+      const context = await this.createEvictionContext(metadataProvider, estimatedSize);
 
       // Perform eviction before adding the new item if needed
-      const keysToEvict = this.evictionStrategy.selectForEviction(metadataProvider, context);
+      const keysToEvict = await this.evictionStrategy.selectForEviction(metadataProvider, context);
 
       for (const evictKey of keysToEvict) {
         // Let the strategy know about the removal
-        this.evictionStrategy.onItemRemoved(evictKey, metadataProvider);
+        await this.evictionStrategy.onItemRemoved(evictKey, metadataProvider);
         evictedKeys.push(evictKey);
       }
 
       // Now add metadata for the new item
-      this.evictionStrategy.onItemAdded(key, estimatedSize, metadataProvider);
+      await this.evictionStrategy.onItemAdded(key, estimatedSize, metadataProvider);
 
       if (evictedKeys.length > 0) {
         logger.debug('Items evicted during addition', {
@@ -125,7 +125,7 @@ export class EvictionManager {
    * @param metadataProvider - Cache metadata provider
    * @returns Array of keys that were evicted
    */
-  public performEviction(metadataProvider: CacheMapMetadataProvider): string[] {
+  public async performEviction(metadataProvider: CacheMapMetadataProvider): Promise<string[]> {
     const evictedKeys: string[] = [];
 
     if (!this.evictionStrategy) {
@@ -133,11 +133,11 @@ export class EvictionManager {
     }
 
     try {
-      const context = this.createEvictionContext(metadataProvider);
-      const keysToEvict = this.evictionStrategy.selectForEviction(metadataProvider, context);
+      const context = await this.createEvictionContext(metadataProvider);
+      const keysToEvict = await this.evictionStrategy.selectForEviction(metadataProvider, context);
 
       for (const evictKey of keysToEvict) {
-        this.evictionStrategy.onItemRemoved(evictKey, metadataProvider);
+        await this.evictionStrategy.onItemRemoved(evictKey, metadataProvider);
         evictedKeys.push(evictKey);
       }
 
@@ -168,12 +168,12 @@ export class EvictionManager {
    * @param newItemSize - Size of item being added (optional)
    * @returns Eviction context
    */
-  private createEvictionContext(
+  private async createEvictionContext(
     metadataProvider: CacheMapMetadataProvider,
     newItemSize?: number
-  ): EvictionContext {
-    const currentSize = metadataProvider.getCurrentSize();
-    const limits = metadataProvider.getSizeLimits();
+  ): Promise<EvictionContext> {
+    const currentSize = await metadataProvider.getCurrentSize();
+    const limits = await metadataProvider.getSizeLimits();
 
     return {
       currentSize,

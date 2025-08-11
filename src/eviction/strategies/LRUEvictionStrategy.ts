@@ -10,15 +10,15 @@ import {
  * Removes the item that was accessed longest ago
  */
 export class LRUEvictionStrategy extends EvictionStrategy {
-  selectForEviction(
+  async selectForEviction(
     metadataProvider: CacheMapMetadataProvider,
     context: EvictionContext
-  ): string[] {
+  ): Promise<string[]> {
     if (!this.isEvictionNeeded(context)) {
       return [];
     }
 
-    const allMetadata = metadataProvider.getAllMetadata();
+    const allMetadata = await metadataProvider.getAllMetadata();
     if (allMetadata.size === 0) {
       return [];
     }
@@ -38,16 +38,16 @@ export class LRUEvictionStrategy extends EvictionStrategy {
     return keysToEvict;
   }
 
-  onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): void {
-    const metadata = metadataProvider.getMetadata(key);
+  async onItemAccessed(key: string, metadataProvider: CacheMapMetadataProvider): Promise<void> {
+    const metadata = await metadataProvider.getMetadata(key);
     if (metadata) {
       metadata.lastAccessedAt = Date.now();
       metadata.accessCount++;
-      metadataProvider.setMetadata(key, metadata);
+      await metadataProvider.setMetadata(key, metadata);
     }
   }
 
-  onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): void {
+  async onItemAdded(key: string, estimatedSize: number, metadataProvider: CacheMapMetadataProvider): Promise<void> {
     const now = Date.now();
     const metadata: CacheItemMetadata = {
       key,
@@ -56,11 +56,11 @@ export class LRUEvictionStrategy extends EvictionStrategy {
       accessCount: 1,
       estimatedSize
     };
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
   }
 
-  onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): void {
-    metadataProvider.deleteMetadata(key);
+  async onItemRemoved(key: string, metadataProvider: CacheMapMetadataProvider): Promise<void> {
+    await metadataProvider.deleteMetadata(key);
   }
 
   getStrategyName(): string {

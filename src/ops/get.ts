@@ -77,7 +77,7 @@ export const get = async <
     const cachedItem = await cacheMap.get(key);
     if (cachedItem) {
       // Check TTL validity using TTLManager
-      const isValid = ttlManager.validateItem(keyStr, cacheMap);
+      const isValid = await ttlManager.validateItem(keyStr, cacheMap);
       if (isValid) {
         logger.debug('Cache hit with valid TTL', { key, defaultTTL: ttlManager.getDefaultTTL() });
         statsManager.incrementHits();
@@ -140,12 +140,12 @@ export const get = async <
 
     ret = await apiRequest;
     if (ret) {
-      cacheMap.set(ret.key, ret);
+      await cacheMap.set(ret.key, ret);
 
       const keyStr = JSON.stringify(ret.key);
 
       // Create base metadata if it doesn't exist (needed for TTL and eviction)
-      const metadata = cacheMap.getMetadata?.(keyStr);
+      const metadata = await cacheMap.getMetadata(keyStr);
       if (!metadata) {
         const now = Date.now();
         const baseMetadata = {
@@ -155,20 +155,20 @@ export const get = async <
           accessCount: 1,
           estimatedSize: estimateValueSize(ret)
         };
-        cacheMap.setMetadata?.(keyStr, baseMetadata);
+        await cacheMap.setMetadata(keyStr, baseMetadata);
       }
 
       // Handle eviction for the newly cached item
-      const evictedKeys = context.evictionManager.onItemAdded(keyStr, ret, cacheMap);
+      const evictedKeys = await context.evictionManager.onItemAdded(keyStr, ret, cacheMap);
 
       // Set TTL metadata for the newly cached item
-      ttlManager.onItemAdded(keyStr, cacheMap);
+      await ttlManager.onItemAdded(keyStr, cacheMap);
 
       // Remove evicted items from cache
-      evictedKeys.forEach(evictedKey => {
+      for (const evictedKey of evictedKeys) {
         const parsedKey = JSON.parse(evictedKey);
-        cacheMap.delete(parsedKey);
-      });
+        await cacheMap.delete(parsedKey);
+      }
 
       // Emit event for item retrieved from API
       const event = CacheEventFactory.itemRetrieved(ret.key, ret as V, 'api');

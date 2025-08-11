@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Item, ItemQuery } from '@fjell/core';
+import { ComKey, Item, ItemQuery } from '@fjell/core';
 import { CacheEventFactory } from '../../src/events/CacheEventFactory';
 
 // Test item interface
@@ -17,17 +17,27 @@ interface ContainedTestItem extends Item<'test', 'container'> {
 }
 
 const createTestItem = (id: string, name: string, value: number): TestItem => ({
-  key: { pk: id },
+  key: { kt: 'test', pk: id },
   id,
   name,
-  value
+  value,
+  events: {
+    created: { at: new Date() },
+    updated: { at: new Date() },
+    deleted: { at: null }
+  }
 });
 
 const createContainedItem = (id: string, containerId: string, name: string, data: string): ContainedTestItem => ({
-  key: { pk: id, loc: [{ lk: containerId }] },
+  key: { kt: 'test', pk: id, loc: [{ kt: 'container', lk: containerId }] },
   id,
   name,
-  data
+  data,
+  events: {
+    created: { at: new Date() },
+    updated: { at: new Date() },
+    deleted: { at: null }
+  }
 });
 
 describe('CacheEventFactory', () => {
@@ -110,11 +120,11 @@ describe('CacheEventFactory', () => {
         containedItem.key,
         containedItem,
         {
-          affectedLocations: [{ lk: 'container1' }]
+          affectedLocations: [{ kt: 'container', lk: 'container1' }]
         }
       );
 
-      expect(event.affectedLocations).toEqual([{ lk: 'container1' }]);
+      expect(event.affectedLocations).toEqual([{ kt: 'container', lk: 'container1' }]);
     });
 
     it('should include context information', () => {
@@ -141,10 +151,10 @@ describe('CacheEventFactory', () => {
       const item1 = createTestItem('1', 'Item 1', 42);
       const item2 = createTestItem('2', 'Item 2', 84);
       const items = [item1, item2];
-      const query: ItemQuery = { name: 'Item' };
-      const locations: any[] = [];
+      const query: ItemQuery = {};
+      const locations: [] = [];
 
-      const event = CacheEventFactory.createQueryEvent(query, locations, items);
+      const event = CacheEventFactory.createQueryEvent<TestItem, 'test'>(query, locations, items);
 
       expect(event.type).toBe('items_queried');
       expect(event.query).toEqual(query);
@@ -159,7 +169,7 @@ describe('CacheEventFactory', () => {
       const items = [createTestItem('1', 'Item 1', 42)];
       const query: ItemQuery = {};
 
-      const event = CacheEventFactory.createQueryEvent(query, [], items, {
+      const event = CacheEventFactory.createQueryEvent<TestItem, 'test'>(query, [], items, {
         source: 'api'
       });
 
@@ -167,8 +177,8 @@ describe('CacheEventFactory', () => {
     });
 
     it('should handle empty query results', () => {
-      const query: ItemQuery = { name: 'NonExistent' };
-      const event = CacheEventFactory.createQueryEvent(query, [], []);
+      const query: ItemQuery = {};
+      const event = CacheEventFactory.createQueryEvent<never, 'test'>(query, [], []);
 
       expect(event.items).toEqual([]);
       expect(event.affectedKeys).toEqual([]);
@@ -200,10 +210,10 @@ describe('CacheEventFactory', () => {
     });
 
     it('should create location invalidated event', () => {
-      const locations = [{ lk: 'container1' }, { lk: 'container2' }];
+      const locations: [] = [];
       const affectedKeys = [
-        { pk: '1', loc: [{ lk: 'container1' }] },
-        { pk: '2', loc: [{ lk: 'container2' }] }
+        { kt: 'test', pk: '1' },
+        { kt: 'test', pk: '2' }
       ];
 
       const event = CacheEventFactory.createLocationInvalidatedEvent(locations, affectedKeys);
@@ -265,8 +275,9 @@ describe('CacheEventFactory', () => {
   describe('edge cases', () => {
     it('should handle items with complex keys', () => {
       const complexKey: ComKey<'test', 'container', 'subcategory'> = {
+        kt: 'test',
         pk: 'complex-id',
-        loc: [{ lk: 'container1' }, { lk: 'subcategory1' }]
+        loc: [{ kt: 'container', lk: 'container1' }, { kt: 'subcategory', lk: 'subcategory1' }]
       };
 
       const item = {

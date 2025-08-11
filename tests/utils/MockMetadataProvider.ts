@@ -6,7 +6,7 @@ import { CacheItemMetadata, CacheMapMetadataProvider } from '../../src/eviction/
 export class MockMetadataProvider implements CacheMapMetadataProvider {
   private metadata = new Map<string, CacheItemMetadata>();
   private currentSize = { itemCount: 0, sizeBytes: 0 };
-  private sizeLimits = { maxItems: null, maxSizeBytes: null };
+  private sizeLimits: { maxItems: number | null; maxSizeBytes: number | null } = { maxItems: null, maxSizeBytes: null };
 
   constructor(
     maxItems: number | null = null,
@@ -15,11 +15,11 @@ export class MockMetadataProvider implements CacheMapMetadataProvider {
     this.sizeLimits = { maxItems, maxSizeBytes };
   }
 
-  getMetadata(key: string): CacheItemMetadata | null {
+  async getMetadata(key: string): Promise<CacheItemMetadata | null> {
     return this.metadata.get(key) || null;
   }
 
-  setMetadata(key: string, metadata: CacheItemMetadata): void {
+  async setMetadata(key: string, metadata: CacheItemMetadata): Promise<void> {
     const existing = this.metadata.get(key);
     this.metadata.set(key, metadata);
 
@@ -32,7 +32,7 @@ export class MockMetadataProvider implements CacheMapMetadataProvider {
     }
   }
 
-  deleteMetadata(key: string): void {
+  async deleteMetadata(key: string): Promise<void> {
     const existing = this.metadata.get(key);
     if (existing) {
       this.metadata.delete(key);
@@ -41,20 +41,20 @@ export class MockMetadataProvider implements CacheMapMetadataProvider {
     }
   }
 
-  getAllMetadata(): Map<string, CacheItemMetadata> {
+  async getAllMetadata(): Promise<Map<string, CacheItemMetadata>> {
     return new Map(this.metadata);
   }
 
-  clearMetadata(): void {
+  async clearMetadata(): Promise<void> {
     this.metadata.clear();
     this.currentSize = { itemCount: 0, sizeBytes: 0 };
   }
 
-  getCurrentSize(): { itemCount: number; sizeBytes: number } {
+  async getCurrentSize(): Promise<{ itemCount: number; sizeBytes: number }> {
     return { ...this.currentSize };
   }
 
-  getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+  async getSizeLimits(): Promise<{ maxItems: number | null; maxSizeBytes: number | null }> {
     return { ...this.sizeLimits };
   }
 

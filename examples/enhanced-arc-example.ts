@@ -8,27 +8,27 @@ import { ARCConfig } from '../src/eviction/EvictionStrategyConfig';
 class SimpleMetadataProvider implements CacheMapMetadataProvider {
   private metadata = new Map<string, CacheItemMetadata>();
 
-  getMetadata(key: string): CacheItemMetadata | null {
+  async getMetadata(key: string): Promise<CacheItemMetadata | null> {
     return this.metadata.get(key) || null;
   }
 
-  setMetadata(key: string, metadata: CacheItemMetadata): void {
+  async setMetadata(key: string, metadata: CacheItemMetadata): Promise<void> {
     this.metadata.set(key, metadata);
   }
 
-  deleteMetadata(key: string): void {
+  async deleteMetadata(key: string): Promise<void> {
     this.metadata.delete(key);
   }
 
-  getAllMetadata(): Map<string, CacheItemMetadata> {
+  async getAllMetadata(): Promise<Map<string, CacheItemMetadata>> {
     return new Map(this.metadata);
   }
 
-  clearMetadata(): void {
+  async clearMetadata(): Promise<void> {
     this.metadata.clear();
   }
 
-  getCurrentSize(): { itemCount: number; sizeBytes: number } {
+  async getCurrentSize(): Promise<{ itemCount: number; sizeBytes: number }> {
     let sizeBytes = 0;
     for (const metadata of this.metadata.values()) {
       sizeBytes += metadata.estimatedSize;
@@ -36,7 +36,7 @@ class SimpleMetadataProvider implements CacheMapMetadataProvider {
     return { itemCount: this.metadata.size, sizeBytes };
   }
 
-  getSizeLimits(): { maxItems: number | null; maxSizeBytes: number | null } {
+  async getSizeLimits(): Promise<{ maxItems: number | null; maxSizeBytes: number | null }> {
     return { maxItems: null, maxSizeBytes: null };
   }
 }
@@ -44,7 +44,7 @@ class SimpleMetadataProvider implements CacheMapMetadataProvider {
 /**
  * Example demonstrating the enhanced ARC eviction strategy with sophisticated frequency tracking
  */
-function demonstrateEnhancedARC() {
+async function demonstrateEnhancedARC() {
   console.log('=== Enhanced ARC (Adaptive Replacement Cache) Eviction Strategy Example ===\n');
 
   // Example 1: Traditional ARC behavior
@@ -56,7 +56,7 @@ function demonstrateEnhancedARC() {
     useFrequencyWeightedSelection: false
   };
   const traditionalARC = createEvictionStrategy('arc', 100, traditionalConfig);
-  demonstrateARCStrategy(traditionalARC, 'Traditional ARC');
+  await demonstrateARCStrategy(traditionalARC, 'Traditional ARC');
 
   // Example 2: ARC with enhanced frequency tracking
   console.log('\n2. ARC with enhanced frequency tracking:');
@@ -69,7 +69,7 @@ function demonstrateEnhancedARC() {
     frequencyDecayFactor: 0
   };
   const enhancedARC = createEvictionStrategy('arc', 100, enhancedConfig);
-  demonstrateARCStrategy(enhancedARC, 'Enhanced ARC');
+  await demonstrateARCStrategy(enhancedARC, 'Enhanced ARC');
 
   // Example 3: ARC with frequency decay
   console.log('\n3. ARC with frequency decay and adaptive learning:');
@@ -99,10 +99,10 @@ function demonstrateEnhancedARC() {
     adaptiveLearningRate: 2.0
   };
   const aggressiveARC = createEvictionStrategy('arc', 100, aggressiveConfig);
-  demonstrateARCStrategy(aggressiveARC, 'Aggressive Adaptive ARC');
+  await demonstrateARCStrategy(aggressiveARC, 'Aggressive Adaptive ARC');
 }
 
-function demonstrateARCStrategy(strategy: any, name: string) {
+async function demonstrateARCStrategy(strategy: any, name: string) {
   const metadataProvider = new SimpleMetadataProvider();
 
   // Create items representing different access patterns
@@ -114,7 +114,7 @@ function demonstrateARCStrategy(strategy: any, name: string) {
     { key: 'balanced:cache', accessCount: 4, type: 'balanced', age: 15000 }
   ];
 
-  itemData.forEach(({ key, accessCount, age }) => {
+  itemData.forEach(async ({ key, accessCount, age }) => {
     const metadata: CacheItemMetadata = {
       key,
       addedAt: Date.now() - age,
@@ -124,14 +124,14 @@ function demonstrateARCStrategy(strategy: any, name: string) {
     };
 
     // Add item through metadata provider
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
     strategy.onItemAdded(key, metadata.estimatedSize, metadataProvider);
 
     // Simulate access pattern
     for (let i = 1; i < accessCount; i++) {
       metadata.accessCount++;
       metadata.lastAccessedAt = Date.now();
-      metadataProvider.setMetadata(key, metadata);
+      await metadataProvider.setMetadata(key, metadata);
       strategy.onItemAccessed(key, metadataProvider);
     }
   });
@@ -152,7 +152,7 @@ function demonstrateARCStrategy(strategy: any, name: string) {
 
   // Show item classification and scores
   console.log('  Item analysis:');
-  const allMetadata = metadataProvider.getAllMetadata();
+  const allMetadata = await metadataProvider.getAllMetadata();
   for (const [key, metadata] of allMetadata) {
     const freq = metadata.rawFrequency || metadata.accessCount;
     const score = metadata.frequencyScore ? ` (score: ${metadata.frequencyScore.toFixed(2)})` : '';
@@ -162,7 +162,7 @@ function demonstrateARCStrategy(strategy: any, name: string) {
   }
 }
 
-function demonstrateDecayARC(strategy: any, name: string) {
+async function demonstrateDecayARC(strategy: any, name: string) {
   const metadataProvider = new SimpleMetadataProvider();
 
   // Create items with different temporal patterns to show adaptive behavior
@@ -177,7 +177,7 @@ function demonstrateDecayARC(strategy: any, name: string) {
     { key: 'new-fresh', accessCount: 2, addedAt: newTime }
   ];
 
-  itemData.forEach(({ key, accessCount, addedAt }) => {
+  itemData.forEach(async ({ key, accessCount, addedAt }) => {
     const metadata: CacheItemMetadata = {
       key,
       addedAt,
@@ -187,14 +187,14 @@ function demonstrateDecayARC(strategy: any, name: string) {
     };
 
     // Add item through metadata provider
-    metadataProvider.setMetadata(key, metadata);
+    await metadataProvider.setMetadata(key, metadata);
     strategy.onItemAdded(key, metadata.estimatedSize, metadataProvider);
 
     // Simulate access pattern over time
     for (let i = 1; i < accessCount; i++) {
       metadata.accessCount++;
       metadata.lastAccessedAt = Date.now();
-      metadataProvider.setMetadata(key, metadata);
+      await metadataProvider.setMetadata(key, metadata);
       strategy.onItemAccessed(key, metadataProvider);
     }
   });
@@ -209,7 +209,7 @@ function demonstrateDecayARC(strategy: any, name: string) {
 
   // Show how decay affects frequency analysis
   console.log('  Decay-adjusted frequency analysis:');
-  const allMetadata = metadataProvider.getAllMetadata();
+  const allMetadata = await metadataProvider.getAllMetadata();
   for (const [key, metadata] of allMetadata) {
     const rawFreq = metadata.rawFrequency || metadata.accessCount;
     const effectiveScore = metadata.frequencyScore || rawFreq;

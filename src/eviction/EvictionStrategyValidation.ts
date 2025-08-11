@@ -296,7 +296,7 @@ export function validateEvictionStrategyConfig(config: Partial<EvictionStrategyC
       break;
     default:
       // This should never happen due to the type check above, but included for completeness
-      throw new Error(`Unsupported eviction strategy type: ${config.type}`);
+      throw new Error(`Unsupported eviction strategy type: ${(config as any).type}`);
   }
 }
 

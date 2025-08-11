@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Cache, createCache } from '../src/Cache';
 import { createOptions } from '../src/Options';
 import { ClientApi } from '@fjell/client-api';
@@ -21,7 +21,8 @@ const mockApi = {
 } as unknown as ClientApi<TestItem, 'test', 'location'>;
 
 const mockCoordinate: Coordinate<'test', 'location'> = {
-  kta: ['test', 'location']
+  kta: ['test', 'location'],
+  scopes: []
 };
 
 const mockRegistry = {} as Registry;
@@ -29,9 +30,18 @@ const mockRegistry = {} as Registry;
 describe('Cache', () => {
   let cache: Cache<TestItem, 'test', 'location'>;
 
+  afterEach(() => {
+    // Destroy cache to clean up resources
+    if (cache) {
+      cache.destroy();
+    }
+    // Clear timers to prevent memory leaks
+    vi.clearAllTimers();
+  });
+
   describe('getCacheInfo method', () => {
     it('should provide accurate cache information for basic memory cache', () => {
-      const options = createOptions({
+      const options = createOptions<TestItem, 'test', 'location'>({
         cacheType: 'memory'
       });
 
@@ -46,7 +56,7 @@ describe('Cache', () => {
     });
 
     it('should provide accurate cache information with TTL enabled', () => {
-      const options = createOptions({
+      const options = createOptions<TestItem, 'test', 'location'>({
         cacheType: 'memory',
         ttl: 5000
       });
@@ -62,7 +72,7 @@ describe('Cache', () => {
     });
 
     it('should provide accurate cache information with enhanced memory cache and eviction', () => {
-      const options = createOptions({
+      const options = createOptions<TestItem, 'test', 'location'>({
         cacheType: 'memory',
         memoryConfig: {
           size: {
