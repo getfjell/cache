@@ -31,18 +31,18 @@
     "docs:test": "cd docs && npm run test"
   },
   "dependencies": {
-    "@fjell/client-api": "^4.4.24",
-    "@fjell/core": "^4.4.34",
-    "@fjell/http-api": "^4.4.33",
-    "@fjell/logging": "^4.4.40",
-    "@fjell/registry": "^4.4.28",
+    "@fjell/client-api": "^4.4",
+    "@fjell/core": "^4.4",
+    "@fjell/http-api": "^4.4",
+    "@fjell/logging": "^4.4",
+    "@fjell/registry": "^4.4",
     "fast-safe-stringify": "^2.1.1",
     "flatted": "^3.3.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.33.0",
-    "@fjell/eslint-config": "^1.1.19",
+    "@fjell/eslint-config": "^1.1",
     "@swc/core": "^1.13.3",
     "@tsconfig/recommended": "^1.0.10",
     "@types/multer": "^2.0.0",
