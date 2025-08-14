@@ -43,6 +43,12 @@ export class TTLManager {
       ...config
     };
 
+    logger.debug('TTL_DEBUG: TTLManager created', {
+      config: this.config,
+      isTTLEnabled: this.isTTLEnabled(),
+      defaultTTL: this.config.defaultTTL
+    });
+
     if (this.config.autoCleanup && this.config.cleanupInterval) {
       this.startAutoCleanup();
     }
@@ -89,26 +95,67 @@ export class TTLManager {
     metadataProvider: CacheMapMetadataProvider,
     itemTTL?: number
   ): Promise<void> {
+    // TTL_DEBUG: Add comprehensive logging for debugging
+    logger.debug('TTL_DEBUG: onItemAdded called', {
+      key,
+      itemTTL,
+      isTTLEnabled: this.isTTLEnabled(),
+      defaultTTL: this.config.defaultTTL,
+      metadataProviderType: metadataProvider?.constructor?.name
+    });
+
     if (!this.isTTLEnabled() && !itemTTL) {
+      logger.debug('TTL_DEBUG: No TTL configured for item - returning early', { key });
       return; // No TTL configured
     }
 
+    logger.debug('TTL_DEBUG: Getting metadata for key', { key });
     const metadata = await metadataProvider.getMetadata(key);
+    logger.debug('TTL_DEBUG: Retrieved metadata', {
+      key,
+      hasMetadata: !!metadata,
+      metadataKeys: metadata ? Object.keys(metadata) : null,
+      metadata: metadata
+    });
+
     if (!metadata) {
-      logger.warning('No metadata found for item when setting TTL', { key });
+      logger.warning('TTL_DEBUG: No metadata found for item when setting TTL', {
+        key,
+        metadataProviderType: metadataProvider?.constructor?.name,
+        metadataProviderMethods: metadataProvider ? Object.getOwnPropertyNames(Object.getPrototypeOf(metadataProvider)) : null
+      });
       return;
     }
 
     const ttl = itemTTL || this.config.defaultTTL;
+    logger.debug('TTL_DEBUG: Calculated TTL value', {
+      key,
+      itemTTL,
+      defaultTTL: this.config.defaultTTL,
+      finalTTL: ttl,
+      willSetTTL: !!(ttl && ttl > 0)
+    });
+
     if (ttl && ttl > 0) {
       const ttlMetadata: TTLItemMetadata = {
         ...metadata,
         expiresAt: metadata.addedAt + ttl,
         ttl
       };
+
+      logger.debug('TTL_DEBUG: Setting TTL metadata', {
+        key,
+        ttl,
+        addedAt: metadata.addedAt,
+        expiresAt: ttlMetadata.expiresAt,
+        ttlMetadata
+      });
+
       await metadataProvider.setMetadata(key, ttlMetadata);
 
-      logger.trace('TTL set for item', { key, ttl, expiresAt: ttlMetadata.expiresAt });
+      logger.trace('TTL_DEBUG: TTL set for item', { key, ttl, expiresAt: ttlMetadata.expiresAt });
+    } else {
+      logger.debug('TTL_DEBUG: No TTL set - invalid TTL value', { key, ttl });
     }
   }
 
