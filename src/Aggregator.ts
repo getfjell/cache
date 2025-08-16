@@ -258,7 +258,7 @@ export const createAggregator = async <
     Promise<V | null> => {
     logger.default('one', { query, locations });
     const item = await cache.operations.one(query, locations);
-    let populatedItem = null;
+    let populatedItem: V | null = null;
     if (item) {
       populatedItem = await populate(item);
     }
@@ -312,7 +312,7 @@ export const createAggregator = async <
   ): Promise<V | null> => {
     logger.default('get', { key });
     const item = await cache.operations.get(key);
-    let populatedItem = null;
+    let populatedItem: V | null = null;
     if (item) {
       populatedItem = await populate(item);
     }
@@ -324,7 +324,7 @@ export const createAggregator = async <
   ): Promise<V | null> => {
     logger.default('retrieve', { key });
     const item = await cache.operations.retrieve(key);
-    let populatedItem = null;
+    let populatedItem: V | null = null;
     if (item) {
       populatedItem = await populate(item);
     }
