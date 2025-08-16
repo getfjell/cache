@@ -84,6 +84,7 @@ export const createInstanceFactory = <
       eventEmitter,
       ttlManager,
       evictionManager,
+      statsManager,
       getCacheInfo: () => {
         const evictionStrategyName = evictionManager.getEvictionStrategyName();
         const cacheInfo = {
@@ -97,6 +98,7 @@ export const createInstanceFactory = <
         }
         return cacheInfo;
       },
+      getStats: () => statsManager.getStats(),
       subscribe: (listener, options) => eventEmitter.subscribe(listener, options),
       unsubscribe: (subscription) => eventEmitter.unsubscribe(subscription.id),
       destroy: () => {

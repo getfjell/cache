@@ -177,7 +177,7 @@ export const createCache = <
   // Create operations with event emitter, eviction manager, and stats manager
   const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions, eventEmitter, ttlManager, evictionManager, statsManager);
 
-  const cache: Cache<V, S, L1, L2, L3, L4, L5> = {
+  const cache = {
     coordinate,
     registry,
     api,
@@ -236,7 +236,7 @@ export const createCache = <
       // Notify CacheEventFactory that an instance is being destroyed
       CacheEventFactory.destroyInstance();
     }
-  };
+  } as Cache<V, S, L1, L2, L3, L4, L5>;
 
   return cache;
 };
