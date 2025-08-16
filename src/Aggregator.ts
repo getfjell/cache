@@ -398,8 +398,8 @@ export const createAggregator = async <
 
   return {
     // Cache properties
-    coordinate: cache.coordinate,
-    registry: cache.registry,
+    coordinate: (cache as any).coordinate,
+    registry: (cache as any).registry,
     api: cache.api,
     cacheMap: cache.cacheMap,
     operations: cache.operations,
@@ -433,5 +433,5 @@ export const createAggregator = async <
     subscribe: (listener, options) => cache.subscribe(listener, options),
     unsubscribe: (subscription) => cache.unsubscribe(subscription),
     destroy: () => cache.destroy()
-  }
+  } as Aggregator<V, S, L1, L2, L3, L4, L5>
 }
