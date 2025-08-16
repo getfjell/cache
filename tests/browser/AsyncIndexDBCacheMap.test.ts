@@ -1703,4 +1703,503 @@ describe('AsyncIndexDBCacheMap', () => {
       });
     });
   });
+
+  describe('Additional Coverage Tests', () => {
+    describe('Metadata Operations Coverage', () => {
+      it('should handle setMetadata with existing item and metadata', async () => {
+        await cacheMap.set(priKey1, testItems[0], testMetadata);
+
+        const newMetadata: CacheItemMetadata = {
+          ...testMetadata,
+          accessCount: 10,
+          lastAccessedAt: Date.now() + 1000
+        };
+
+        await cacheMap.setMetadata(priKey1, newMetadata);
+        const result = await cacheMap.getWithMetadata(priKey1);
+
+        expect(result?.metadata).toEqual(newMetadata);
+        expect(result?.value).toEqual(testItems[0]);
+      });
+
+      it('should handle getAllMetadata with no items', async () => {
+        const metadataMap = await cacheMap.getAllMetadata();
+        expect(metadataMap.size).toBe(0);
+      });
+
+      it('should handle getAllMetadata with mixed metadata presence', async () => {
+        await cacheMap.set(priKey1, testItems[0], testMetadata);
+        await cacheMap.set(priKey2, testItems[1]); // No metadata
+        await cacheMap.set(comKey1, testItems[2], { ...testMetadata, key: 'com-key' });
+
+        const metadataMap = await cacheMap.getAllMetadata();
+        expect(metadataMap.size).toBe(2);
+        expect(metadataMap.has(JSON.stringify(priKey1))).toBe(true);
+        expect(metadataMap.has(JSON.stringify(priKey2))).toBe(false);
+        expect(metadataMap.has(JSON.stringify(comKey1))).toBe(true);
+      });
+    });
+
+    describe('Query Result Operations Coverage', () => {
+      it('should handle setQueryResult with complex keys', async () => {
+        const complexKeys = [priKey1, priKey2, comKey1];
+        const queryHash = 'complex-query-hash';
+
+        await cacheMap.setQueryResult(queryHash, complexKeys);
+        const result = await cacheMap.getQueryResult(queryHash);
+
+        expect(result).toEqual(complexKeys);
+      });
+
+      it('should handle getQueryResult with malformed stored data', async () => {
+        const queryHash = 'malformed-query';
+
+        // First set a valid query result
+        await cacheMap.setQueryResult(queryHash, [priKey1]);
+
+        // Mock the database to return malformed data
+        const originalGetDB = cacheMap['getDB'];
+        cacheMap['getDB'] = vi.fn().mockResolvedValue({
+          transaction: vi.fn().mockReturnValue({
+            objectStore: vi.fn().mockReturnValue({
+              get: vi.fn().mockImplementation(() => {
+                const request = {
+                  onsuccess: null as any,
+                  onerror: null as any,
+                  result: '{"malformed": json'
+                };
+
+                setTimeout(() => {
+                  request.onsuccess?.();
+                }, 0);
+
+                return request;
+              })
+            })
+          })
+        });
+
+        const result = await cacheMap.getQueryResult(queryHash);
+        expect(result).toBeNull();
+
+        // Restore original
+        cacheMap['getDB'] = originalGetDB;
+      });
+
+      it('should handle hasQueryResult error scenarios', async () => {
+        const queryHash = 'error-query';
+
+        // Mock getQueryResult to throw an error
+        const originalGetQueryResult = cacheMap.getQueryResult;
+        cacheMap.getQueryResult = vi.fn().mockRejectedValue(new Error('Query error'));
+
+        const result = await cacheMap.hasQueryResult(queryHash);
+        expect(result).toBe(false);
+
+        // Restore original
+        cacheMap.getQueryResult = originalGetQueryResult;
+      });
+
+      it('should handle deleteQueryResult with non-existent query', async () => {
+        // Should not throw when deleting non-existent query
+        await expect(cacheMap.deleteQueryResult('non-existent')).resolves.not.toThrow();
+      });
+
+      it('should handle clearQueryResults with no query results', async () => {
+        // Should not throw when clearing empty query results
+        await expect(cacheMap.clearQueryResults()).resolves.not.toThrow();
+      });
+    });
+
+    describe('Invalidation Operations Coverage', () => {
+      beforeEach(async () => {
+        for (const item of testItems) {
+          await cacheMap.set(item.key, item);
+        }
+        await cacheMap.setQueryResult('query1', [priKey1, priKey2]);
+        await cacheMap.setQueryResult('query2', [comKey1]);
+      });
+
+      it('should handle invalidateItemKeys with non-existent keys', async () => {
+        const nonExistentKey: PriKey<'test'> = { kt: 'test', pk: 'non-existent' as UUID };
+
+        // Should not throw when invalidating non-existent keys
+        await expect(cacheMap.invalidateItemKeys([nonExistentKey])).resolves.not.toThrow();
+
+        // Existing items should remain
+        expect(await cacheMap.includesKey(priKey1)).toBe(true);
+        expect(await cacheMap.includesKey(priKey2)).toBe(true);
+      });
+
+      it('should handle invalidateLocation with nested location arrays', async () => {
+        // Create items with nested locations
+        const nestedComKey: ComKey<'test', 'container'> = {
+          kt: 'test',
+          pk: '5' as UUID,
+          loc: [{ kt: 'container', lk: 'nested-container' as UUID }]
+        };
+        const nestedItem: TestItem = { key: nestedComKey, id: '5', name: 'Nested Item', value: 500 } as TestItem;
+        await cacheMap.set(nestedComKey, nestedItem);
+
+        const nestedLocation: LocKeyArray<'container'> = [{ kt: 'container', lk: 'nested-container' as UUID }];
+
+        expect(await cacheMap.allIn(nestedLocation)).toHaveLength(1);
+
+        await cacheMap.invalidateLocation(nestedLocation);
+
+        expect(await cacheMap.allIn(nestedLocation)).toHaveLength(0);
+      });
+
+      it('should handle invalidateLocation with empty items in location', async () => {
+        const emptyLocation: LocKeyArray<'container'> = [{ kt: 'container', lk: 'empty-location' as UUID }];
+
+        // Should not throw when invalidating empty location
+        await expect(cacheMap.invalidateLocation(emptyLocation)).resolves.not.toThrow();
+      });
+    });
+
+    describe('Storage Key Generation Coverage', () => {
+      it('should generate consistent storage keys for identical keys', async () => {
+        const key1: PriKey<'test'> = { kt: 'test', pk: 'same-key' as UUID };
+        const key2: PriKey<'test'> = { kt: 'test', pk: 'same-key' as UUID };
+
+        await cacheMap.set(key1, testItems[0]);
+
+        // Should retrieve the same item with identical key
+        const retrieved = await cacheMap.get(key2);
+        expect(retrieved).toEqual(testItems[0]);
+      });
+
+      it('should handle keys with special characters', async () => {
+        const specialKey: PriKey<'test'> = { kt: 'test', pk: 'key-with-special-chars-!@#$%^&*()' as UUID };
+        const specialItem: TestItem = { key: specialKey, id: 'special', name: 'Special Item', value: 999 } as TestItem;
+
+        await cacheMap.set(specialKey, specialItem);
+        const retrieved = await cacheMap.get(specialKey);
+
+        expect(retrieved).toEqual(specialItem);
+      });
+
+      it('should handle keys with unicode characters', async () => {
+        const unicodeKey: PriKey<'test'> = { kt: 'test', pk: 'key-with-unicode-🔑🌟' as UUID };
+        const unicodeItem: TestItem = { key: unicodeKey, id: 'unicode', name: 'Unicode Item 🌟', value: 777 } as TestItem;
+
+        await cacheMap.set(unicodeKey, unicodeItem);
+        const retrieved = await cacheMap.get(unicodeKey);
+
+        expect(retrieved).toEqual(unicodeItem);
+      });
+    });
+
+    describe('Database Connection Management Coverage', () => {
+      it('should reuse database connection for multiple operations', async () => {
+        const cache = new AsyncIndexDBCacheMap<TestItem, 'test', 'container'>(
+          ['test', 'container'],
+          'connection-reuse-db',
+          'test-store',
+          1
+        );
+
+        // Perform multiple operations
+        await cache.set(priKey1, testItems[0]);
+        await cache.get(priKey1);
+        await cache.includesKey(priKey1);
+        await cache.keys();
+
+        // Database promise should be set and reused
+        expect(cache['dbPromise']).toBeDefined();
+      });
+
+      it('should handle database version consistency', async () => {
+        const cache1 = new AsyncIndexDBCacheMap<TestItem, 'test', 'container'>(
+          ['test', 'container'],
+          'version-consistency-db',
+          'test-store',
+          1
+        );
+
+        const cache2 = new AsyncIndexDBCacheMap<TestItem, 'test', 'container'>(
+          ['test', 'container'],
+          'version-consistency-db',
+          'test-store',
+          1
+        );
+
+        await cache1.set(priKey1, testItems[0]);
+        const retrieved = await cache2.get(priKey1);
+
+        expect(retrieved).toEqual(testItems[0]);
+      });
+    });
+
+    describe('Error Recovery Coverage', () => {
+      it('should recover from temporary database errors', async () => {
+        let failCount = 0;
+        const originalGetDB = cacheMap['getDB'];
+
+        cacheMap['getDB'] = vi.fn().mockImplementation(() => {
+          failCount++;
+          if (failCount === 1) {
+            throw new Error('Temporary database error');
+          }
+          return originalGetDB.call(cacheMap);
+        });
+
+        // First call should fail
+        await expect(cacheMap.get(priKey1)).rejects.toThrow('Temporary database error');
+
+        // Reset the mock to allow success
+        cacheMap['getDB'] = originalGetDB;
+
+        // Subsequent operations should work
+        await cacheMap.set(priKey1, testItems[0]);
+        const retrieved = await cacheMap.get(priKey1);
+        expect(retrieved).toEqual(testItems[0]);
+      });
+
+      it('should handle set operation with database connection failure', async () => {
+        const originalGetDB = cacheMap['getDB'];
+        cacheMap['getDB'] = vi.fn().mockRejectedValue(new Error('Connection failed'));
+
+        await expect(cacheMap.set(priKey1, testItems[0])).rejects.toThrow('Failed to store item in IndexedDB: Connection failed');
+
+        // Restore original
+        cacheMap['getDB'] = originalGetDB;
+      });
+
+      it('should handle setMetadata operation with database connection failure', async () => {
+        const originalGetDB = cacheMap['getDB'];
+        cacheMap['getDB'] = vi.fn().mockRejectedValue(new Error('Connection failed'));
+
+        await expect(cacheMap.setMetadata(priKey1, testMetadata)).rejects.toThrow('Failed to update metadata in IndexedDB: Connection failed');
+
+        // Restore original
+        cacheMap['getDB'] = originalGetDB;
+      });
+    });
+
+    describe('Data Validation Coverage', () => {
+      it('should handle items with missing required fields', async () => {
+        const incompleteItem = { key: priKey1, id: '1' } as any; // Missing name and value
+
+        await cacheMap.set(priKey1, incompleteItem);
+        const retrieved = await cacheMap.get(priKey1);
+
+        expect(retrieved).toEqual(incompleteItem);
+      });
+
+      it('should handle items with extra fields', async () => {
+        const extraFieldItem = {
+          ...testItems[0],
+          extraField: 'extra data',
+          anotherField: { nested: 'object' }
+        } as any;
+
+        await cacheMap.set(priKey1, extraFieldItem);
+        const retrieved = await cacheMap.get(priKey1);
+
+        expect(retrieved).toEqual(extraFieldItem);
+      });
+
+      it('should handle metadata with all optional fields undefined', async () => {
+        const minimalMetadata: CacheItemMetadata = {
+          addedAt: Date.now(),
+          lastAccessedAt: Date.now(),
+          accessCount: 1,
+          estimatedSize: 100,
+          key: 'minimal',
+          frequencyScore: 1.0,
+          lastFrequencyUpdate: Date.now(),
+          rawFrequency: 1,
+          strategyData: undefined
+        };
+
+        await cacheMap.set(priKey1, testItems[0], minimalMetadata);
+        const result = await cacheMap.getWithMetadata(priKey1);
+
+        expect(result?.metadata).toEqual(minimalMetadata);
+      });
+    });
+
+    describe('Concurrent Operations Coverage', () => {
+      it('should handle mixed concurrent operations', async () => {
+        const operations = [
+          cacheMap.set(priKey1, testItems[0]),
+          cacheMap.set(priKey2, testItems[1]),
+          cacheMap.setQueryResult('concurrent-query', [priKey1]),
+          cacheMap.get(priKey1),
+          cacheMap.includesKey(priKey2),
+          cacheMap.keys(),
+          cacheMap.values()
+        ];
+
+        const results = await Promise.all(operations);
+        expect(results).toHaveLength(7);
+      });
+
+      it('should handle concurrent metadata operations', async () => {
+        await cacheMap.set(priKey1, testItems[0], testMetadata);
+
+        const operations = [
+          cacheMap.getWithMetadata(priKey1),
+          cacheMap.setMetadata(priKey1, { ...testMetadata, accessCount: 5 }),
+          cacheMap.getAllMetadata(),
+          cacheMap.set(priKey2, testItems[1], { ...testMetadata, key: 'concurrent' })
+        ];
+
+        const results = await Promise.all(operations);
+        expect(results).toHaveLength(4);
+      });
+
+      it('should handle concurrent query result operations', async () => {
+        const operations = [
+          cacheMap.setQueryResult('query-1', [priKey1]),
+          cacheMap.setQueryResult('query-2', [priKey2]),
+          cacheMap.getQueryResult('query-1'),
+          cacheMap.hasQueryResult('query-2'),
+          cacheMap.deleteQueryResult('query-1')
+        ];
+
+        const results = await Promise.all(operations);
+        expect(results).toHaveLength(5);
+      });
+    });
+
+    describe('Storage Format Version Coverage', () => {
+      it('should store items with current version', async () => {
+        await cacheMap.set(priKey1, testItems[0]);
+
+        // Access the stored item directly to verify version
+        const db = await cacheMap['getDB']();
+        const transaction = db.transaction(['test-store'], 'readonly');
+        const store = transaction.objectStore('test-store');
+        const storageKey = cacheMap['getStorageKey'](priKey1);
+
+        return new Promise<void>((resolve) => {
+          const request = store.get(storageKey);
+          request.onsuccess = () => {
+            const stored = request.result;
+            expect(stored.version).toBe(1); // CURRENT_VERSION
+            resolve();
+          };
+        });
+      });
+
+      it('should handle items stored without version field', async () => {
+        // Manually store an item without version field to simulate old format
+        const db = await cacheMap['getDB']();
+        const transaction = db.transaction(['test-store'], 'readwrite');
+        const store = transaction.objectStore('test-store');
+        const storageKey = cacheMap['getStorageKey'](priKey1);
+
+        const oldFormatItem = {
+          originalKey: priKey1,
+          value: testItems[0]
+          // No version field
+        };
+
+        return new Promise<void>((resolve) => {
+          const request = store.put(oldFormatItem, storageKey);
+          request.onsuccess = async () => {
+            // Should still be able to retrieve the item
+            const retrieved = await cacheMap.get(priKey1);
+            expect(retrieved).toEqual(testItems[0]);
+            resolve();
+          };
+        });
+      });
+    });
+
+    describe('Edge Case Key Handling', () => {
+      it('should handle keys with very long strings', async () => {
+        const longString = 'a'.repeat(1000);
+        const longKey: PriKey<'test'> = { kt: 'test', pk: longString as UUID };
+        const longItem: TestItem = { key: longKey, id: 'long', name: 'Long Key Item', value: 1000 } as TestItem;
+
+        await cacheMap.set(longKey, longItem);
+        const retrieved = await cacheMap.get(longKey);
+
+        expect(retrieved).toEqual(longItem);
+      });
+
+      it('should handle composite keys with multiple location levels', async () => {
+        // Note: This test assumes the type system allows for more complex location structures
+        const complexComKey: ComKey<'test', 'container'> = {
+          kt: 'test',
+          pk: '6' as UUID,
+          loc: [{ kt: 'container', lk: 'level1-container' as UUID }]
+        };
+        const complexItem: TestItem = { key: complexComKey, id: '6', name: 'Complex Item', value: 600 } as TestItem;
+
+        await cacheMap.set(complexComKey, complexItem);
+        const retrieved = await cacheMap.get(complexComKey);
+
+        expect(retrieved).toEqual(complexItem);
+      });
+
+      it('should handle keys with numeric and string type coercion edge cases', async () => {
+        const numericStringKey: PriKey<'test'> = { kt: 'test', pk: '0123' as UUID };
+        const leadingZeroItem: TestItem = { key: numericStringKey, id: 'numeric', name: 'Leading Zero', value: 123 } as TestItem;
+
+        await cacheMap.set(numericStringKey, leadingZeroItem);
+        const retrieved = await cacheMap.get(numericStringKey);
+
+        expect(retrieved).toEqual(leadingZeroItem);
+      });
+    });
+
+    describe('Query Result Format Edge Cases', () => {
+      it('should handle query results with empty itemKeys array in new format', async () => {
+        const queryHash = 'empty-keys-query';
+
+        await cacheMap.setQueryResult(queryHash, []);
+        const result = await cacheMap.getQueryResult(queryHash);
+
+        expect(result).toEqual([]);
+        expect(Array.isArray(result)).toBe(true);
+      });
+
+      it('should handle query results with mixed key types', async () => {
+        const mixedKeys = [priKey1, comKey1, priKey2];
+        const queryHash = 'mixed-keys-query';
+
+        await cacheMap.setQueryResult(queryHash, mixedKeys);
+        const result = await cacheMap.getQueryResult(queryHash);
+
+        expect(result).toEqual(mixedKeys);
+      });
+
+      it('should handle getQueryResult with null result from storage', async () => {
+        const queryHash = 'null-result-query';
+
+        // Mock the database to return null result
+        const originalGetDB = cacheMap['getDB'];
+        cacheMap['getDB'] = vi.fn().mockResolvedValue({
+          transaction: vi.fn().mockReturnValue({
+            objectStore: vi.fn().mockReturnValue({
+              get: vi.fn().mockImplementation(() => {
+                const request = {
+                  onsuccess: null as any,
+                  onerror: null as any,
+                  result: null
+                };
+
+                setTimeout(() => {
+                  request.onsuccess?.();
+                }, 0);
+
+                return request;
+              })
+            })
+          })
+        });
+
+        const result = await cacheMap.getQueryResult(queryHash);
+        expect(result).toBeNull();
+
+        // Restore original
+        cacheMap['getDB'] = originalGetDB;
+      });
+    });
+  });
 });
