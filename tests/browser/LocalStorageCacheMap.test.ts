@@ -1095,16 +1095,16 @@ describe('LocalStorageCacheMap', () => {
     });
 
     it('should handle complex composite keys correctly', async () => {
-      const key: ComKey<'item', 'container', 'subcontainer'> = {
+      // Use the containerCacheMap which supports the correct types
+      const key: ComKey<'item', 'container'> = {
         kt: 'item',
         pk: '1',
         loc: [
-          { kt: 'container', lk: 'container1' },
-          { kt: 'subcontainer', lk: 'sub1' }
+          { kt: 'container', lk: 'container1' }
         ]
       };
 
-      const hash = cacheMap['normalizedHashFunction'](key);
+      const hash = containerCacheMap['normalizedHashFunction'](key);
       expect(typeof hash).toBe('string');
       expect(hash.length).toBeGreaterThan(0);
     });
@@ -1352,6 +1352,187 @@ describe('LocalStorageCacheMap', () => {
 
       const size = await cacheMap.getCurrentSize();
       expect(size.itemCount).toBe(1); // Only the regular item should count
+    });
+  });
+
+  describe('Additional Edge Cases and Robustness', () => {
+    it('should handle hash collision scenarios', async () => {
+      const key1: PriKey<'test'> = { kt: 'test', pk: 'collision1' };
+      const key2: PriKey<'test'> = { kt: 'test', pk: 'collision2' };
+      const item1: TestItem = { key: key1, id: '1', name: 'Item 1', value: 100, events: createMockEvents() };
+      const item2: TestItem = { key: key2, id: '2', name: 'Item 2', value: 200, events: createMockEvents() };
+
+      // Mock hash function to return same hash for different keys
+      const originalHashFunction = cacheMap['normalizedHashFunction'];
+      cacheMap['normalizedHashFunction'] = vi.fn().mockReturnValue('same-hash');
+
+      await cacheMap.set(key1, item1);
+      await cacheMap.set(key2, item2);
+
+      // Should handle collision by checking original key
+      const retrieved1 = await cacheMap.get(key1);
+      const retrieved2 = await cacheMap.get(key2);
+
+      // Due to collision, only the last item should be retrievable
+      expect(retrieved1).toBeNull();
+      expect(retrieved2).toEqual(item2);
+
+      // Restore original hash function
+      cacheMap['normalizedHashFunction'] = originalHashFunction;
+    });
+
+    it('should handle metadata operations with storage errors', async () => {
+      const key = 'error-metadata';
+
+      // Test getMetadata with storage error
+      mockLocalStorage.getItem.mockImplementationOnce(() => {
+        throw new Error('Metadata get error');
+      });
+
+      await expect(cacheMap.getMetadata(key)).rejects.toThrow('Metadata get error');
+
+      // Test deleteMetadata with storage error
+      mockLocalStorage.removeItem.mockImplementationOnce(() => {
+        throw new Error('Metadata delete error');
+      });
+
+      await expect(cacheMap.deleteMetadata(key)).rejects.toThrow('Metadata delete error');
+
+      // Test getAllMetadata with storage error
+      mockLocalStorage.key.mockImplementationOnce(() => {
+        throw new Error('Metadata getAll error');
+      });
+
+      await expect(cacheMap.getAllMetadata()).rejects.toThrow('Metadata getAll error');
+
+      // Test clearMetadata with storage error
+      mockLocalStorage.key.mockImplementationOnce(() => {
+        throw new Error('Metadata clear error');
+      });
+
+      await expect(cacheMap.clearMetadata()).rejects.toThrow('Metadata clear error');
+    });
+
+    it('should handle includesKey with hash collision', async () => {
+      const key1: PriKey<'test'> = { kt: 'test', pk: 'test1' };
+      const key2: PriKey<'test'> = { kt: 'test', pk: 'test2' };
+      const item1: TestItem = { key: key1, id: '1', name: 'Item 1', value: 100, events: createMockEvents() };
+
+      await cacheMap.set(key1, item1);
+
+      // Mock hash function to return same hash for different keys
+      const originalHashFunction = cacheMap['normalizedHashFunction'];
+      cacheMap['normalizedHashFunction'] = vi.fn().mockReturnValue('same-hash');
+
+      // Should return false for key2 even though hash is same
+      const includes1 = await cacheMap.includesKey(key1);
+      const includes2 = await cacheMap.includesKey(key2);
+
+      expect(includes1).toBe(true);
+      expect(includes2).toBe(false);
+
+      // Restore original hash function
+      cacheMap['normalizedHashFunction'] = originalHashFunction;
+    });
+
+    it('should handle getCurrentSize with storage access errors', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const item: TestItem = { key, id: '1', name: 'Test Item', value: 100, events: createMockEvents() };
+
+      await cacheMap.set(key, item);
+
+      // Mock storage error during size calculation
+      mockLocalStorage.getItem.mockImplementationOnce(() => {
+        throw new Error('Size calculation error');
+      });
+
+      await expect(cacheMap.getCurrentSize()).rejects.toThrow('Size calculation error');
+    });
+
+    it('should handle legacy key fallback correctly', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: 'legacy' };
+      const item: TestItem = { key, id: 'legacy', name: 'Legacy Item', value: 100, events: createMockEvents() };
+
+      // Store using legacy format
+      const legacyKey = `test-cache:test:legacy`;
+      mockLocalStorage.setItem(legacyKey, JSON.stringify({
+        originalKey: key,
+        value: item,
+        timestamp: Date.now()
+      }));
+
+      // Mock primary storage key to return null
+      const storageKey = cacheMap['getStorageKey'](key);
+      const originalGetItem = mockLocalStorage.getItem;
+      mockLocalStorage.getItem = vi.fn((k: string) => {
+        if (k === storageKey) return null; // Primary key not found
+        if (k === legacyKey) return originalGetItem(k); // Legacy key found
+        return originalGetItem(k);
+      });
+
+      const retrieved = await cacheMap.get(key);
+      expect(retrieved).toEqual(item);
+
+      // Restore
+      mockLocalStorage.getItem = originalGetItem;
+    });
+
+    it('should handle invalidateItemKeys with deletion errors', async () => {
+      const key1: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const key2: PriKey<'test'> = { kt: 'test', pk: '2' };
+      const item1: TestItem = { key: key1, id: '1', name: 'Item 1', value: 100, events: createMockEvents() };
+      const item2: TestItem = { key: key2, id: '2', name: 'Item 2', value: 200, events: createMockEvents() };
+
+      await cacheMap.set(key1, item1);
+      await cacheMap.set(key2, item2);
+
+      // Mock delete to fail for first key
+      let deleteCallCount = 0;
+      const originalDelete = cacheMap.delete.bind(cacheMap);
+      cacheMap.delete = vi.fn(async (key) => {
+        deleteCallCount++;
+        if (deleteCallCount === 1) {
+          throw new Error('Delete error for first key');
+        }
+        return originalDelete(key);
+      });
+
+      // Should continue with other keys even if one fails
+      await cacheMap.invalidateItemKeys([key1, key2]);
+
+      expect(cacheMap.delete).toHaveBeenCalledTimes(2);
+      expect(await cacheMap.get(key2)).toBeNull(); // Second key should be deleted
+
+      // Restore
+      cacheMap.delete = originalDelete;
+    });
+
+    it('should handle clearQueryResults with individual removal errors', async () => {
+      const queryHash1 = 'query1';
+      const queryHash2 = 'query2';
+      const itemKeys: PriKey<'test'>[] = [{ kt: 'test', pk: '1' }];
+
+      await cacheMap.setQueryResult(queryHash1, itemKeys);
+      await cacheMap.setQueryResult(queryHash2, itemKeys);
+
+      // Mock removeItem to fail for first query
+      let removeCallCount = 0;
+      const originalRemoveItem = mockLocalStorage.removeItem;
+      mockLocalStorage.removeItem = vi.fn((key: string) => {
+        removeCallCount++;
+        if (removeCallCount === 1 && key.includes('query1')) {
+          throw new Error('Remove query error');
+        }
+        return originalRemoveItem(key);
+      });
+
+      // Should continue with other queries even if one fails
+      await cacheMap.clearQueryResults();
+
+      expect(mockLocalStorage.removeItem).toHaveBeenCalled();
+
+      // Restore
+      mockLocalStorage.removeItem = originalRemoveItem;
     });
   });
 });

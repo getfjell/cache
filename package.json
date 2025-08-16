@@ -7,16 +7,21 @@
     "fjell"
   ],
   "license": "Apache-2.0",
-  "type": "module",
+  "main": "./dist/index.js",
   "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
+  "browser": "./dist/index.js",
+  "type": "module",
   "scripts": {
     "dev": "concurrently \"tsc --noEmit --watch\" \"node build.js --watch\"",
     "build": "npm run lint && tsc --noEmit && node build.js",

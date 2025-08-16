@@ -1,6 +1,8 @@
 // Core eviction strategy interfaces and base class
 export {
-  EvictionStrategy,
+  EvictionStrategy
+} from './EvictionStrategy';
+export type {
   CacheItemMetadata,
   CacheMapMetadataProvider,
   EvictionContext
