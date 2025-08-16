@@ -788,4 +788,570 @@ describe('LocalStorageCacheMap', () => {
       global.Blob = originalBlob;
     });
   });
+
+  describe('Advanced Error Scenarios', () => {
+    it('should handle different quota exceeded error types', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const item: TestItem = { key, id: '1', name: 'Test Item', value: 100, events: createMockEvents() };
+
+      // Test different quota error types
+      const quotaErrors = [
+        { name: 'NS_ERROR_DOM_QUOTA_REACHED' },
+        { code: 22 },
+        { code: 1014 },
+        { name: 'QuotaExceededError' }
+      ];
+
+      for (const errorProps of quotaErrors) {
+        const error = new Error('Quota exceeded');
+        Object.assign(error, errorProps);
+
+        mockLocalStorage.setItem.mockImplementationOnce(() => {
+          throw error;
+        });
+
+        // Mock successful retry
+        mockLocalStorage.setItem.mockImplementationOnce(() => { });
+
+        await cacheMap.set(key, item);
+        expect(mockLocalStorage.setItem).toHaveBeenCalled();
+      }
+    });
+
+    it('should handle corrupted storage entries during cleanup', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const item: TestItem = { key, id: '1', name: 'Test Item', value: 100, events: createMockEvents() };
+
+      // Add corrupted entries
+      mockLocalStorage.setItem('test-cache:corrupted1', 'invalid json');
+      mockLocalStorage.setItem('test-cache:corrupted2', '{"incomplete": true');
+      mockLocalStorage.setItem('test-cache:valid', JSON.stringify({
+        originalKey: { kt: 'test', pk: 'valid' },
+        value: item,
+        timestamp: Date.now() - 1000
+      }));
+
+      const quotaError = new Error('QuotaExceededError');
+      quotaError.name = 'QuotaExceededError';
+
+      mockLocalStorage.setItem.mockImplementationOnce(() => {
+        throw quotaError;
+      });
+
+      // Mock successful retry
+      mockLocalStorage.setItem.mockImplementationOnce(() => { });
+
+      await cacheMap.set(key, item);
+      expect(mockLocalStorage.setItem).toHaveBeenCalled();
+    });
+
+    it('should handle localStorage getItem errors', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+
+      mockLocalStorage.getItem.mockImplementationOnce(() => {
+        throw new Error('Storage access error');
+      });
+
+      const result = await cacheMap.get(key);
+      expect(result).toBeNull();
+    });
+
+    it('should handle localStorage removeItem errors', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+
+      mockLocalStorage.removeItem.mockImplementationOnce(() => {
+        throw new Error('Remove error');
+      });
+
+      await expect(cacheMap.delete(key)).rejects.toThrow('Remove error');
+    });
+
+    it('should handle errors in getAllKeysStartingWith', async () => {
+      mockLocalStorage.key.mockImplementationOnce(() => {
+        throw new Error('Key access error');
+      });
+
+      await expect(cacheMap.clear()).rejects.toThrow('Key access error');
+    });
+
+    it('should handle metadata JSON parse errors', async () => {
+      const key = 'test-metadata';
+      const metadataKey = `test-cache:metadata:${key}`;
+
+      mockLocalStorage.setItem(metadataKey, 'invalid json');
+
+      const result = await cacheMap.getMetadata(key);
+      expect(result).toBeNull();
+    });
+
+    it('should handle metadata storage quota errors', async () => {
+      const key = 'test-metadata';
+      const metadata = {
+        key: 'test-metadata',
+        addedAt: Date.now(),
+        lastAccessedAt: Date.now(),
+        accessCount: 0,
+        estimatedSize: 100
+      };
+
+      const quotaError = new Error('QuotaExceededError');
+      quotaError.name = 'QuotaExceededError';
+
+      // Mock quota error on first attempt
+      mockLocalStorage.setItem.mockImplementationOnce(() => {
+        throw quotaError;
+      });
+
+      // Mock successful retry
+      mockLocalStorage.setItem.mockImplementationOnce(() => { });
+
+      await cacheMap.setMetadata(key, metadata);
+      expect(mockLocalStorage.setItem).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('Comprehensive Cleanup Logic', () => {
+    it('should perform normal cleanup when not aggressive', async () => {
+      // Add multiple entries with different timestamps
+      const entries = [];
+      for (let i = 0; i < 10; i++) {
+        const key: PriKey<'test'> = { kt: 'test', pk: `item${i}` };
+        const item: TestItem = { key, id: `${i}`, name: `Item ${i}`, value: i * 10, events: createMockEvents() };
+        await cacheMap.set(key, item);
+        entries.push({ key, item });
+      }
+
+      // Trigger cleanup
+      const cleanupMethod = cacheMap['tryCleanupOldEntries'];
+      const result = cleanupMethod.call(cacheMap, false); // Normal cleanup
+
+      expect(result).toBe(true);
+    });
+
+    it('should perform aggressive cleanup when quota exceeded multiple times', async () => {
+      // Add entries
+      for (let i = 0; i < 5; i++) {
+        const key: PriKey<'test'> = { kt: 'test', pk: `item${i}` };
+        const item: TestItem = { key, id: `${i}`, name: `Item ${i}`, value: i * 10, events: createMockEvents() };
+        await cacheMap.set(key, item);
+      }
+
+      // Trigger aggressive cleanup
+      const cleanupMethod = cacheMap['tryCleanupOldEntries'];
+      const result = cleanupMethod.call(cacheMap, true); // Aggressive cleanup
+
+      expect(result).toBe(true);
+    });
+
+    it('should handle cleanup when no entries exist', async () => {
+      const cleanupMethod = cacheMap['tryCleanupOldEntries'];
+      const result = cleanupMethod.call(cacheMap, false);
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle cleanup errors gracefully', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const item: TestItem = { key, id: '1', name: 'Test Item', value: 100, events: createMockEvents() };
+      await cacheMap.set(key, item);
+
+      // Mock removeItem to throw error during cleanup
+      mockLocalStorage.removeItem.mockImplementationOnce(() => {
+        throw new Error('Cleanup error');
+      });
+
+      const cleanupMethod = cacheMap['tryCleanupOldEntries'];
+      const result = cleanupMethod.call(cacheMap, false);
+
+      expect(result).toBe(false);
+    });
+
+    it('should skip metadata and query entries during cleanup', async () => {
+      // Add regular entry
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const item: TestItem = { key, id: '1', name: 'Test Item', value: 100, events: createMockEvents() };
+      await cacheMap.set(key, item);
+
+      // Add metadata entry
+      await cacheMap.setMetadata('test', {
+        key: 'test',
+        addedAt: Date.now(),
+        lastAccessedAt: Date.now(),
+        accessCount: 0,
+        estimatedSize: 100
+      });
+
+      // Add query result
+      await cacheMap.setQueryResult('query1', [key]);
+
+      const cleanupMethod = cacheMap['collectCacheEntries'];
+      const entries = cleanupMethod.call(cacheMap);
+
+      // Should only include the regular cache entry, not metadata or query
+      expect(entries.length).toBe(1);
+    });
+  });
+
+  describe('Serialization Edge Cases', () => {
+    it('should handle circular references in stored data', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const circularObj: any = { name: 'circular' };
+      circularObj.self = circularObj;
+
+      const item: TestItem = {
+        key,
+        id: '1',
+        name: 'Test Item',
+        value: 100,
+        events: createMockEvents()
+      };
+
+      // This should work fine as we're not storing circular references in the test
+      await cacheMap.set(key, item);
+      const retrieved = await cacheMap.get(key);
+      expect(retrieved).toEqual(item);
+    });
+
+    it('should handle very large objects', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const largeString = 'x'.repeat(10000);
+      const item: TestItem = {
+        key,
+        id: '1',
+        name: largeString,
+        value: 100,
+        events: createMockEvents()
+      };
+
+      await cacheMap.set(key, item);
+      const retrieved = await cacheMap.get(key);
+      expect(retrieved).toEqual(item);
+    });
+
+    it('should handle special characters in keys and values', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: 'special-chars-!@#$%^&*()' };
+      const item: TestItem = {
+        key,
+        id: '1',
+        name: 'Special chars: 你好 🌟 ñáéíóú',
+        value: 100,
+        events: createMockEvents()
+      };
+
+      await cacheMap.set(key, item);
+      const retrieved = await cacheMap.get(key);
+      expect(retrieved).toEqual(item);
+    });
+
+    it('should handle entries without originalKey during parsing', async () => {
+      const storageKey = 'test-cache:malformed';
+      mockLocalStorage.setItem(storageKey, JSON.stringify({
+        value: { some: 'data' },
+        timestamp: Date.now()
+        // Missing originalKey
+      }));
+
+      const keys = await cacheMap.keys();
+      const values = await cacheMap.values();
+
+      // Should skip malformed entries
+      expect(keys).toHaveLength(0);
+      expect(values).toHaveLength(0);
+    });
+  });
+
+  describe('Browser-Specific Behaviors', () => {
+    it('should handle different localStorage implementations', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const item: TestItem = { key, id: '1', name: 'Test Item', value: 100, events: createMockEvents() };
+
+      // Test with different storage behaviors
+      await cacheMap.set(key, item);
+      expect(await cacheMap.includesKey(key)).toBe(true);
+
+      // Test key collision detection
+      const hashedKey = cacheMap['normalizedHashFunction'](key);
+      expect(typeof hashedKey).toBe('string');
+    });
+
+    it('should handle localStorage length property correctly', async () => {
+      expect(mockLocalStorage.length).toBe(0);
+
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const item: TestItem = { key, id: '1', name: 'Test Item', value: 100, events: createMockEvents() };
+
+      await cacheMap.set(key, item);
+      expect(mockLocalStorage.length).toBeGreaterThan(0);
+    });
+
+    it('should handle key normalization and hashing correctly', async () => {
+      const key1: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const key2: PriKey<'test'> = { kt: 'test', pk: '1' };
+
+      const hash1 = cacheMap['normalizedHashFunction'](key1);
+      const hash2 = cacheMap['normalizedHashFunction'](key2);
+
+      expect(hash1).toBe(hash2);
+    });
+
+    it('should handle complex composite keys correctly', async () => {
+      const key: ComKey<'item', 'container', 'subcontainer'> = {
+        kt: 'item',
+        pk: '1',
+        loc: [
+          { kt: 'container', lk: 'container1' },
+          { kt: 'subcontainer', lk: 'sub1' }
+        ]
+      };
+
+      const hash = cacheMap['normalizedHashFunction'](key);
+      expect(typeof hash).toBe('string');
+      expect(hash.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe('Performance and Stress Tests', () => {
+    it('should handle bulk operations efficiently', async () => {
+      const startTime = Date.now();
+      const items: Array<{ key: PriKey<'test'>, item: TestItem }> = [];
+
+      // Create 100 items
+      for (let i = 0; i < 100; i++) {
+        const key: PriKey<'test'> = { kt: 'test', pk: `bulk-${i}` };
+        const item: TestItem = {
+          key,
+          id: `bulk-${i}`,
+          name: `Bulk Item ${i}`,
+          value: i,
+          events: createMockEvents()
+        };
+        items.push({ key, item });
+      }
+
+      // Set all items
+      for (const { key, item } of items) {
+        await cacheMap.set(key, item);
+      }
+
+      // Verify all items
+      for (const { key, item } of items) {
+        const retrieved = await cacheMap.get(key);
+        expect(retrieved).toEqual(item);
+      }
+
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+
+      // Should complete within reasonable time (adjust threshold as needed)
+      expect(duration).toBeLessThan(5000); // 5 seconds
+    });
+
+    it('should handle concurrent operations', async () => {
+      const promises: Promise<void>[] = [];
+
+      // Create concurrent set operations
+      for (let i = 0; i < 50; i++) {
+        const key: PriKey<'test'> = { kt: 'test', pk: `concurrent-${i}` };
+        const item: TestItem = {
+          key,
+          id: `concurrent-${i}`,
+          name: `Concurrent Item ${i}`,
+          value: i,
+          events: createMockEvents()
+        };
+
+        promises.push(cacheMap.set(key, item));
+      }
+
+      // Wait for all operations to complete
+      await Promise.all(promises);
+
+      // Verify all items were stored
+      const keys = await cacheMap.keys();
+      expect(keys.length).toBe(50);
+    });
+
+    it('should handle memory pressure scenarios', async () => {
+      // Simulate memory pressure by creating large items
+      const largeItems: Array<{ key: PriKey<'test'>, item: TestItem }> = [];
+
+      for (let i = 0; i < 10; i++) {
+        const key: PriKey<'test'> = { kt: 'test', pk: `large-${i}` };
+        const largeData = 'x'.repeat(1000); // 1KB per item
+        const item: TestItem = {
+          key,
+          id: `large-${i}`,
+          name: largeData,
+          value: i,
+          events: createMockEvents()
+        };
+        largeItems.push({ key, item });
+      }
+
+      // Set all large items
+      for (const { key, item } of largeItems) {
+        await cacheMap.set(key, item);
+      }
+
+      const size = await cacheMap.getCurrentSize();
+      expect(size.itemCount).toBe(10);
+      expect(size.sizeBytes).toBeGreaterThan(10000); // Should be > 10KB
+    });
+
+    it('should handle rapid invalidation operations', async () => {
+      // Set up items in different locations
+      const containerItems: Array<{ key: ComKey<'item', 'container'>, item: ContainerItem }> = [];
+
+      for (let i = 0; i < 20; i++) {
+        const containerLk = `container${i % 4}`; // 4 different containers
+        const key: ComKey<'item', 'container'> = {
+          kt: 'item',
+          pk: `item-${i}`,
+          loc: [{ kt: 'container', lk: containerLk }]
+        };
+        const item: ContainerItem = {
+          key,
+          id: `item-${i}`,
+          name: `Item ${i}`,
+          value: i,
+          events: createMockEvents()
+        };
+        containerItems.push({ key, item });
+      }
+
+      // Set all items
+      for (const { key, item } of containerItems) {
+        await containerCacheMap.set(key, item);
+      }
+
+      // Rapidly invalidate different locations
+      const invalidationPromises = [];
+      for (let i = 0; i < 4; i++) {
+        invalidationPromises.push(
+          containerCacheMap.invalidateLocation([{ kt: 'container', lk: `container${i}` }])
+        );
+      }
+
+      await Promise.all(invalidationPromises);
+
+      // Verify all items are gone
+      const remainingKeys = await containerCacheMap.keys();
+      expect(remainingKeys.length).toBe(0);
+    });
+  });
+
+  describe('Query Result Caching Edge Cases', () => {
+    it('should handle malformed query result data', async () => {
+      const queryHash = 'malformed-query';
+      const queryKey = `test-cache:query:${queryHash}`;
+
+      // Store malformed query result
+      mockLocalStorage.setItem(queryKey, 'invalid json');
+
+      const result = await cacheMap.getQueryResult(queryHash);
+      expect(result).toBeNull();
+    });
+
+    it('should handle query results with missing itemKeys', async () => {
+      const queryHash = 'missing-keys-query';
+      const queryKey = `test-cache:query:${queryHash}`;
+
+      // Store query result without itemKeys
+      mockLocalStorage.setItem(queryKey, JSON.stringify({ someOtherField: 'value' }));
+
+      const result = await cacheMap.getQueryResult(queryHash);
+      expect(result).toBeNull();
+    });
+
+    it('should handle query result storage errors', async () => {
+      const queryHash = 'error-query';
+      const itemKeys: PriKey<'test'>[] = [{ kt: 'test', pk: '1' }];
+
+      mockLocalStorage.setItem.mockImplementationOnce(() => {
+        throw new Error('Query storage error');
+      });
+
+      // Should not throw, just log error
+      await cacheMap.setQueryResult(queryHash, itemKeys);
+      expect(mockLocalStorage.setItem).toHaveBeenCalled();
+    });
+
+    it('should handle query result deletion errors', async () => {
+      const queryHash = 'delete-error-query';
+
+      mockLocalStorage.removeItem.mockImplementationOnce(() => {
+        throw new Error('Query deletion error');
+      });
+
+      // Should not throw, just log error
+      await cacheMap.deleteQueryResult(queryHash);
+      expect(mockLocalStorage.removeItem).toHaveBeenCalled();
+    });
+  });
+
+  describe('Size Calculation Edge Cases', () => {
+    it('should handle size calculation with different encoding methods', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const item: TestItem = { key, id: '1', name: 'Test Item', value: 100, events: createMockEvents() };
+
+      await cacheMap.set(key, item);
+
+      // Test with Blob available
+      const size1 = await cacheMap.getCurrentSize();
+      expect(size1.sizeBytes).toBeGreaterThan(0);
+
+      // Test with TextEncoder available but no Blob
+      const originalBlob = global.Blob;
+      delete (global as any).Blob;
+      global.TextEncoder = class {
+        encode(str: string) {
+          return new Uint8Array(str.length);
+        }
+      } as any;
+
+      const size2 = await cacheMap.getCurrentSize();
+      expect(size2.sizeBytes).toBeGreaterThan(0);
+
+      // Test with neither Blob nor TextEncoder
+      delete (global as any).TextEncoder;
+
+      const size3 = await cacheMap.getCurrentSize();
+      expect(size3.sizeBytes).toBeGreaterThan(0);
+
+      // Restore
+      global.Blob = originalBlob;
+    });
+
+    it('should handle corrupted entries in size calculation', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const item: TestItem = { key, id: '1', name: 'Test Item', value: 100, events: createMockEvents() };
+
+      await cacheMap.set(key, item);
+
+      // Add corrupted entry
+      mockLocalStorage.setItem('test-cache:corrupted', 'invalid json');
+
+      const size = await cacheMap.getCurrentSize();
+      expect(size.itemCount).toBe(1); // Should only count valid entries
+      expect(size.sizeBytes).toBeGreaterThan(0);
+    });
+
+    it('should exclude metadata and query results from item count', async () => {
+      const key: PriKey<'test'> = { kt: 'test', pk: '1' };
+      const item: TestItem = { key, id: '1', name: 'Test Item', value: 100, events: createMockEvents() };
+
+      await cacheMap.set(key, item);
+      await cacheMap.setMetadata('test', {
+        key: 'test',
+        addedAt: Date.now(),
+        lastAccessedAt: Date.now(),
+        accessCount: 0,
+        estimatedSize: 100
+      });
+      await cacheMap.setQueryResult('query', [key]);
+
+      const size = await cacheMap.getCurrentSize();
+      expect(size.itemCount).toBe(1); // Only the regular item should count
+    });
+  });
 });

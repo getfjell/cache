@@ -32,10 +32,10 @@
   },
   "dependencies": {
     "@fjell/client-api": "^4.4.25",
-    "@fjell/core": "^4.4.35",
+    "@fjell/core": "^4.4.36",
     "@fjell/http-api": "^4.4.34",
-    "@fjell/logging": "^4.4.41",
-    "@fjell/registry": "^4.4.29",
+    "@fjell/logging": "^4.4.42",
+    "@fjell/registry": "^4.4.30",
     "fast-safe-stringify": "^2.1.1",
     "flatted": "^3.3.3"
   },
