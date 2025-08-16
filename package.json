@@ -1,22 +1,27 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.7.6",
+  "version": "4.7.7",
   "keywords": [
     "cache",
     "fjell"
   ],
   "license": "Apache-2.0",
-  "type": "module",
+  "main": "./dist/index.js",
   "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
+  "browser": "./dist/index.js",
+  "type": "module",
   "scripts": {
     "dev": "concurrently \"tsc --noEmit --watch\" \"node build.js --watch\"",
     "build": "npm run lint && tsc --noEmit && node build.js",
@@ -32,10 +37,10 @@
   },
   "dependencies": {
     "@fjell/client-api": "^4.4.25",
-    "@fjell/core": "^4.4.35",
+    "@fjell/core": "^4.4.36",
     "@fjell/http-api": "^4.4.34",
-    "@fjell/logging": "^4.4.41",
-    "@fjell/registry": "^4.4.29",
+    "@fjell/logging": "^4.4.42",
+    "@fjell/registry": "^4.4.30",
     "fast-safe-stringify": "^2.1.1",
     "flatted": "^3.3.3"
   },

@@ -1,13 +1,18 @@
 import { createCache } from '../src';
-import { createClientApi } from '@fjell/client-api';
-import { createRegistry } from '@fjell/registry';
-import { Item } from '@fjell/core';
+import { createPItemApi } from '@fjell/client-api';
+import { createCoordinate, createRegistry } from '@fjell/registry';
+import { Item, PriKey } from '@fjell/core';
 
 // Define a simple widget type for demonstration
 interface Widget extends Item<'widget'> {
-  key: 'widget';
+  key: PriKey<'widget'>;
   name: string;
   description: string;
+  events: {
+    created: { at: Date };
+    updated: { at: Date };
+    deleted: { at: Date | null };
+  };
 }
 
 /**
@@ -19,11 +24,22 @@ async function cacheStatsExample() {
   console.log('========================\n');
 
   // Create registry and API
-  const registry = createRegistry();
-  const api = createClientApi<Widget, 'widget'>('http://localhost:3000', 'widgets');
+  const registry = createRegistry('cache');
+  const api = createPItemApi<Widget, 'widget'>({
+    httpGet: () => Promise.resolve(null),
+    httpPost: () => Promise.resolve(null),
+    httpPut: () => Promise.resolve(null),
+    httpDelete: () => Promise.resolve(null),
+    httpPostFile: () => Promise.resolve(null),
+    uploadAsync: () => Promise.resolve(null),
+    httpOptions: () => Promise.resolve(null),
+    httpConnect: () => Promise.resolve(null),
+    httpTrace: () => Promise.resolve(null),
+    httpPatch: () => Promise.resolve(null)
+  } as any, 'widget', 'widgets');
 
   // Create coordinate for widgets
-  const coordinate = { kta: ['widget'] as const };
+  const coordinate = createCoordinate(['widget'], []);
 
   // Create cache with default options
   const cache = createCache(api, coordinate, registry);
@@ -60,14 +76,14 @@ async function cacheStatsExample() {
 
   try {
     // This will be a cache miss and likely throw an error due to no API server
-    await cache.operations.get('widget-1');
+    await cache.operations.get({ kt: 'widget', pk: 'widget-1' } as PriKey<'widget'>);
   } catch (error) {
     console.log('Expected error from missing API server');
   }
 
   try {
     // Another cache miss
-    await cache.operations.retrieve('widget-2');
+    await cache.operations.retrieve({ kt: 'widget', pk: 'widget-2' } as PriKey<'widget'>);
   } catch (error) {
     console.log('Expected error from missing API server');
   }
@@ -79,16 +95,21 @@ async function cacheStatsExample() {
   // Test setting an item directly in cache (this creates a hit scenario)
   console.log('Setting item directly in cache...');
   const widget: Widget = {
-    key: 'widget',
-    ['widget' as any]: 'widget-3',
+    key: { kt: 'widget', pk: 'widget-3' } as PriKey<'widget'>,
     name: 'Test Widget',
-    description: 'A test widget for demonstration'
+    description: 'A test widget for demonstration',
+    events: {
+      created: { at: new Date() },
+      updated: { at: new Date() },
+      deleted: { at: null }
+    }
   };
 
-  await cache.operations.set('widget-3', widget);
+  await cache.operations.set({ kt: 'widget', pk: 'widget-3' } as PriKey<'widget'>, widget);
 
   // Now retrieve it (should be a cache hit)
-  const [, retrievedWidget] = await cache.operations.retrieve('widget-3');
+  const result = await cache.operations.retrieve({ kt: 'widget', pk: 'widget-3' } as PriKey<'widget'>);
+  const retrievedWidget = result?.[1];
   console.log('Retrieved widget:', retrievedWidget?.name);
 
   console.log('Final stats after cache hit:');

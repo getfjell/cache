@@ -24,7 +24,7 @@ interface User extends Item<'User', 'company', 'department', 'team'> {
 }
 
 const createTestUser = (id: string, name: string, email: string): User => ({
-  key: { pk: id, type: 'User' },
+  key: { kt: 'User', pk: id },
   name,
   email,
   __pkType: 'User' as const,
@@ -108,7 +108,8 @@ async function runMemoryLeakPreventionExample() {
 
   // Create a test coordinate and registry
   const coordinate: Coordinate<"User", "company", "department", "team"> = {
-    kta: ["User", "company", "department", "team"]
+    kta: ["User", "company", "department", "team"],
+    scopes: ["company", "department", "team"]
   };
   const registry = createRegistry();
   const api = createMockApi();
@@ -116,7 +117,7 @@ async function runMemoryLeakPreventionExample() {
   // 1. Demonstrate automatic cache destruction and cleanup
   console.log("1️⃣ Cache Destruction and Resource Cleanup");
 
-  let cache = createCache(api, coordinate, registry, {
+  let cache = createCache(api as any, coordinate, registry, {
     cacheType: 'memory',
     ttl: 60000, // 1 minute
     memoryConfig: {
@@ -150,7 +151,7 @@ async function runMemoryLeakPreventionExample() {
   const user1 = await cache.operations.create({
     name: "Alice Smith",
     email: "alice@example.com"
-  }, ["company-1", "engineering", "backend"]);
+  }, [{ kt: "company", lk: "company-1" }, { kt: "department", lk: "engineering" }, { kt: "team", lk: "backend" }]);
 
   // Skip update operation for simplicity in example
 
@@ -170,7 +171,7 @@ async function runMemoryLeakPreventionExample() {
 
   try {
     cache.subscribe(() => { }, {});
-  } catch (error) {
+  } catch (error: any) {
     console.log(`   ⚠️  Expected error: ${error.message}`);
   }
 
@@ -178,7 +179,7 @@ async function runMemoryLeakPreventionExample() {
   console.log("\n3️⃣ Weak Reference and Automatic Cleanup Features");
 
   // Create a new cache instance
-  cache = createCache(api, coordinate, registry, {
+  cache = createCache(api as any, coordinate, registry, {
     cacheType: 'memory'
   });
 

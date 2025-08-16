@@ -714,4 +714,337 @@ describe('InstanceFactory Integration Tests', () => {
       });
     });
   });
+
+  // NEW TESTS FOR UNCOVERED LINES
+
+  describe('getCacheInfo functionality', () => {
+    it('should return cache info with all properties', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      const cacheInfo = instance.getCacheInfo();
+
+      expect(cacheInfo).toBeDefined();
+      expect(cacheInfo.implementationType).toBeDefined();
+      expect(typeof cacheInfo.defaultTTL === 'number' || cacheInfo.defaultTTL === undefined).toBe(true);
+      expect(typeof cacheInfo.supportsTTL).toBe('boolean');
+      expect(typeof cacheInfo.supportsEviction).toBe('boolean');
+    });
+
+    it('should return cache info with TTL when configured', () => {
+      const options: Partial<Options<TestItem, 'test'>> = {
+        ttl: 30000
+      };
+
+      const factory = createInstanceFactory(mockApi, options);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      const cacheInfo = instance.getCacheInfo();
+
+      expect(cacheInfo.defaultTTL).toBe(30000);
+      expect(cacheInfo.supportsTTL).toBe(true);
+    });
+
+    it('should return cache info without TTL when not configured', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      const cacheInfo = instance.getCacheInfo();
+
+      expect(cacheInfo.defaultTTL).toBeUndefined();
+      expect(cacheInfo.supportsTTL).toBe(false);
+    });
+
+    it('should handle cache map with supportsTTL method', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      // Mock the cache map to have supportsTTL method
+      const originalImplementationType = instance.cacheMap.implementationType;
+      instance.cacheMap.implementationType = 'memory/test';
+      (instance.cacheMap as any).supportsTTL = () => true;
+
+      const cacheInfo = instance.getCacheInfo();
+
+      expect(cacheInfo.supportsTTL).toBe(true);
+
+      // Restore original properties
+      instance.cacheMap.implementationType = originalImplementationType;
+      delete (instance.cacheMap as any).supportsTTL;
+    });
+
+    it('should include eviction policy when available', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      // Mock the eviction manager to return a strategy name
+      const mockGetEvictionStrategyName = vi.fn(() => 'lru');
+      instance.evictionManager.getEvictionStrategyName = mockGetEvictionStrategyName;
+
+      const cacheInfo = instance.getCacheInfo();
+
+      expect(cacheInfo.evictionPolicy).toBe('lru');
+      expect(mockGetEvictionStrategyName).toHaveBeenCalled();
+    });
+
+    it('should not include eviction policy when not available', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      // Mock the eviction manager to return null
+      const mockGetEvictionStrategyName = vi.fn(() => null);
+      instance.evictionManager.getEvictionStrategyName = mockGetEvictionStrategyName;
+
+      const cacheInfo = instance.getCacheInfo();
+
+      expect(cacheInfo.evictionPolicy).toBeUndefined();
+      expect(mockGetEvictionStrategyName).toHaveBeenCalled();
+    });
+  });
+
+  describe('subscribe and unsubscribe functionality', () => {
+    it('should provide subscribe method that delegates to event emitter', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      const mockListener = vi.fn();
+      const mockOptions = { immediate: true };
+
+      // Mock the event emitter subscribe method
+      const originalSubscribe = instance.eventEmitter.subscribe;
+      instance.eventEmitter.subscribe = vi.fn();
+
+      instance.subscribe(mockListener, mockOptions);
+
+      expect(instance.eventEmitter.subscribe).toHaveBeenCalledWith(mockListener, mockOptions);
+
+      // Restore original method
+      instance.eventEmitter.subscribe = originalSubscribe;
+    });
+
+    it('should provide unsubscribe method that delegates to event emitter', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      const mockSubscription = { id: 'test-subscription-id' };
+
+      // Mock the event emitter unsubscribe method
+      const originalUnsubscribe = instance.eventEmitter.unsubscribe;
+      instance.eventEmitter.unsubscribe = vi.fn();
+
+      instance.unsubscribe(mockSubscription);
+
+      expect(instance.eventEmitter.unsubscribe).toHaveBeenCalledWith('test-subscription-id');
+
+      // Restore original method
+      instance.eventEmitter.unsubscribe = originalUnsubscribe;
+    });
+
+    it('should handle subscription with different subscription objects', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      const mockSubscription1 = { id: 'sub-1' };
+      const mockSubscription2 = { id: 'sub-2', otherProperty: 'value' };
+
+      // Mock the event emitter unsubscribe method
+      const originalUnsubscribe = instance.eventEmitter.unsubscribe;
+      instance.eventEmitter.unsubscribe = vi.fn();
+
+      instance.unsubscribe(mockSubscription1);
+      instance.unsubscribe(mockSubscription2);
+
+      expect(instance.eventEmitter.unsubscribe).toHaveBeenCalledWith('sub-1');
+      expect(instance.eventEmitter.unsubscribe).toHaveBeenCalledWith('sub-2');
+
+      // Restore original method
+      instance.eventEmitter.unsubscribe = originalUnsubscribe;
+    });
+  });
+
+  describe('destroy functionality', () => {
+    it('should call ttlManager.destroy when available', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      // Mock the TTL manager destroy method
+      const mockDestroy = vi.fn();
+      instance.ttlManager.destroy = mockDestroy;
+
+      instance.destroy();
+
+      expect(mockDestroy).toHaveBeenCalled();
+    });
+
+    it('should handle ttlManager without destroy method', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      // Remove the destroy method from TTL manager
+      delete instance.ttlManager.destroy;
+
+      // Should not throw an error
+      expect(() => {
+        instance.destroy();
+      }).not.toThrow();
+    });
+
+    it('should call eventEmitter.destroy', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      // Mock the event emitter destroy method
+      const originalDestroy = instance.eventEmitter.destroy;
+      instance.eventEmitter.destroy = vi.fn();
+
+      instance.destroy();
+
+      expect(instance.eventEmitter.destroy).toHaveBeenCalled();
+
+      // Restore original method
+      instance.eventEmitter.destroy = originalDestroy;
+    });
+
+    it('should handle destroy with ttlManager.destroy as function', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      // Ensure ttlManager.destroy is a function
+      instance.ttlManager.destroy = vi.fn();
+
+      instance.destroy();
+
+      expect(instance.ttlManager.destroy).toHaveBeenCalled();
+    });
+
+    it('should handle destroy with ttlManager.destroy as non-function', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      // Set ttlManager.destroy to a non-function value
+      instance.ttlManager.destroy = 'not-a-function' as any;
+
+      // Should not throw an error and should not call the non-function
+      expect(() => {
+        instance.destroy();
+      }).not.toThrow();
+    });
+  });
+
+  describe('manager creation and configuration', () => {
+    it('should create TTLManager with correct configuration', () => {
+      const options: Partial<Options<TestItem, 'test'>> = {
+        ttl: 60000
+      };
+
+      const factory = createInstanceFactory(mockApi, options);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      expect(instance.ttlManager).toBeDefined();
+      expect(instance.ttlManager.getDefaultTTL()).toBe(60000);
+    });
+
+    it('should create EvictionManager', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      expect(instance.evictionManager).toBeDefined();
+      expect(typeof instance.evictionManager.isEvictionSupported).toBe('function');
+    });
+
+    it('should create CacheEventEmitter', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      expect(instance.eventEmitter).toBeDefined();
+      expect(typeof instance.eventEmitter.subscribe).toBe('function');
+      expect(typeof instance.eventEmitter.unsubscribe).toBe('function');
+    });
+  });
+
+  describe('instance properties and structure', () => {
+    it('should have all required instance properties', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      expect(instance.coordinate).toBeDefined();
+      expect(instance.registry).toBeDefined();
+      expect(instance.api).toBeDefined();
+      expect(instance.cacheMap).toBeDefined();
+      expect(instance.operations).toBeDefined();
+      expect(instance.options).toBeDefined();
+      expect(instance.eventEmitter).toBeDefined();
+      expect(instance.ttlManager).toBeDefined();
+      expect(instance.evictionManager).toBeDefined();
+      expect(instance.getCacheInfo).toBeDefined();
+      expect(instance.subscribe).toBeDefined();
+      expect(instance.unsubscribe).toBeDefined();
+      expect(instance.destroy).toBeDefined();
+    });
+
+    it('should return instance with correct type casting', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      // The instance should be cast to the correct type
+      expect(instance).toBeDefined();
+      expect(typeof instance.getCacheInfo).toBe('function');
+      expect(typeof instance.subscribe).toBe('function');
+      expect(typeof instance.unsubscribe).toBe('function');
+      expect(typeof instance.destroy).toBe('function');
+    });
+  });
+
+  describe('edge cases and error scenarios', () => {
+    it('should handle coordinate with undefined kta elements', () => {
+      const factory = createInstanceFactory(mockApi);
+
+      // Create a coordinate with undefined elements
+      const problematicCoordinate = { kta: [undefined, 'test'] as any };
+
+      expect(() => {
+        factory(problematicCoordinate, { registry: mockRegistry });
+      }).not.toThrow();
+    });
+
+    it('should handle context with missing registryHub', () => {
+      const factory = createInstanceFactory(mockApi);
+
+      const context = { registry: mockRegistry };
+      const instance = factory(testCoordinate, context);
+
+      expect(instance).toBeDefined();
+      expect(instance.registry).toBe(mockRegistry);
+    });
+
+    it('should handle context with null registryHub', () => {
+      const factory = createInstanceFactory(mockApi);
+
+      const context = { registry: mockRegistry, registryHub: null };
+      const instance = factory(testCoordinate, context);
+
+      expect(instance).toBeDefined();
+      expect(instance.registry).toBe(mockRegistry);
+    });
+
+    it('should handle multiple destroy calls', () => {
+      const factory = createInstanceFactory(mockApi);
+      const instance = factory(testCoordinate, { registry: mockRegistry });
+
+      // Mock destroy methods
+      const mockTTLDestroy = vi.fn();
+      const mockEventDestroy = vi.fn();
+      instance.ttlManager.destroy = mockTTLDestroy;
+      instance.eventEmitter.destroy = mockEventDestroy;
+
+      // Call destroy multiple times
+      instance.destroy();
+      instance.destroy();
+      instance.destroy();
+
+      // Should call destroy methods each time
+      expect(mockTTLDestroy).toHaveBeenCalledTimes(3);
+      expect(mockEventDestroy).toHaveBeenCalledTimes(3);
+    });
+  });
 });
