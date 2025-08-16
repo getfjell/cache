@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { get } from '../../src/ops/get';
+import { cleanup, get } from '../../src/ops/get';
 import { CacheContext } from '../../src/CacheContext';
 import { CacheMap } from '../../src/CacheMap';
 import { CacheStatsManager } from '../../src/CacheStats';
@@ -476,6 +476,152 @@ describe('get operation', () => {
 
       expect(resultContext).toBe(context);
       expect(resultContext.ttlManager).toBe(mockTtlManager);
+    });
+  });
+
+  describe('metadata creation and eviction scenarios', () => {
+    it('should create metadata when it does not exist', async () => {
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null);
+      vi.mocked(mockApi.get).mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getMetadata).mockResolvedValue(null); // No existing metadata
+      vi.mocked(mockCacheMap.setMetadata).mockResolvedValue();
+
+      await get(priKey1, context);
+
+      expect(mockCacheMap.getMetadata).toHaveBeenCalledWith(JSON.stringify(testItem1.key));
+      expect(mockCacheMap.setMetadata).toHaveBeenCalledWith(
+        JSON.stringify(testItem1.key),
+        expect.objectContaining({
+          key: JSON.stringify(testItem1.key),
+          addedAt: expect.any(Number),
+          lastAccessedAt: expect.any(Number),
+          accessCount: 1,
+          estimatedSize: expect.any(Number)
+        })
+      );
+    });
+
+    it('should handle eviction when items are evicted', async () => {
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null);
+      vi.mocked(mockApi.get).mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getMetadata).mockResolvedValue(null);
+      vi.mocked(mockCacheMap.setMetadata).mockResolvedValue();
+
+      // Mock eviction manager to return evicted keys
+      const evictedKeys = [JSON.stringify(priKey2), JSON.stringify(comKey1)];
+      vi.mocked(mockEvictionManager.onItemAdded).mockResolvedValue(evictedKeys);
+      vi.mocked(mockCacheMap.delete).mockResolvedValue();
+
+      await get(priKey1, context);
+
+      expect(mockEvictionManager.onItemAdded).toHaveBeenCalledWith(
+        JSON.stringify(testItem1.key),
+        testItem1,
+        mockCacheMap
+      );
+
+      // Should delete evicted items
+      expect(mockCacheMap.delete).toHaveBeenCalledTimes(2);
+      expect(mockCacheMap.delete).toHaveBeenCalledWith(priKey2);
+      expect(mockCacheMap.delete).toHaveBeenCalledWith(comKey1);
+    });
+
+    it('should handle empty eviction list', async () => {
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null);
+      vi.mocked(mockApi.get).mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getMetadata).mockResolvedValue(null);
+      vi.mocked(mockCacheMap.setMetadata).mockResolvedValue();
+
+      // Mock eviction manager to return empty array
+      vi.mocked(mockEvictionManager.onItemAdded).mockResolvedValue([]);
+
+      await get(priKey1, context);
+
+      expect(mockEvictionManager.onItemAdded).toHaveBeenCalled();
+      expect(mockCacheMap.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('promise cleanup scenarios', () => {
+    it('should handle API promises without finally method', async () => {
+      // Create a mock promise without .finally() method
+      const mockPromise = Promise.resolve(testItem1);
+      delete (mockPromise as any).finally;
+
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null);
+      vi.mocked(mockApi.get).mockReturnValue(mockPromise);
+      vi.mocked(mockCacheMap.getMetadata).mockResolvedValue(null);
+      vi.mocked(mockCacheMap.setMetadata).mockResolvedValue();
+      vi.mocked(mockEvictionManager.onItemAdded).mockResolvedValue([]);
+
+      const [, result] = await get(priKey1, context);
+
+      expect(result).toEqual(testItem1);
+      expect(mockApi.get).toHaveBeenCalledWith(priKey1);
+    });
+  });
+
+  describe('event emission', () => {
+    it('should emit itemRetrieved event when item is fetched from API', async () => {
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null);
+      vi.mocked(mockApi.get).mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getMetadata).mockResolvedValue(null);
+      vi.mocked(mockCacheMap.setMetadata).mockResolvedValue();
+      vi.mocked(mockEvictionManager.onItemAdded).mockResolvedValue([]);
+
+      await get(priKey1, context);
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'item_retrieved',
+          key: testItem1.key,
+          item: testItem1,
+          source: 'api'
+        })
+      );
+    });
+
+    it('should not emit event when API returns null', async () => {
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null);
+      vi.mocked(mockApi.get).mockResolvedValue(null);
+
+      await get(priKey1, context);
+
+      expect(mockEventEmitter.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('TTL manager integration', () => {
+    it('should call TTL manager onItemAdded when caching new item', async () => {
+      vi.mocked(mockCacheMap.get).mockResolvedValue(null);
+      vi.mocked(mockApi.get).mockResolvedValue(testItem1);
+      vi.mocked(mockCacheMap.getMetadata).mockResolvedValue(null);
+      vi.mocked(mockCacheMap.setMetadata).mockResolvedValue();
+      vi.mocked(mockEvictionManager.onItemAdded).mockResolvedValue([]);
+      vi.mocked(mockTtlManager.onItemAdded).mockResolvedValue();
+
+      await get(priKey1, context);
+
+      expect(mockTtlManager.onItemAdded).toHaveBeenCalledWith(
+        JSON.stringify(testItem1.key),
+        mockCacheMap
+      );
+    });
+  });
+
+  describe('cleanup function', () => {
+    it('should clear in-flight requests and cleanup interval', () => {
+      // Mock clearInterval
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval').mockImplementation(() => { });
+
+      // Call cleanup function
+      cleanup();
+
+      // Verify clearInterval was called
+      expect(clearIntervalSpy).toHaveBeenCalled();
+
+      // Restore the original function
+      clearIntervalSpy.mockRestore();
     });
   });
 });
