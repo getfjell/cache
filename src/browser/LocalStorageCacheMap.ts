@@ -626,13 +626,11 @@ export class LocalStorageCacheMap<
 
         // Calculate size for all entries
         try {
-          // Use Blob when available (browser), otherwise fall back to TextEncoder/Buffer (node test env)
+          // Use Blob when available (browser), otherwise fall back to TextEncoder
           if (typeof Blob !== 'undefined') {
             sizeBytes += new Blob([value]).size;
           } else if (typeof TextEncoder !== 'undefined') {
             sizeBytes += new TextEncoder().encode(value).length;
-          } else if (typeof (globalThis as any).Buffer !== 'undefined') {
-            sizeBytes += ((globalThis as any).Buffer as any).byteLength(value, 'utf8');
           } else {
             // As a last resort, approximate by string length
             sizeBytes += value.length;

@@ -37,6 +37,9 @@ export const update = async <
   logger.debug('Invalidating item key before update', { key });
   cacheMap.invalidateItemKeys([key]);
 
+  // Also clear query results since this item might be included in cached queries
+  await cacheMap.clearQueryResults();
+
   try {
     // Get previous item for event
     const previousItem = await cacheMap.get(key);
