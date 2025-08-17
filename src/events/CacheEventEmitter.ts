@@ -172,6 +172,7 @@ export class CacheEventEmitter<
       return;
     }
 
+    let emittedCount = 0;
     for (const subscription of this.subscriptions.values()) {
       if (!subscription.isActive) {
         continue;
@@ -179,6 +180,7 @@ export class CacheEventEmitter<
 
       if (this.shouldEmitToSubscription(event, subscription)) {
         this.emitToSubscription(event, subscription);
+        emittedCount++;
       }
     }
   }
@@ -304,6 +306,7 @@ export class CacheEventEmitter<
     event: AnyCacheEvent<V, S, L1, L2, L3, L4, L5>,
     subscription: InternalSubscription<V, S, L1, L2, L3, L4, L5>
   ): void {
+
     // Update last access time for cleanup purposes
     subscription.lastAccessTime = Date.now();
 
@@ -313,6 +316,9 @@ export class CacheEventEmitter<
       const weakListener = subscription.listenerRef.deref();
       if (!weakListener) {
         // Listener has been garbage collected, mark as inactive
+        console.log('[ORDERDATES] CacheEventEmitter: Listener garbage collected', {
+          subscriptionId: subscription.id
+        });
         subscription.isActive = false;
         return;
       }
