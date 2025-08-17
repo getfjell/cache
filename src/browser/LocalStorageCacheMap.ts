@@ -451,40 +451,100 @@ export class LocalStorageCacheMap<
 
   public async invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
     logger.debug('invalidateItemKeys', { keys });
+
+    if (keys.length === 0) {
+      // No keys to invalidate, so no queries should be affected
+      return;
+    }
+
+    // Delete the actual cache entries without triggering individual query invalidations
     for (const key of keys) {
-      try {
-        await this.delete(key);
-      } catch (error) {
-        logger.error('Failed to delete key during invalidation', { key, error });
+      await this.delete(key);
+    }
+
+    // For bulk invalidation, remove entire queries (don't filter)
+    await this.invalidateQueriesReferencingKeys(keys);
+  }
+
+  /**
+   * Intelligently invalidate only queries that reference the affected keys
+   * This prevents clearing all query results when only specific items change
+   */
+  private async invalidateQueriesReferencingKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
+    if (keys.length === 0) {
+      return;
+    }
+
+    // Convert keys to their hashed form for comparison
+    const hashedKeysToInvalidate = new Set(keys.map(key => this.normalizedHashFunction(key)));
+
+    // Get all query results from localStorage to check which ones reference affected keys
+    try {
+      const queryPrefix = `${this.keyPrefix}:query:`;
+      const queryKeys = this.getAllKeysStartingWith(queryPrefix);
+
+      const queriesToRemove: string[] = [];
+
+      for (const queryKey of queryKeys) {
+        const queryHash = queryKey.substring(queryPrefix.length);
+        const stored = localStorage.getItem(queryKey);
+
+        if (!stored) continue;
+
+        try {
+          const itemKeys = JSON.parse(stored);
+          if (Array.isArray(itemKeys)) {
+            const queryReferencesInvalidatedKey = itemKeys.some(itemKey => {
+              const hashedItemKey = this.normalizedHashFunction(itemKey);
+              return hashedKeysToInvalidate.has(hashedItemKey);
+            });
+
+            if (queryReferencesInvalidatedKey) {
+              queriesToRemove.push(queryKey);
+            }
+          }
+        } catch (error) {
+          logger.debug('Failed to parse query result', { queryKey, error });
+        }
       }
+
+      // Remove the affected queries from localStorage
+      queriesToRemove.forEach(queryKey => {
+        localStorage.removeItem(queryKey);
+      });
+
+      logger.debug('Selectively invalidated queries referencing affected keys', {
+        affectedKeys: keys.length,
+        queriesRemoved: queriesToRemove.length,
+        totalQueries: queryKeys.length
+      });
+
+    } catch (error) {
+      logger.error('Error during selective query invalidation, falling back to clearing all queries', { error });
+      // Fallback: clear all query results if selective invalidation fails
+      await this.clearQueryResults();
     }
   }
 
   public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
     logger.debug('invalidateLocation', { locations });
 
-    try {
-      if (locations.length === 0) {
-        // For primary items (no location), clear all primary keys
-        const allKeys = await this.keys();
-        const primaryKeys = allKeys.filter(key => !isComKey(key));
-        await this.invalidateItemKeys(primaryKeys);
-      } else {
-        // For contained items, compute keys directly from stored keys to avoid value-shape assumptions
-        const allKeys = await this.keys();
-        const keysToInvalidate = allKeys
-          .filter((key) => key && isComKey(key))
-          .filter((key) => {
-            const compositeKey = key as ComKey<S, L1, L2, L3, L4, L5>;
-            return isLocKeyArrayEqual(locations as any[], compositeKey.loc);
-          });
-        await this.invalidateItemKeys(keysToInvalidate);
-      }
+    let keysToInvalidate: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] = [];
 
-      // Clear all query results after invalidating items
-      await this.clearQueryResults();
-    } catch (error) {
-      logger.error('Error in invalidateLocation', { locations, error });
+    if (locations.length === 0) {
+      // For primary items (no location), get all primary keys
+      const allKeys = await this.keys();
+      const primaryKeys = allKeys.filter(key => !isComKey(key));
+      keysToInvalidate = primaryKeys;
+    } else {
+      // For contained items, get all items in the location and invalidate them
+      const itemsInLocation = await this.allIn(locations);
+      keysToInvalidate = itemsInLocation.map(item => item.key);
+    }
+
+    // Use invalidateItemKeys which will selectively clear only affected queries
+    if (keysToInvalidate.length > 0) {
+      await this.invalidateItemKeys(keysToInvalidate);
     }
   }
 
