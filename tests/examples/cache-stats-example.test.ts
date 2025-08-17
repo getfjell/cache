@@ -48,7 +48,7 @@ const mockHttpApi = {
         }
       });
     } else {
-      // Return null for non-existent widgets
+      // Return null for non-existent widgets - immediate response
       return Promise.resolve(null);
     }
   }),
@@ -224,7 +224,16 @@ describe('Cache Stats Example', () => {
     const registry = createRegistry('cache');
     const api = createPItemApi<Widget, 'widget'>(mockHttpApi as any, 'widget', 'widgets');
     const coordinate = createCoordinate(['widget'], []);
-    const cache = createCache(api, coordinate, registry);
+
+    // Use lightweight cache configuration to minimize cleanup operations
+    const cache = createCache(api, coordinate, registry, {
+      cacheType: 'memory',
+      enableDebugLogging: false,
+      autoSync: false, // Disable auto-sync to prevent background operations
+      ttl: 0, // Disable TTL to prevent TTL cleanup operations
+      maxRetries: 1, // Minimize retry attempts
+      retryDelay: 100 // Quick retry delay
+    });
 
     // Create and set a widget
     const widget: Widget = {
@@ -324,7 +333,16 @@ describe('Cache Stats Example', () => {
     const registry = createRegistry('cache');
     const api = createPItemApi<Widget, 'widget'>(mockHttpApi as any, 'widget', 'widgets');
     const coordinate = createCoordinate(['widget'], []);
-    const cache = createCache(api, coordinate, registry);
+
+    // Use lightweight cache configuration to minimize cleanup operations
+    const cache = createCache(api, coordinate, registry, {
+      cacheType: 'memory',
+      enableDebugLogging: false,
+      autoSync: false, // Disable auto-sync to prevent background operations
+      ttl: 0, // Disable TTL to prevent TTL cleanup operations
+      maxRetries: 1, // Minimize retry attempts
+      retryDelay: 100 // Quick retry delay
+    });
 
     // Test that operations that fail still track statistics
     const statsBefore = cache.getStats();

@@ -600,13 +600,108 @@ export class AsyncIndexDBCacheMap<
 
   async invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
     logger.debug('invalidateItemKeys', { keys });
+
+    if (keys.length === 0) {
+      // No keys to invalidate, so no queries should be affected
+      return;
+    }
+
+    // Delete the actual cache entries without triggering individual query invalidations
     for (const key of keys) {
       await this.delete(key);
+    }
+
+    // For bulk invalidation, remove entire queries (don't filter)
+    await this.invalidateQueriesReferencingKeys(keys);
+  }
+
+  /**
+   * Intelligently invalidate only queries that reference the affected keys
+   * This prevents clearing all query results when only specific items change
+   */
+  private async invalidateQueriesReferencingKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
+    if (keys.length === 0) {
+      return;
+    }
+
+    // Convert keys to their hashed form for comparison
+    const hashedKeysToInvalidate = new Set(keys.map(key => this.normalizedHashFunction(key)));
+
+    // Get all query results from IndexedDB to check which ones reference affected keys
+    try {
+      const db = await this.getDB();
+      const transaction = db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+
+      // Get all query results
+      const queryResults = await new Promise<{ [queryHash: string]: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] }>((resolve, reject) => {
+        const request = store.getAll();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const allData = request.result;
+          const queryResults: { [queryHash: string]: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] } = {};
+
+          for (const item of allData) {
+            if (item.key && typeof item.key === 'string' && item.key.startsWith('query:') && item.value) {
+              try {
+                const queryHash = item.key.substring(6); // Remove 'query:' prefix
+                const itemKeys = JSON.parse(item.value);
+                if (Array.isArray(itemKeys)) {
+                  queryResults[queryHash] = itemKeys;
+                }
+              } catch (error) {
+                logger.debug('Failed to parse query result', { key: item.key, error });
+              }
+            }
+          }
+          resolve(queryResults);
+        };
+      });
+
+      // Find queries that reference any of the invalidated keys
+      const queriesToRemove: string[] = [];
+      for (const [queryHash, itemKeys] of Object.entries(queryResults)) {
+        const queryReferencesInvalidatedKey = itemKeys.some(itemKey => {
+          const hashedItemKey = this.normalizedHashFunction(itemKey);
+          return hashedKeysToInvalidate.has(hashedItemKey);
+        });
+
+        if (queryReferencesInvalidatedKey) {
+          queriesToRemove.push(queryHash);
+        }
+      }
+
+      // Remove the affected queries from IndexedDB
+      if (queriesToRemove.length > 0) {
+        const writeTransaction = db.transaction([this.storeName], 'readwrite');
+        const writeStore = writeTransaction.objectStore(this.storeName);
+
+        for (const queryHash of queriesToRemove) {
+          const deleteRequest = writeStore.delete(`query:${queryHash}`);
+          await new Promise<void>((resolve, reject) => {
+            deleteRequest.onerror = () => reject(deleteRequest.error);
+            deleteRequest.onsuccess = () => resolve();
+          });
+        }
+      }
+
+      logger.debug('Selectively invalidated queries referencing affected keys', {
+        affectedKeys: keys.length,
+        queriesRemoved: queriesToRemove.length,
+        totalQueries: Object.keys(queryResults).length
+      });
+
+    } catch (error) {
+      logger.error('Error during selective query invalidation, falling back to clearing all queries', { error });
+      // Fallback: clear all query results if selective invalidation fails
+      await this.clearQueryResults();
     }
   }
 
   async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
     logger.debug('invalidateLocation', { locations });
+
+    let keysToInvalidate: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] = [];
 
     if (locations.length === 0) {
       // For primary items (no location), this would require getting all items and filtering
@@ -615,12 +710,13 @@ export class AsyncIndexDBCacheMap<
     } else {
       // For contained items, get all items in the location and invalidate them
       const itemsInLocation = await this.allIn(locations);
-      const keysToInvalidate = itemsInLocation.map(item => item.key);
-      await this.invalidateItemKeys(keysToInvalidate);
+      keysToInvalidate = itemsInLocation.map(item => item.key);
     }
 
-    // Clear all query results that might be affected
-    await this.clearQueryResults();
+    // Use invalidateItemKeys which will selectively clear only affected queries
+    if (keysToInvalidate.length > 0) {
+      await this.invalidateItemKeys(keysToInvalidate);
+    }
   }
 
   async clearQueryResults(): Promise<void> {

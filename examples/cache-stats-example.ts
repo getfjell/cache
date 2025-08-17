@@ -23,19 +23,47 @@ async function cacheStatsExample() {
   console.log('Cache Statistics Example');
   console.log('========================\n');
 
-  // Create registry and API
+  // Create registry and API with proper mock implementation
   const registry = createRegistry('cache');
   const api = createPItemApi<Widget, 'widget'>({
-    httpGet: () => Promise.resolve(null),
-    httpPost: () => Promise.resolve(null),
-    httpPut: () => Promise.resolve(null),
-    httpDelete: () => Promise.resolve(null),
-    httpPostFile: () => Promise.resolve(null),
-    uploadAsync: () => Promise.resolve(null),
-    httpOptions: () => Promise.resolve(null),
-    httpConnect: () => Promise.resolve(null),
-    httpTrace: () => Promise.resolve(null),
-    httpPatch: () => Promise.resolve(null)
+    httpGet: (path: string) => {
+      // Mock HTTP GET with immediate response to prevent hanging
+      if (path.includes('widget-1')) {
+        return Promise.resolve({
+          key: { kt: 'widget', pk: 'widget-1' },
+          name: 'Widget 1',
+          description: 'First test widget',
+          events: {
+            created: { at: new Date() },
+            updated: { at: new Date() },
+            deleted: { at: null }
+          }
+        });
+      } else if (path.includes('widget-2')) {
+        return Promise.resolve({
+          key: { kt: 'widget', pk: 'widget-2' },
+          name: 'Widget 2',
+          description: 'Second test widget',
+          events: {
+            created: { at: new Date() },
+            updated: { at: new Date() },
+            deleted: { at: null }
+          }
+        });
+      } else {
+        // Return null for non-existent widgets
+        return Promise.resolve(null);
+      }
+    },
+    httpPost: () => Promise.resolve({}),
+    httpPut: () => Promise.resolve({}),
+    httpDelete: () => Promise.resolve(true),
+    httpPostFile: () => Promise.resolve({}),
+    uploadAsync: () => Promise.resolve({}),
+    httpOptions: () => Promise.resolve({}),
+    httpConnect: () => Promise.resolve({}),
+    httpTrace: () => Promise.resolve({}),
+    httpPatch: () => Promise.resolve({})
   } as any, 'widget', 'widgets');
 
   // Create coordinate for widgets
