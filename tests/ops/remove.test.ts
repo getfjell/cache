@@ -42,6 +42,7 @@ describe('remove operation', () => {
       clearMetadata: vi.fn(),
       getCurrentSize: vi.fn(),
       getSizeLimits: vi.fn(),
+      clearQueryResults: vi.fn().mockResolvedValue(undefined),
       size: 0
     };
 

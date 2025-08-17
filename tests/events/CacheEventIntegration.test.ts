@@ -31,7 +31,7 @@ const createMockApi = () => {
 
   return {
     async all(query: ItemQuery = {}) {
-    // Return mock data based on query
+      // Return mock data based on query
       if (query.compoundCondition?.conditions.some(c => 'column' in c && c.column === 'name')) {
         const nameCondition = query.compoundCondition.conditions.find(c => 'column' in c && c.column === 'name') as any;
         return [createTestItem('1', nameCondition.value as string, 42)];
@@ -145,8 +145,9 @@ describe('Cache Event Integration', () => {
 
       await cache.operations.create(newItem);
 
-      expect(eventLog).toHaveLength(1);
+      expect(eventLog).toHaveLength(2);
       expect(eventLog[0].type).toBe('item_created');
+      expect(eventLog[1].type).toBe('query_invalidated');
       expect(eventLog[0]).toMatchObject({
         source: 'api',
         item: expect.objectContaining({
@@ -186,8 +187,9 @@ describe('Cache Event Integration', () => {
 
       await cache.operations.update(key, updates);
 
-      expect(eventLog).toHaveLength(1);
+      expect(eventLog).toHaveLength(2);
       expect(eventLog[0].type).toBe('item_updated');
+      expect(eventLog[1].type).toBe('query_invalidated');
       expect(eventLog[0]).toMatchObject({
         key,
         source: 'api',
@@ -210,8 +212,9 @@ describe('Cache Event Integration', () => {
 
       await cache.operations.remove(key);
 
-      expect(eventLog).toHaveLength(1);
+      expect(eventLog).toHaveLength(2);
       expect(eventLog[0].type).toBe('item_removed');
+      expect(eventLog[1].type).toBe('query_invalidated');
       expect(eventLog[0]).toMatchObject({
         key,
         source: 'api',
@@ -338,14 +341,18 @@ describe('Cache Event Integration', () => {
       await cache.operations.update(key, { name: 'Updated' });
       await cache.operations.remove(key);
 
-      expect(eventLog).toHaveLength(4);
+      expect(eventLog).toHaveLength(8);
       expect(eventLog[0].type).toBe('item_created');
-      expect(eventLog[1].type).toBe('item_updated');
+      expect(eventLog[1].type).toBe('query_invalidated');
       expect(eventLog[2].type).toBe('item_updated');
-      expect(eventLog[3].type).toBe('item_removed');
+      expect(eventLog[3].type).toBe('query_invalidated');
+      expect(eventLog[4].type).toBe('item_updated');
+      expect(eventLog[5].type).toBe('query_invalidated');
+      expect(eventLog[6].type).toBe('item_removed');
+      expect(eventLog[7].type).toBe('query_invalidated');
 
       // Verify the sequence maintains proper previous/current item relationships
-      expect(eventLog[3]).toMatchObject({
+      expect(eventLog[6]).toMatchObject({
         type: 'item_removed',
         item: null,
         previousItem: expect.objectContaining({
