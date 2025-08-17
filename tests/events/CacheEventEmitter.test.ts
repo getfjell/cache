@@ -397,7 +397,7 @@ describe('CacheEventEmitter', () => {
     });
 
     it('should handle errors in error handler gracefully', () => {
-      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       const errorHandler = vi.fn(() => {
         throw new Error('Error handler error');
@@ -421,7 +421,9 @@ describe('CacheEventEmitter', () => {
 
       expect(errorListener).toHaveBeenCalled();
       expect(errorHandler).toHaveBeenCalled();
-      expect(consoleErrorSpy).toHaveBeenCalledTimes(2); // Both errors logged
+
+      // Both errors should be logged
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
 
       consoleErrorSpy.mockRestore();
     });

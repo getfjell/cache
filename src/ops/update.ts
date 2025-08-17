@@ -34,23 +34,60 @@ export const update = async <
   }
 
   // Invalidate the item key before executing the update
+  console.log('[ORDERDATES] fjell-cache update: Invalidating item key before update', {
+    key,
+    keyType: key.kt,
+    keyId: key.pk
+  });
   logger.debug('Invalidating item key before update', { key });
   cacheMap.invalidateItemKeys([key]);
 
   // Also clear query results since this item might be included in cached queries
+  console.log('[ORDERDATES] fjell-cache update: Clearing query results');
   await cacheMap.clearQueryResults();
 
   try {
     // Get previous item for event
+    console.log('[ORDERDATES] fjell-cache update: Getting previous item for event');
     const previousItem = await cacheMap.get(key);
+    console.log('[ORDERDATES] fjell-cache update: Previous item retrieved, calling API update');
 
     const updated = await api.update(key, v);
+    console.log('[ORDERDATES] fjell-cache update: API update completed', {
+      updatedKey: updated.key,
+      updatedId: updated.key.pk,
+      requestedUpdate: v,
+      returnedData: {
+        targetDate: (updated as any).targetDate,
+        id: (updated as any).id
+      }
+    });
 
     // Cache the result after the update
+    console.log('[ORDERDATES] fjell-cache update: Caching update result', {
+      key: updated.key,
+      updatedObject: {
+        id: (updated as any).id,
+        targetDate: (updated as any).targetDate,
+        phase: (updated as any).phase,
+        keyPk: updated.key.pk,
+        keyKt: updated.key.kt
+      }
+    });
     logger.debug('Caching update result', { updatedKey: updated.key });
     await cacheMap.set(updated.key, updated);
+    console.log('[ORDERDATES] fjell-cache update: Update result cached successfully');
+
+    // Verify what was cached
+    const cachedItem = await cacheMap.get(updated.key);
+    console.log('[ORDERDATES] fjell-cache update: Verification - cached item retrieved', {
+      cachedId: (cachedItem as any)?.id,
+      cachedTargetDate: (cachedItem as any)?.targetDate,
+      isSameAsUpdated: cachedItem === updated
+    });
 
     // Create base metadata if it doesn't exist (needed for TTL and eviction)
+    console.log('[ORDERDATES] fjell-cache update: Setting up metadata and eviction');
     const keyStr = JSON.stringify(updated.key);
     const metadata = await cacheMap.getMetadata(keyStr);
     if (!metadata) {
@@ -75,12 +112,24 @@ export const update = async <
       const parsedKey = JSON.parse(evictedKey);
       await cacheMap.delete(parsedKey);
     }
+    console.log('[ORDERDATES] fjell-cache update: Metadata and eviction handling completed');
 
     // Emit events
+    console.log('[ORDERDATES] fjell-cache update: Emitting itemUpdated event', {
+      key: updated.key,
+      keyType: updated.key.kt,
+      keyId: updated.key.pk,
+      hasEventEmitter: !!context.eventEmitter
+    });
     const itemEvent = CacheEventFactory.itemUpdated(updated.key, updated as V, previousItem, 'api');
     context.eventEmitter.emit(itemEvent);
 
     // Emit query invalidated event so components can react
+    console.log('[ORDERDATES] fjell-cache update: Emitting queryInvalidatedEvent', {
+      eventType: 'query_invalidated',
+      reason: 'item_changed',
+      hasEventEmitter: !!context.eventEmitter
+    });
     const queryInvalidatedEvent = CacheEventFactory.createQueryInvalidatedEvent(
       [], // We don't track which specific queries were invalidated
       'item_changed',
