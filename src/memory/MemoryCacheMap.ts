@@ -251,30 +251,76 @@ export class MemoryCacheMap<
 
   public async invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
     logger.debug('invalidateItemKeys', { keys });
+
+    if (keys.length === 0) {
+      // No keys to invalidate, so no queries should be affected
+      return;
+    }
+
+    // Delete the actual cache entries without triggering individual query invalidations
     for (const key of keys) {
       await this.delete(key);
     }
+
+    // For bulk invalidation, remove entire queries (don't filter)
+    this.invalidateQueriesReferencingKeys(keys);
+  }
+
+  /**
+   * Intelligently invalidate only queries that reference the affected keys
+   * This prevents clearing all query results when only specific items change
+   */
+  private invalidateQueriesReferencingKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+    if (keys.length === 0) {
+      return;
+    }
+
+    // Convert keys to their hashed form for comparison
+    const hashedKeysToInvalidate = new Set(keys.map(key => this.normalizedHashFunction(key)));
+
+    // Clear query results that reference any of the invalidated keys
+    const queriesToRemove: string[] = [];
+    for (const [queryHash, entry] of Object.entries(this.queryResultCache)) {
+      const queryReferencesInvalidatedKey = entry.itemKeys.some(itemKey => {
+        const hashedItemKey = this.normalizedHashFunction(itemKey);
+        return hashedKeysToInvalidate.has(hashedItemKey);
+      });
+
+      if (queryReferencesInvalidatedKey) {
+        queriesToRemove.push(queryHash);
+      }
+    }
+
+    // Remove the affected queries
+    queriesToRemove.forEach(queryHash => {
+      this.deleteQueryResult(queryHash);
+    });
+
+    logger.debug('Selectively invalidated queries referencing affected keys', {
+      affectedKeys: keys.length,
+      queriesRemoved: queriesToRemove.length,
+      totalQueries: Object.keys(this.queryResultCache).length
+    });
   }
 
   public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
     logger.debug('invalidateLocation', { locations });
 
+    let keysToInvalidate: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] = [];
+
     if (locations.length === 0) {
       // For primary items (no location), clear all primary keys
       const allKeys = await this.keys();
       const primaryKeys = allKeys.filter(key => !isComKey(key));
-      await this.invalidateItemKeys(primaryKeys);
+      keysToInvalidate = primaryKeys;
     } else {
       // For contained items, get all items in the location and invalidate them
       const itemsInLocation = await this.allIn(locations);
-      const keysToInvalidate = itemsInLocation.map(item => item.key);
-      await this.invalidateItemKeys(keysToInvalidate);
+      keysToInvalidate = itemsInLocation.map(item => item.key);
     }
 
-    // Clear all query results that might be affected
-    // For now, we'll clear all query results to be safe
-    // A more sophisticated approach would be to track which queries are location-specific
-    await this.clearQueryResults();
+    // Use invalidateItemKeys which will selectively clear only affected queries
+    await this.invalidateItemKeys(keysToInvalidate);
   }
 
   public async clearQueryResults(): Promise<void> {
