@@ -38,11 +38,21 @@ export const remove = async <
     await api.remove(key);
     cacheMap.delete(key);
 
-    // Emit event
+    // Clear query results since this item might have been in cached queries
+    await cacheMap.clearQueryResults();
+
+    // Emit events
     if (previousItem) {
-      const event = CacheEventFactory.itemRemoved(key, previousItem, 'api');
-      context.eventEmitter.emit(event);
+      const itemEvent = CacheEventFactory.itemRemoved(key, previousItem, 'api');
+      context.eventEmitter.emit(itemEvent);
     }
+
+    const queryInvalidatedEvent = CacheEventFactory.createQueryInvalidatedEvent(
+      [], // We don't track which specific queries were invalidated
+      'item_changed',
+      { source: 'operation', context: { operation: 'remove' } }
+    );
+    context.eventEmitter.emit(queryInvalidatedEvent);
 
     logger.debug('Successfully removed item from API and cache', { key });
   } catch (e) {

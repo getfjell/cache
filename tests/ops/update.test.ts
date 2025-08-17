@@ -409,7 +409,7 @@ describe('update operation', () => {
       await update(priKey1, partialUpdate, context);
 
       // Verify event emission
-      expect(mockEventEmitter.emit).toHaveBeenCalledTimes(1);
+      expect(mockEventEmitter.emit).toHaveBeenCalledTimes(2);
       const emittedEvent = mockEventEmitter.emit.mock.calls[0][0];
 
       expect(emittedEvent).toEqual(
@@ -433,7 +433,7 @@ describe('update operation', () => {
       await update(priKey1, partialUpdate, context);
 
       // Verify event emission
-      expect(mockEventEmitter.emit).toHaveBeenCalledTimes(1);
+      expect(mockEventEmitter.emit).toHaveBeenCalledTimes(2);
       const emittedEvent = mockEventEmitter.emit.mock.calls[0][0];
 
       expect(emittedEvent).toEqual(

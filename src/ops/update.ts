@@ -76,9 +76,17 @@ export const update = async <
       await cacheMap.delete(parsedKey);
     }
 
-    // Emit event
-    const event = CacheEventFactory.itemUpdated(updated.key, updated as V, previousItem, 'api');
-    context.eventEmitter.emit(event);
+    // Emit events
+    const itemEvent = CacheEventFactory.itemUpdated(updated.key, updated as V, previousItem, 'api');
+    context.eventEmitter.emit(itemEvent);
+
+    // Emit query invalidated event so components can react
+    const queryInvalidatedEvent = CacheEventFactory.createQueryInvalidatedEvent(
+      [], // We don't track which specific queries were invalidated
+      'item_changed',
+      { source: 'operation', context: { operation: 'update' } }
+    );
+    context.eventEmitter.emit(queryInvalidatedEvent);
 
     return [context, validatePK(updated, pkType) as V];
   } catch (e) {

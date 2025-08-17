@@ -39,9 +39,19 @@ export const create = async <
     await cacheMap.delete(parsedKey);
   }
 
-  // Emit event
-  const event = CacheEventFactory.itemCreated(created.key, created as V, 'api');
-  eventEmitter.emit(event);
+  // Clear query results since this new item might match existing queries
+  await cacheMap.clearQueryResults();
+
+  // Emit events
+  const itemEvent = CacheEventFactory.itemCreated(created.key, created as V, 'api');
+  eventEmitter.emit(itemEvent);
+
+  const queryInvalidatedEvent = CacheEventFactory.createQueryInvalidatedEvent(
+    [], // We don't track which specific queries were invalidated
+    'item_changed',
+    { source: 'operation', context: { operation: 'create' } }
+  );
+  eventEmitter.emit(queryInvalidatedEvent);
 
   return [context, validatePK(created, pkType) as V];
 };
