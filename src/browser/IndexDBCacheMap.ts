@@ -296,15 +296,55 @@ export class IndexDBCacheMap<
   // Invalidation methods
 
   public async invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
-    // Invalidate query results that contain any of the affected keys
+    logger.debug('invalidateItemKeys', { keys });
+
+    if (keys.length === 0) {
+      // No keys to invalidate, so no queries should be affected
+      return;
+    }
+
+    // Delete the actual cache entries without triggering individual query invalidations
+    for (const key of keys) {
+      await this.delete(key);
+    }
+
+    // For bulk invalidation, remove entire queries (don't filter)
+    this.invalidateQueriesReferencingKeys(keys);
+  }
+
+  /**
+   * Intelligently invalidate only queries that reference the affected keys
+   * This prevents clearing all query results when only specific items change
+   */
+  private invalidateQueriesReferencingKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): void {
+    if (keys.length === 0) {
+      return;
+    }
+
+    // Convert keys to their hashed form for comparison
+    const hashedKeysToInvalidate = new Set(keys.map(key => this.normalizedHashFunction(key)));
+
+    // Clear query results that reference any of the invalidated keys
+    const queriesToRemove: string[] = [];
     for (const queryHash in this.queryResultCache) {
       const entry = this.queryResultCache[queryHash];
       if (entry && entry.itemKeys.some(key => keys.some(affectedKey =>
         this.normalizedHashFunction(affectedKey) === this.normalizedHashFunction(key)
       ))) {
-        delete this.queryResultCache[queryHash];
+        queriesToRemove.push(queryHash);
       }
     }
+
+    // Remove the affected queries
+    queriesToRemove.forEach(queryHash => {
+      delete this.queryResultCache[queryHash];
+    });
+
+    logger.debug('Selectively invalidated queries referencing affected keys', {
+      affectedKeys: keys.length,
+      queriesRemoved: queriesToRemove.length,
+      totalQueries: Object.keys(this.queryResultCache).length
+    });
   }
 
   public async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
@@ -318,7 +358,8 @@ export class IndexDBCacheMap<
       }
     }
 
-    this.invalidateItemKeys(itemsToDelete);
+    // Use invalidateItemKeys which will selectively clear only affected queries
+    await this.invalidateItemKeys(itemsToDelete);
   }
 
   // Metadata operations

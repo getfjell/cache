@@ -6,6 +6,7 @@ import {
   validatePK
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
+import { CacheEventFactory } from "../events/CacheEventFactory";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('action');
@@ -61,6 +62,27 @@ export const action = async <
       // Continue processing other keys rather than failing completely
     }
   }
+
+  // Emit item updated event
+  logger.debug('Emitting itemUpdated event after action', {
+    key: updated.key,
+    action
+  });
+  const itemEvent = CacheEventFactory.itemUpdated(updated.key, updated as V, null, 'api');
+  context.eventEmitter.emit(itemEvent);
+
+  // Emit query invalidated event so components can react
+  logger.debug('Emitting queryInvalidatedEvent after action', {
+    eventType: 'query_invalidated',
+    reason: 'item_changed',
+    action
+  });
+  const queryInvalidatedEvent = CacheEventFactory.createQueryInvalidatedEvent(
+    [], // We don't track which specific queries were invalidated
+    'item_changed',
+    { source: 'operation', context: { operation: 'action' } }
+  );
+  context.eventEmitter.emit(queryInvalidatedEvent);
 
   return [context, validatePK(updated, pkType) as V];
 };
