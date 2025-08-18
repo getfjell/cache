@@ -619,7 +619,7 @@ describe('MemoryCacheMap', () => {
         expect(await cacheMap.includesKey(priKey2)).toBe(true);
       });
 
-      it('should clear all query results when invalidating location', async () => {
+      it('should modify query results to only contain valid keys when invalidating location', async () => {
         const queryHash = 'test_query';
         cacheMap.setQueryResult(queryHash, [priKey1, comKey1]);
 
@@ -628,7 +628,14 @@ describe('MemoryCacheMap', () => {
         const location: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container1' as UUID }];
         await cacheMap.invalidateLocation(location);
 
-        expect(await cacheMap.hasQueryResult(queryHash)).toBe(false);
+        // The query result should still exist but only contain valid keys
+        expect(await cacheMap.hasQueryResult(queryHash)).toBe(true);
+
+        // The query result should only contain priKey1 since comKey1 was invalidated
+        const queryResult = await cacheMap.getQueryResult(queryHash);
+        expect(queryResult).toContainEqual(priKey1);
+        expect(queryResult).not.toContainEqual(comKey1);
+        expect(queryResult).toHaveLength(1);
       });
 
       it('should handle non-existent locations gracefully', async () => {

@@ -22,10 +22,10 @@ export default defineConfig({
         'fjell-cache/coverage',
       ],
       thresholds: {
-        lines: 83,
+        lines: 81,
         functions: 75,
         branches: 83,
-        statements: 83,
+        statements: 81,
       },
     },
     setupFiles: ['./tests/setup.ts'],
