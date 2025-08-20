@@ -316,9 +316,6 @@ export class CacheEventEmitter<
       const weakListener = subscription.listenerRef.deref();
       if (!weakListener) {
         // Listener has been garbage collected, mark as inactive
-        console.log('[ORDERDATES] CacheEventEmitter: Listener garbage collected', {
-          subscriptionId: subscription.id
-        });
         subscription.isActive = false;
         return;
       }
