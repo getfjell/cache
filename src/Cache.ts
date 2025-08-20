@@ -122,11 +122,11 @@ export const createCache = <
   L4 extends string = never,
   L5 extends string = never
 >(
-    api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-    coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
-    registry: Registry,
-    options?: Partial<Options<V, S, L1, L2, L3, L4, L5>>
-  ): Cache<V, S, L1, L2, L3, L4, L5> => {
+  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
+  coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
+  registry: Registry,
+  options?: Partial<Options<V, S, L1, L2, L3, L4, L5>>
+): Cache<V, S, L1, L2, L3, L4, L5> => {
   logger.debug('createCache', { coordinate, registry, options });
 
   // Create complete options with defaults
@@ -206,18 +206,8 @@ export const createCache = <
     },
     getStats: () => statsManager.getStats(),
     subscribe: (listener, options) => {
-      console.log('[ORDERDATES] fjell-cache: Cache subscribe called', {
-        hasListener: !!listener,
-        eventTypes: options?.eventTypes || 'all',
-        debounceMs: options?.debounceMs || 0,
-        cacheCoordinate: coordinate.kta
-      });
       statsManager.incrementSubscriptions();
       const subscription = eventEmitter.subscribe(listener, options);
-      console.log('[ORDERDATES] fjell-cache: Cache subscription created', {
-        subscriptionId: subscription.id,
-        isActive: subscription.isActive()
-      });
       return subscription;
     },
     unsubscribe: (subscription) => {
