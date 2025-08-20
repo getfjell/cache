@@ -27,11 +27,6 @@ export const all = async <
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[]]> => {
   const { api, cacheMap, pkType, ttlManager } = context;
   logger.default('all', { query, locations });
-  console.log('[ORDERDATES] fjell-cache all: Starting query', {
-    query: JSON.stringify(query),
-    locations: locations.map(l => `${l.kt}:${l.lk}`),
-    pkType
-  });
 
   // Generate query hash for caching
   const queryHash = createQueryHash(pkType, query, locations);
@@ -41,10 +36,6 @@ export const all = async <
   const cachedItemKeys = await cacheMap.getQueryResult(queryHash);
   if (cachedItemKeys) {
     logger.debug('Using cached query results', { cachedKeyCount: cachedItemKeys.length });
-    console.log('[ORDERDATES] fjell-cache all: Found cached query results', {
-      queryHash,
-      cachedKeyCount: cachedItemKeys.length
-    });
 
     // Retrieve all cached items - if any are missing, invalidate the query cache
     const cachedItems: V[] = [];
@@ -61,22 +52,11 @@ export const all = async <
     }
 
     if (allItemsAvailable) {
-      console.log('[ORDERDATES] fjell-cache all: Returning cached items', {
-        itemCount: cachedItems.length,
-        items: cachedItems.map((item: any) => ({
-          id: item.id,
-          targetDate: item.targetDate,
-          key: item.key
-        }))
-      });
       return [context, validatePK(cachedItems, pkType) as V[]];
     } else {
       logger.debug('Some cached items missing, invalidating query cache');
-      console.log('[ORDERDATES] fjell-cache all: Some cached items missing, invalidating query cache');
       cacheMap.deleteQueryResult(queryHash);
     }
-  } else {
-    console.log('[ORDERDATES] fjell-cache all: No cached query results found', { queryHash });
   }
 
   // If no cached query results, try to find items directly in cache using queryIn
@@ -85,14 +65,6 @@ export const all = async <
     const directCachedItems = await cacheMap.queryIn(query, locations);
     if (directCachedItems && directCachedItems.length > 0) {
       logger.debug('Found items directly in cache, skipping API call', { itemCount: directCachedItems.length });
-      console.log('[ORDERDATES] fjell-cache all: Found items directly in cache via queryIn', {
-        itemCount: directCachedItems.length,
-        items: directCachedItems.map((item: any) => ({
-          id: item.id,
-          targetDate: item.targetDate,
-          key: item.key
-        }))
-      });
 
       // Cache the query result for future use
       const itemKeys = directCachedItems.map(item => item.key);
@@ -100,29 +72,15 @@ export const all = async <
       logger.debug('Cached query result from direct cache hit', { queryHash, itemKeyCount: itemKeys.length });
 
       return [context, validatePK(directCachedItems, pkType) as V[]];
-    } else {
-      console.log('[ORDERDATES] fjell-cache all: No items found in cache via queryIn');
     }
   } catch (error) {
     logger.debug('Error querying cache directly, proceeding to API', { error });
-    console.log('[ORDERDATES] fjell-cache all: Error querying cache directly', {
-      error: error instanceof Error ? error.message : String(error)
-    });
   }
 
   // Fetch from API
   let ret: V[] = [];
   try {
-    console.log('[ORDERDATES] fjell-cache all: Fetching from API');
     ret = await api.all(query, locations);
-    console.log('[ORDERDATES] fjell-cache all: API returned items', {
-      itemCount: ret.length,
-      items: ret.map((item: any) => ({
-        id: item.id,
-        targetDate: item.targetDate,
-        key: item.key
-      }))
-    });
 
     // Store individual items in cache
     for (const v of ret) {
