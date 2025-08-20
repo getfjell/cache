@@ -206,18 +206,8 @@ export const createCache = <
     },
     getStats: () => statsManager.getStats(),
     subscribe: (listener, options) => {
-      console.log('[ORDERDATES] fjell-cache: Cache subscribe called', {
-        hasListener: !!listener,
-        eventTypes: options?.eventTypes || 'all',
-        debounceMs: options?.debounceMs || 0,
-        cacheCoordinate: coordinate.kta
-      });
       statsManager.incrementSubscriptions();
       const subscription = eventEmitter.subscribe(listener, options);
-      console.log('[ORDERDATES] fjell-cache: Cache subscription created', {
-        subscriptionId: subscription.id,
-        isActive: subscription.isActive()
-      });
       return subscription;
     },
     unsubscribe: (subscription) => {
