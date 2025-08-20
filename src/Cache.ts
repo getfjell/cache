@@ -122,11 +122,11 @@ export const createCache = <
   L4 extends string = never,
   L5 extends string = never
 >(
-  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-  coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
-  registry: Registry,
-  options?: Partial<Options<V, S, L1, L2, L3, L4, L5>>
-): Cache<V, S, L1, L2, L3, L4, L5> => {
+    api: ClientApi<V, S, L1, L2, L3, L4, L5>,
+    coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
+    registry: Registry,
+    options?: Partial<Options<V, S, L1, L2, L3, L4, L5>>
+  ): Cache<V, S, L1, L2, L3, L4, L5> => {
   logger.debug('createCache', { coordinate, registry, options });
 
   // Create complete options with defaults
