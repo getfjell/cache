@@ -76,8 +76,14 @@ describe('allAction operation', () => {
       set: vi.fn(),
       delete: vi.fn(),
       get: vi.fn(),
-      has: vi.fn()
+      has: vi.fn(),
+      clearQueryResults: vi.fn(),
+      invalidateItemKeys: vi.fn(),
+      allIn: vi.fn()
     } as unknown as CacheMap<TestItem, 'test', 'container', 'section'>;
+
+    // Properly mock the allIn method
+    vi.mocked(mockCacheMap.allIn).mockResolvedValue([]);
 
     // Mock TTLManager
     mockTtlManager = {
@@ -89,14 +95,26 @@ describe('allAction operation', () => {
       onItemAdded: vi.fn().mockReturnValue([]) // Returns empty array by default (no evictions)
     };
 
+    // Mock event emitter
+    const mockEventEmitter = {
+      emit: vi.fn()
+    };
+
+    // Mock other required properties
+    const mockOptions = {} as any;
+    const mockStatsManager = {} as any;
+
     // Create context
     context = {
       api: mockApi,
       cacheMap: mockCacheMap,
       pkType: 'test',
+      options: mockOptions,
       ttlManager: mockTtlManager,
-      evictionManager: mockEvictionManager
-    } as CacheContext<TestItem, 'test', 'container', 'section'>;
+      evictionManager: mockEvictionManager,
+      eventEmitter: mockEventEmitter,
+      statsManager: mockStatsManager
+    } as unknown as CacheContext<TestItem, 'test', 'container', 'section'>;
   });
 
   describe('basic functionality', () => {
@@ -432,6 +450,86 @@ describe('allAction operation', () => {
       expect(mockApi.allAction).toHaveBeenCalledWith(testAction, testBody, testLocations);
 
       // First item should have been cached before the error
+      expect(mockCacheMap.set).toHaveBeenCalledWith(testItem1.key, testItem1);
+    });
+  });
+
+  describe('cache event emission and invalidation', () => {
+    it('should emit item_updated events for modified items', async () => {
+      // Mock existing items in cache
+      vi.mocked(mockCacheMap.allIn).mockResolvedValue([testItem1, testItem2]);
+
+      const mockResults = [testItem1, testItem2]; // Same items, so they're modified
+      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+
+      await allAction(testAction, testBody, testLocations, context);
+
+      // Verify that existing items were retrieved for comparison
+      expect(mockCacheMap.allIn).toHaveBeenCalledWith(testLocations);
+
+      // Verify that individual item keys were invalidated for modified items
+      expect(mockCacheMap.invalidateItemKeys).toHaveBeenCalledWith([testItem1.key, testItem2.key]);
+
+      // Verify that query results were cleared
+      expect(mockCacheMap.clearQueryResults).toHaveBeenCalled();
+
+      // Verify that events were emitted (we can't easily test the exact event content due to mocking)
+      expect(context.eventEmitter.emit).toHaveBeenCalled();
+    });
+
+    it('should emit item_created events for new items', async () => {
+      // Mock no existing items in cache
+      vi.mocked(mockCacheMap.allIn).mockResolvedValue([]);
+
+      const mockResults = [testItem1, testItem2]; // New items
+      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+
+      await allAction(testAction, testBody, testLocations, context);
+
+      // Verify that existing items were retrieved for comparison
+      expect(mockCacheMap.allIn).toHaveBeenCalledWith(testLocations);
+
+      // Verify that no individual item keys were invalidated (since they're new)
+      expect(mockCacheMap.invalidateItemKeys).not.toHaveBeenCalled();
+
+      // Verify that query results were cleared
+      expect(mockCacheMap.clearQueryResults).toHaveBeenCalled();
+
+      // Verify that events were emitted
+      expect(context.eventEmitter.emit).toHaveBeenCalled();
+    });
+
+    it('should handle mixed modified and new items correctly', async () => {
+      // Mock some existing items in cache
+      vi.mocked(mockCacheMap.allIn).mockResolvedValue([testItem1]); // Only item1 exists
+
+      const mockResults = [testItem1, testItem2]; // item1 is modified, item2 is new
+      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+
+      await allAction(testAction, testBody, testLocations, context);
+
+      // Verify that individual item keys were invalidated only for modified items
+      expect(mockCacheMap.invalidateItemKeys).toHaveBeenCalledWith([testItem1.key]);
+
+      // Verify that query results were cleared
+      expect(mockCacheMap.clearQueryResults).toHaveBeenCalled();
+
+      // Verify that events were emitted
+      expect(context.eventEmitter.emit).toHaveBeenCalled();
+    });
+
+    it('should handle errors gracefully when retrieving existing items', async () => {
+      // Mock error when retrieving existing items
+      vi.mocked(mockCacheMap.allIn).mockRejectedValue(new Error('Cache error'));
+
+      const mockResults = [testItem1];
+      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+
+      // Should not throw an error
+      await expect(allAction(testAction, testBody, testLocations, context)).resolves.toBeDefined();
+
+      // Verify that the operation still completed successfully
+      expect(mockApi.allAction).toHaveBeenCalledWith(testAction, testBody, testLocations);
       expect(mockCacheMap.set).toHaveBeenCalledWith(testItem1.key, testItem1);
     });
   });
