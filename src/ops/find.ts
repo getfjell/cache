@@ -4,6 +4,7 @@ import {
   validatePK
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
+import { CacheEventFactory } from "../events/CacheEventFactory";
 import { createFinderHash } from "../normalization";
 import LibLogger from "../logger";
 
@@ -23,7 +24,7 @@ export const find = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[]]> => {
-  const { api, cacheMap, pkType, ttlManager } = context;
+  const { api, cacheMap, pkType, ttlManager, eventEmitter } = context;
   logger.default('find', { finder, params, locations });
 
   // Generate query hash for caching
@@ -57,6 +58,31 @@ export const find = async <
     }
   }
 
+  // If no cached query results, try to find items directly in cache using queryIn
+  // This handles cases where individual items are cached but query results are not yet cached
+  // Only do this if we don't have any cached query results at all
+  if (!cachedItemKeys) {
+    try {
+      const directCachedItems = await cacheMap.queryIn(params, locations);
+      if (directCachedItems && directCachedItems.length > 0) {
+        logger.debug('Found items directly in cache, skipping API call', { itemCount: directCachedItems.length });
+
+        // Cache the query result for future use
+        const itemKeys = directCachedItems.map(item => item.key);
+        await cacheMap.setQueryResult(queryHash, itemKeys);
+        logger.debug('Cached query result from direct cache hit', { queryHash, itemKeyCount: itemKeys.length });
+
+        // Emit query event for cached results
+        const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(params, locations, directCachedItems);
+        eventEmitter.emit(event);
+
+        return [context, validatePK(directCachedItems, pkType) as V[]];
+      }
+    } catch (error) {
+      logger.debug('Error querying cache directly, proceeding to API', { error });
+    }
+  }
+
   // Fetch from API
   const ret: V[] = await api.find(finder, params, locations);
 
@@ -81,6 +107,10 @@ export const find = async <
   const itemKeys = ret.map(item => item.key);
   cacheMap.setQueryResult(queryHash, itemKeys);
   logger.debug('Cached query result', { queryHash, itemKeyCount: itemKeys.length });
+
+  // Emit query event
+  const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(params, locations, ret);
+  eventEmitter.emit(event);
 
   return [context, validatePK(ret, pkType) as V[]];
 };
