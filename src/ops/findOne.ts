@@ -4,6 +4,7 @@ import {
   validatePK
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
+import { CacheEventFactory } from "../events/CacheEventFactory";
 import { createFinderHash } from "../normalization";
 import LibLogger from "../logger";
 
@@ -23,7 +24,7 @@ export const findOne = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
-  const { api, cacheMap, pkType, ttlManager } = context;
+  const { api, cacheMap, pkType, ttlManager, eventEmitter } = context;
   logger.default('findOne', { finder, finderParams, locations });
 
   // Generate query hash for caching
@@ -42,6 +43,31 @@ export const findOne = async <
     } else {
       logger.debug('Cached item missing, invalidating query cache');
       cacheMap.deleteQueryResult(queryHash);
+    }
+  }
+
+  // If no cached query results, try to find items directly in cache using queryIn
+  // This handles cases where individual items are cached but query results are not yet cached
+  // Only do this if we don't have any cached query results at all
+  if (!cachedItemKeys || cachedItemKeys.length === 0) {
+    try {
+      const directCachedItems = await cacheMap.queryIn(finderParams, locations);
+      if (directCachedItems && directCachedItems.length > 0) {
+        logger.debug('Found items directly in cache, skipping API call', { itemCount: directCachedItems.length });
+
+        // Cache the query result for future use
+        const firstItem = directCachedItems[0];
+        await cacheMap.setQueryResult(queryHash, [firstItem.key]);
+        logger.debug('Cached query result from direct cache hit', { queryHash, itemKey: firstItem.key });
+
+        // Emit query event for cached results
+        const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(finderParams, locations, [firstItem]);
+        eventEmitter.emit(event);
+
+        return [context, validatePK(firstItem, pkType) as V];
+      }
+    } catch (error) {
+      logger.debug('Error querying cache directly, proceeding to API', { error });
     }
   }
 
@@ -66,6 +92,10 @@ export const findOne = async <
   // Store query result (single item key) in query cache
   cacheMap.setQueryResult(queryHash, [ret.key]);
   logger.debug('Cached query result', { queryHash, itemKey: ret.key });
+
+  // Emit query event
+  const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(finderParams, locations, [ret]);
+  eventEmitter.emit(event);
 
   return [context, validatePK(ret, pkType) as V];
 };
