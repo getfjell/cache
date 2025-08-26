@@ -46,30 +46,8 @@ export const findOne = async <
     }
   }
 
-  // If no cached query results, try to find items directly in cache using queryIn
-  // This handles cases where individual items are cached but query results are not yet cached
-  // Only do this if we don't have any cached query results at all
-  if (!cachedItemKeys || cachedItemKeys.length === 0) {
-    try {
-      const directCachedItems = await cacheMap.queryIn(finderParams, locations);
-      if (directCachedItems && directCachedItems.length > 0) {
-        logger.debug('Found items directly in cache, skipping API call', { itemCount: directCachedItems.length });
-
-        // Cache the query result for future use
-        const firstItem = directCachedItems[0];
-        await cacheMap.setQueryResult(queryHash, [firstItem.key]);
-        logger.debug('Cached query result from direct cache hit', { queryHash, itemKey: firstItem.key });
-
-        // Emit query event for cached results
-        const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(finderParams, locations, [firstItem]);
-        eventEmitter.emit(event);
-
-        return [context, validatePK(firstItem, pkType) as V];
-      }
-    } catch (error) {
-      logger.debug('Error querying cache directly, proceeding to API', { error });
-    }
-  }
+  // Note: We don't try to use queryIn here because finder parameters don't map to ItemQuery objects
+  // The queryIn method is designed for ItemQuery objects, not finder parameters
 
   // Fetch from API
   const ret = await api.findOne(finder, finderParams, locations);
