@@ -1,7 +1,7 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.7.12",
+  "version": "4.7.13",
   "keywords": [
     "cache",
     "fjell"
@@ -42,7 +42,8 @@
     "@fjell/logging": "^4.4.44",
     "@fjell/registry": "^4.4.33",
     "fast-safe-stringify": "^2.1.1",
-    "flatted": "^3.3.3"
+    "flatted": "^3.3.3",
+    "yocto-queue": "^1.2.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
