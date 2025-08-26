@@ -29,12 +29,12 @@ export const find = async <
 
   // Generate query hash for caching
   const queryHash = createFinderHash(finder, params, locations);
-  logger.debug('Generated query hash for find', { queryHash });
+  logger.debug('Generated query hash for find', { queryHash, finder, params, locations });
 
   // Check if we have cached query results
   const cachedItemKeys = await cacheMap.getQueryResult(queryHash);
   if (cachedItemKeys) {
-    logger.debug('Using cached query results', { cachedKeyCount: cachedItemKeys.length });
+    logger.debug('Using cached query results', { cachedKeyCount: cachedItemKeys.length, queryHash });
 
     // Retrieve all cached items - if any are missing, invalidate the query cache
     const cachedItems: V[] = [];
@@ -58,30 +58,8 @@ export const find = async <
     }
   }
 
-  // If no cached query results, try to find items directly in cache using queryIn
-  // This handles cases where individual items are cached but query results are not yet cached
-  // Only do this if we don't have any cached query results at all
-  if (!cachedItemKeys) {
-    try {
-      const directCachedItems = await cacheMap.queryIn(params, locations);
-      if (directCachedItems && directCachedItems.length > 0) {
-        logger.debug('Found items directly in cache, skipping API call', { itemCount: directCachedItems.length });
-
-        // Cache the query result for future use
-        const itemKeys = directCachedItems.map(item => item.key);
-        await cacheMap.setQueryResult(queryHash, itemKeys);
-        logger.debug('Cached query result from direct cache hit', { queryHash, itemKeyCount: itemKeys.length });
-
-        // Emit query event for cached results
-        const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(params, locations, directCachedItems);
-        eventEmitter.emit(event);
-
-        return [context, validatePK(directCachedItems, pkType) as V[]];
-      }
-    } catch (error) {
-      logger.debug('Error querying cache directly, proceeding to API', { error });
-    }
-  }
+  // Note: We don't try to use queryIn here because finder parameters don't map to ItemQuery objects
+  // The queryIn method is designed for ItemQuery objects, not finder parameters
 
   // Fetch from API
   const ret: V[] = await api.find(finder, params, locations);
