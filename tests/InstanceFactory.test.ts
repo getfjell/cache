@@ -80,9 +80,9 @@ describe('InstanceFactory Integration Tests', () => {
       const options: Partial<Options<TestItem, 'test'>> = {
         cacheType: 'memory',
         memoryConfig: {
-          maxItems: 500,
-          ttl: 60000
+          maxItems: 500
         },
+        ttl: 60000,
         enableDebugLogging: true,
         maxRetries: 5
       };
@@ -93,7 +93,7 @@ describe('InstanceFactory Integration Tests', () => {
       expect(instance.cacheMap).toBeInstanceOf(MemoryCacheMap);
       expect(instance.options?.cacheType).toBe('memory');
       expect(instance.options?.memoryConfig?.maxItems).toBe(500);
-      expect(instance.options?.memoryConfig?.ttl).toBe(60000);
+      expect(instance.options?.ttl).toBe(60000);
       expect(instance.options?.enableDebugLogging).toBe(true);
       expect(instance.options?.maxRetries).toBe(5);
     });
@@ -369,9 +369,9 @@ describe('InstanceFactory Integration Tests', () => {
           // version and storeName should use defaults
         },
         memoryConfig: {
-          ttl: 120000
           // maxItems should be undefined (no default)
-        }
+        },
+        ttl: 120000
       };
 
       const factory = createInstanceFactory(mockApi, options);
@@ -380,7 +380,7 @@ describe('InstanceFactory Integration Tests', () => {
       expect(instance.options?.indexedDBConfig?.dbName).toBe('CustomDB');
       expect(instance.options?.indexedDBConfig?.version).toBe(1); // default
       expect(instance.options?.indexedDBConfig?.storeName).toBe('cache'); // default
-      expect(instance.options?.memoryConfig?.ttl).toBe(120000);
+      expect(instance.options?.ttl).toBe(120000);
       expect(instance.options?.memoryConfig?.maxItems).toBeUndefined();
     });
   });
