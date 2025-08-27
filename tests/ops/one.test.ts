@@ -169,6 +169,59 @@ describe('one operation', () => {
     });
   });
 
+  describe('when bypassCache is enabled', () => {
+    beforeEach(() => {
+      context.options = { bypassCache: true };
+    });
+
+    it('should fetch directly from API without checking cache', async () => {
+      const query: ItemQuery = IQFactory.condition('id', '1').toQuery();
+
+      vi.mocked(mockApi.one).mockResolvedValue(testItem1);
+
+      const [resultContext, result] = await one(query, [], context);
+
+      expect(mockCacheMap.getQueryResult).not.toHaveBeenCalled();
+      expect(mockCacheMap.get).not.toHaveBeenCalled();
+      expect(mockApi.one).toHaveBeenCalledWith(query, []);
+      expect(mockCacheMap.set).not.toHaveBeenCalled();
+      expect(mockCacheMap.setQueryResult).not.toHaveBeenCalled();
+      expect(result).toEqual(testItem1);
+      expect(resultContext).toBe(context);
+    });
+
+    it('should return null when API returns null', async () => {
+      const query: ItemQuery = IQFactory.condition('id', 'nonexistent').toQuery();
+
+      vi.mocked(mockApi.one).mockResolvedValue(null);
+
+      const [resultContext, result] = await one(query, [], context);
+
+      expect(mockCacheMap.getQueryResult).not.toHaveBeenCalled();
+      expect(mockCacheMap.get).not.toHaveBeenCalled();
+      expect(mockApi.one).toHaveBeenCalledWith(query, []);
+      expect(mockCacheMap.set).not.toHaveBeenCalled();
+      expect(mockCacheMap.setQueryResult).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+      expect(resultContext).toBe(context);
+    });
+
+    it('should handle API errors properly', async () => {
+      const query: ItemQuery = IQFactory.condition('id', '1').toQuery();
+      const apiError = new Error('API Error');
+
+      vi.mocked(mockApi.one).mockRejectedValue(apiError);
+
+      await expect(one(query, [], context)).rejects.toThrow('API Error');
+
+      expect(mockCacheMap.getQueryResult).not.toHaveBeenCalled();
+      expect(mockCacheMap.get).not.toHaveBeenCalled();
+      expect(mockApi.one).toHaveBeenCalledWith(query, []);
+      expect(mockCacheMap.set).not.toHaveBeenCalled();
+      expect(mockCacheMap.setQueryResult).not.toHaveBeenCalled();
+    });
+  });
+
   describe('cache miss scenarios', () => {
     it('should fetch from API and cache result when no cached query result exists', async () => {
       const query: ItemQuery = IQFactory.condition('id', '1').toQuery();

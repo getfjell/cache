@@ -134,6 +134,55 @@ describe('get operation', () => {
     });
   });
 
+  describe('when bypassCache is enabled', () => {
+    beforeEach(() => {
+      context.options = { bypassCache: true };
+    });
+
+    it('should fetch directly from API without checking cache', async () => {
+      vi.mocked(mockApi.get).mockResolvedValue(testItem1);
+
+      const [resultContext, result] = await get(priKey1, context);
+
+      expect(mockCacheMap.get).not.toHaveBeenCalled();
+      expect(mockApi.get).toHaveBeenCalledWith(priKey1);
+      expect(mockCacheMap.set).not.toHaveBeenCalled();
+      expect(result).toEqual(testItem1);
+      expect(resultContext).toBe(context);
+    });
+
+    it('should return null when API returns null', async () => {
+      vi.mocked(mockApi.get).mockResolvedValue(null);
+
+      const [resultContext, result] = await get(priKey1, context);
+
+      expect(mockCacheMap.get).not.toHaveBeenCalled();
+      expect(mockApi.get).toHaveBeenCalledWith(priKey1);
+      expect(mockCacheMap.set).not.toHaveBeenCalled();
+      expect(result).toBeNull();
+      expect(resultContext).toBe(context);
+    });
+
+    it('should handle API errors properly', async () => {
+      const apiError = new Error('API Error');
+      vi.mocked(mockApi.get).mockRejectedValue(apiError);
+
+      await expect(get(priKey1, context)).rejects.toThrow('API Error');
+
+      expect(mockCacheMap.get).not.toHaveBeenCalled();
+      expect(mockApi.get).toHaveBeenCalledWith(priKey1);
+      expect(mockCacheMap.set).not.toHaveBeenCalled();
+    });
+
+    it('should increment cache misses when bypassing cache', async () => {
+      vi.mocked(mockApi.get).mockResolvedValue(testItem1);
+
+      await get(priKey1, context);
+
+      expect(context.statsManager.getStats().numMisses).toBe(1);
+    });
+  });
+
   describe('when TTL is not configured', () => {
     beforeEach(() => {
       vi.mocked(mockTtlManager.isTTLEnabled).mockReturnValue(false);

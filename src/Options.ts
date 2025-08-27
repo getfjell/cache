@@ -126,6 +126,9 @@ export interface Options<
   /** Cache expiration time in milliseconds (default: unlimited) */
   ttl?: number;
 
+  /** Whether to completely bypass cache and always fetch from API */
+  bypassCache?: boolean;
+
   /** Maximum number of retry attempts for failed operations */
   maxRetries?: number;
 
@@ -140,6 +143,7 @@ const DEFAULT_CACHE_OPTIONS: Partial<Options<any, any, any, any, any, any, any>>
   cacheType: 'memory',
   enableDebugLogging: false,
   autoSync: true,
+  bypassCache: false,
   maxRetries: 3,
   retryDelay: 1000,
   indexedDBConfig: {
