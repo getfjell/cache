@@ -190,6 +190,66 @@ describe('retrieve operation', () => {
     });
   });
 
+  describe('when bypassCache is enabled', () => {
+    beforeEach(() => {
+      context.options = { ...context.options, bypassCache: true };
+    });
+
+    it('should fetch directly from API without checking cache', async () => {
+      const item1 = createTestItem(key1, 'item1', 'Test Item 1', 100);
+      mockApi.get.mockResolvedValue(item1);
+
+      const [returnedContext, result] = await retrieve(key1, context);
+
+      expect(returnedContext).toBeNull();
+      expect(result).toEqual(item1);
+      expect(mockApi.get).toHaveBeenCalledWith(key1);
+      expect(getOp.get).not.toHaveBeenCalled(); // Should not call the get operation
+    });
+
+    it('should return null when API returns null', async () => {
+      mockApi.get.mockResolvedValue(null);
+
+      const [returnedContext, result] = await retrieve(key1, context);
+
+      expect(returnedContext).toBeNull();
+      expect(result).toBeNull();
+      expect(mockApi.get).toHaveBeenCalledWith(key1);
+      expect(getOp.get).not.toHaveBeenCalled();
+    });
+
+    it('should handle API errors properly', async () => {
+      const apiError = new Error('API Error');
+      mockApi.get.mockRejectedValue(apiError);
+
+      await expect(retrieve(key1, context)).rejects.toThrow('API Error');
+
+      expect(mockApi.get).toHaveBeenCalledWith(key1);
+      expect(getOp.get).not.toHaveBeenCalled();
+    });
+
+    it('should work with composite keys', async () => {
+      const item1 = createContainedTestItem(comKey1, 'item1', 'Contained Item 1', 'data1');
+      mockApi.get.mockResolvedValue(item1);
+
+      const [returnedContext, result] = await retrieve(comKey1, context);
+
+      expect(returnedContext).toBeNull();
+      expect(result).toEqual(item1);
+      expect(mockApi.get).toHaveBeenCalledWith(comKey1);
+      expect(getOp.get).not.toHaveBeenCalled();
+    });
+
+    it('should increment cache misses when bypassing cache', async () => {
+      const item1 = createTestItem(key1, 'item1', 'Test Item 1', 100);
+      mockApi.get.mockResolvedValue(item1);
+
+      await retrieve(key1, context);
+
+      expect(context.statsManager.getStats().numMisses).toBe(1);
+    });
+  });
+
   describe('cache miss scenarios', () => {
     it('should fetch from API when item not in cache', async () => {
       const item1 = createTestItem(key1, 'item1', 'Test Item 1', 100);
