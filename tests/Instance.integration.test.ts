@@ -58,9 +58,9 @@ describe('Instance Integration with Options', () => {
     const options: Partial<Options<TestItem, 'test'>> = {
       cacheType: 'memory',
       memoryConfig: {
-        maxItems: 500,
-        ttl: 120000
+        maxItems: 500
       },
+      ttl: 120000,
       enableDebugLogging: true,
       autoSync: false
     };
@@ -69,7 +69,7 @@ describe('Instance Integration with Options', () => {
 
     expect(instance.options?.cacheType).toBe('memory');
     expect(instance.options?.memoryConfig?.maxItems).toBe(500);
-    expect(instance.options?.memoryConfig?.ttl).toBe(120000);
+    expect(instance.options?.ttl).toBe(120000);
     expect(instance.options?.enableDebugLogging).toBe(true);
     expect(instance.options?.autoSync).toBe(false);
   });
@@ -179,9 +179,9 @@ describe('Instance Integration with Options', () => {
         // version and storeName should use defaults
       },
       memoryConfig: {
-        ttl: 180000
         // maxItems should be undefined
-      }
+      },
+      ttl: 180000
     };
 
     const instance = createInstance(mockRegistry, testCoordinate, mockApi, options);
@@ -191,7 +191,7 @@ describe('Instance Integration with Options', () => {
     expect(instance.options?.indexedDBConfig?.dbName).toBe('ComplexDB');
     expect(instance.options?.indexedDBConfig?.version).toBe(1); // default
     expect(instance.options?.indexedDBConfig?.storeName).toBe('cache'); // default
-    expect(instance.options?.memoryConfig?.ttl).toBe(180000);
+    expect(instance.options?.ttl).toBe(180000);
     expect(instance.options?.memoryConfig?.maxItems).toBeUndefined();
   });
 

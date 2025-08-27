@@ -230,7 +230,7 @@ describe('Cache Stats Example', () => {
       cacheType: 'memory',
       enableDebugLogging: false,
       autoSync: false, // Disable auto-sync to prevent background operations
-      ttl: 0, // Disable TTL to prevent TTL cleanup operations
+      ttl: 3600000, // Set TTL to 1 hour to prevent TTL cleanup operations during test
       maxRetries: 1, // Minimize retry attempts
       retryDelay: 100 // Quick retry delay
     });
@@ -339,7 +339,7 @@ describe('Cache Stats Example', () => {
       cacheType: 'memory',
       enableDebugLogging: false,
       autoSync: false, // Disable auto-sync to prevent background operations
-      ttl: 0, // Disable TTL to prevent TTL cleanup operations
+      ttl: 3600000, // Set TTL to 1 hour to prevent TTL cleanup operations during test
       maxRetries: 1, // Minimize retry attempts
       retryDelay: 100 // Quick retry delay
     });
