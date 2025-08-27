@@ -209,13 +209,18 @@ export const createOptions = <
     } : DEFAULT_CACHE_OPTIONS.memoryConfig?.size
   } : { ...DEFAULT_CACHE_OPTIONS.memoryConfig };
 
-  return {
+  const result = {
     ...DEFAULT_CACHE_OPTIONS,
     ...cacheOptions,
     indexedDBConfig,
     webStorageConfig,
     memoryConfig
   } as Options<V, S, L1, L2, L3, L4, L5>;
+
+  // Validate the final options to catch any typos or invalid configurations
+  validateOptions(result);
+
+  return result;
 };
 
 /**
@@ -293,6 +298,86 @@ export const validateOptions = <
   L4 extends string = never,
   L5 extends string = never
 >(options: Options<V, S, L1, L2, L3, L4, L5>): void => {
+  // First, validate that no unknown properties are present
+  const validProperties = new Set([
+    // Core options
+    'cacheType',
+    'enableDebugLogging',
+    'autoSync',
+    'ttl',
+    'bypassCache',
+    'maxRetries',
+    'retryDelay',
+
+    // Config objects
+    'indexedDBConfig',
+    'webStorageConfig',
+    'memoryConfig',
+    'customCacheMapFactory',
+    'evictionConfig'
+  ]);
+
+  // Check for unknown properties and suggest corrections
+  const unknownProperties: string[] = [];
+  const propertySuggestions: Record<string, string[]> = {
+    'byPassCache': ['bypassCache'],
+    'bypasscache': ['bypassCache'],
+    'bypass_cache': ['bypassCache'],
+    'cacheType': ['cacheType'],
+    'cachetype': ['cacheType'],
+    'cache_type': ['cacheType'],
+    'enableDebugLogging': ['enableDebugLogging'],
+    'enabledebuglogging': ['enableDebugLogging'],
+    'enable_debug_logging': ['enableDebugLogging'],
+    'autoSync': ['autoSync'],
+    'autosync': ['autoSync'],
+    'auto_sync': ['autoSync'],
+    'maxRetries': ['maxRetries'],
+    'maxretries': ['maxRetries'],
+    'max_retries': ['maxRetries'],
+    'retryDelay': ['retryDelay'],
+    'retrydelay': ['retryDelay'],
+    'retry_delay': ['retryDelay'],
+    'indexedDBConfig': ['indexedDBConfig'],
+    'indexeddbconfig': ['indexedDBConfig'],
+    'indexed_db_config': ['indexedDBConfig'],
+    'webStorageConfig': ['webStorageConfig'],
+    'webstorageconfig': ['webStorageConfig'],
+    'web_storage_config': ['webStorageConfig'],
+    'memoryConfig': ['memoryConfig'],
+    'memoryconfig': ['memoryConfig'],
+    'memory_config': ['memoryConfig'],
+    'customCacheMapFactory': ['customCacheMapFactory'],
+    'customcachemapfactory': ['customCacheMapFactory'],
+    'custom_cache_map_factory': ['customCacheMapFactory'],
+    'evictionConfig': ['evictionConfig'],
+    'evictionconfig': ['evictionConfig'],
+    'eviction_config': ['evictionConfig']
+  };
+
+  for (const [key, value] of Object.entries(options)) {
+    if (!validProperties.has(key)) {
+      unknownProperties.push(key);
+    }
+  }
+
+  if (unknownProperties.length > 0) {
+    const suggestions = unknownProperties.map(prop => {
+      const suggestion = propertySuggestions[prop];
+      if (suggestion) {
+        return `"${prop}" → "${suggestion[0]}"`;
+      }
+      return `"${prop}"`;
+    });
+
+    const errorMessage = `Unknown configuration properties detected: ${unknownProperties.join(', ')}.\n` +
+      `Valid properties are: ${Array.from(validProperties).join(', ')}.\n` +
+      `Did you mean: ${suggestions.join(', ')}?`;
+
+    throw new Error(errorMessage);
+  }
+
+  // Validate required properties
   if (options.cacheType === 'custom' && !options.customCacheMapFactory) {
     throw new Error('customCacheMapFactory is required when cacheType is "custom"');
   }
@@ -322,6 +407,110 @@ export const validateOptions = <
   }
   if (options.indexedDBConfig?.size) {
     validateSizeConfig(options.indexedDBConfig.size);
+  }
+
+  // Validate nested configuration objects for unknown properties
+  if (options.indexedDBConfig) {
+    const validIndexedDBProps = new Set(['dbName', 'version', 'storeName', 'size']);
+    const unknownIndexedDBProps = Object.keys(options.indexedDBConfig).filter(key => !validIndexedDBProps.has(key));
+
+    if (unknownIndexedDBProps.length > 0) {
+      const suggestions = unknownIndexedDBProps.map(prop => {
+        const suggestion = {
+          'dbname': 'dbName',
+          'db_name': 'dbName',
+          'storename': 'storeName',
+          'store_name': 'storeName'
+        }[prop];
+        return suggestion ? `"${prop}" → "${suggestion}"` : `"${prop}"`;
+      });
+
+      throw new Error(`Unknown IndexedDB configuration properties: ${unknownIndexedDBProps.join(', ')}.\n` +
+        `Valid properties are: ${Array.from(validIndexedDBProps).join(', ')}.\n` +
+        `Did you mean: ${suggestions.join(', ')}?`);
+    }
+  }
+
+  if (options.webStorageConfig) {
+    const validWebStorageProps = new Set(['keyPrefix', 'compress', 'size']);
+    const unknownWebStorageProps = Object.keys(options.webStorageConfig).filter(key => !validWebStorageProps.has(key));
+
+    if (unknownWebStorageProps.length > 0) {
+      const suggestions = unknownWebStorageProps.map(prop => {
+        const suggestion = {
+          'keyprefix': 'keyPrefix',
+          'key_prefix': 'keyPrefix'
+        }[prop];
+        return suggestion ? `"${prop}" → "${suggestion}"` : `"${prop}"`;
+      });
+
+      throw new Error(`Unknown WebStorage configuration properties: ${unknownWebStorageProps.join(', ')}.\n` +
+        `Valid properties are: ${Array.from(validWebStorageProps).join(', ')}.\n` +
+        `Did you mean: ${suggestions.join(', ')}?`);
+    }
+  }
+
+  if (options.memoryConfig) {
+    const validMemoryProps = new Set(['maxItems', 'size']);
+    const unknownMemoryProps = Object.keys(options.memoryConfig).filter(key => !validMemoryProps.has(key));
+
+    if (unknownMemoryProps.length > 0) {
+      const suggestions = unknownMemoryProps.map(prop => {
+        const suggestion = {
+          'maxitems': 'maxItems',
+          'max_items': 'maxItems'
+        }[prop];
+        return suggestion ? `"${prop}" → "${suggestion}"` : `"${prop}"`;
+      });
+
+      throw new Error(`Unknown Memory configuration properties: ${unknownMemoryProps.join(', ')}.\n` +
+        `Valid properties are: ${Array.from(validMemoryProps).join(', ')}.\n` +
+        `Did you mean: ${suggestions.join(', ')}?`);
+    }
+  }
+
+  // Validate eviction config for unknown properties
+  if (options.evictionConfig) {
+    const validEvictionProps = new Set(['type', 'config']);
+    const unknownEvictionProps = Object.keys(options.evictionConfig).filter(key => !validEvictionProps.has(key));
+
+    if (unknownEvictionProps.length > 0) {
+      const suggestions = unknownEvictionProps.map(prop => {
+        const suggestion = {
+          'evictionstrategy': 'type',
+          'eviction_strategy': 'type',
+          'evictionconfig': 'config',
+          'eviction_config': 'config'
+        }[prop];
+        return suggestion ? `"${prop}" → "${suggestion}"` : `"${prop}"`;
+      });
+
+      throw new Error(`Unknown Eviction configuration properties: ${unknownEvictionProps.join(', ')}.\n` +
+        `Valid properties are: ${Array.from(validEvictionProps).join(', ')}.\n` +
+        `Did you mean: ${suggestions.join(', ')}?`);
+    }
+
+    // Validate eviction strategy type
+    if (options.evictionConfig.type) {
+      const validTypes = new Set(['lru', 'lfu', 'fifo', 'mru', 'random', 'arc', '2q']);
+      if (!validTypes.has(options.evictionConfig.type)) {
+        const suggestions = {
+          'LRU': 'lru',
+          'LFU': 'lfu',
+          'FIFO': 'fifo',
+          'MRU': 'mru',
+          'RANDOM': 'random',
+          'ARC': 'arc',
+          '2Q': '2q',
+          'twoqueue': '2q',
+          'two_queue': '2q'
+        }[options.evictionConfig.type];
+
+        const suggestionText = suggestions ? ` Did you mean "${suggestions}"?` : '';
+        throw new Error(`Invalid eviction strategy type: "${options.evictionConfig.type}".` +
+          ` Valid types are: ${Array.from(validTypes).join(', ')}.${suggestionText}`);
+      }
+    }
   }
 
   // Browser storage validation
