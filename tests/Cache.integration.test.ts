@@ -58,9 +58,9 @@ describe('Cache Integration with Options', () => {
     const options: Partial<Options<TestItem, 'test'>> = {
       cacheType: 'memory',
       memoryConfig: {
-        maxItems: 1000,
-        ttl: 300000
+        maxItems: 1000
       },
+      ttl: 300000,
       enableDebugLogging: true
     };
 
@@ -68,7 +68,7 @@ describe('Cache Integration with Options', () => {
 
     expect(cache.options?.cacheType).toBe('memory');
     expect(cache.options?.memoryConfig?.maxItems).toBe(1000);
-    expect(cache.options?.memoryConfig?.ttl).toBe(300000);
+    expect(cache.options?.ttl).toBe(300000);
     expect(cache.options?.enableDebugLogging).toBe(true);
   });
 

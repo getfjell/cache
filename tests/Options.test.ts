@@ -58,45 +58,189 @@ describe('Options', () => {
     });
 
     it('should throw error for custom cache without factory', () => {
-      const options = createOptions<TestItem, 'test'>({
+      expect(() => createOptions<TestItem, 'test'>({
         cacheType: 'custom'
-      });
-
-      expect(() => validateOptions(options)).toThrow('customCacheMapFactory is required when cacheType is "custom"');
+      })).toThrow('customCacheMapFactory is required when cacheType is "custom"');
     });
 
     it('should throw error for negative maxRetries', () => {
-      const options = createOptions<TestItem, 'test'>({
+      expect(() => createOptions<TestItem, 'test'>({
         maxRetries: -1
-      });
-
-      expect(() => validateOptions(options)).toThrow('maxRetries must be non-negative');
+      })).toThrow('maxRetries must be non-negative');
     });
 
     it('should throw error for negative retryDelay', () => {
-      const options = createOptions<TestItem, 'test'>({
+      expect(() => createOptions<TestItem, 'test'>({
         retryDelay: -1
-      });
-
-      expect(() => validateOptions(options)).toThrow('retryDelay must be non-negative');
+      })).toThrow('retryDelay must be non-negative');
     });
 
     it('should throw error for invalid ttl', () => {
-      const options = createOptions<TestItem, 'test'>({
+      expect(() => createOptions<TestItem, 'test'>({
         ttl: 0
-      });
-
-      expect(() => validateOptions(options)).toThrow('ttl must be positive');
+      })).toThrow('ttl must be positive');
     });
 
     it('should throw error for invalid memory config', () => {
-      const options = createOptions<TestItem, 'test'>({
+      expect(() => createOptions<TestItem, 'test'>({
         memoryConfig: {
           maxItems: 0
         }
+      })).toThrow('memoryConfig.maxItems must be positive');
+    });
+  });
+
+  describe('configuration validation', () => {
+    it('should validate options successfully', () => {
+      const options = createOptions({
+        cacheType: 'memory',
+        enableDebugLogging: true,
+        autoSync: false,
+        bypassCache: true,
+        maxRetries: 5,
+        retryDelay: 2000
       });
 
-      expect(() => validateOptions(options)).toThrow('memoryConfig.maxItems must be positive');
+      expect(() => validateOptions(options)).not.toThrow();
+    });
+
+    it('should throw error for unknown top-level properties', () => {
+      const invalidOptions = {
+        cacheType: 'memory',
+        byPassCache: true, // Typo: should be bypassCache
+        enableDebugLogging: true
+      } as any;
+
+      expect(() => validateOptions(invalidOptions)).toThrow(
+        'Unknown configuration properties detected: byPassCache.\n' +
+        'Valid properties are: cacheType, enableDebugLogging, autoSync, ttl, bypassCache, maxRetries, retryDelay, indexedDBConfig, webStorageConfig, memoryConfig, customCacheMapFactory, evictionConfig.\n' +
+        'Did you mean: "byPassCache" → "bypassCache"?'
+      );
+    });
+
+    it('should throw error for multiple unknown properties with suggestions', () => {
+      const invalidOptions = {
+        cacheType: 'memory',
+        byPassCache: true, // Typo: should be bypassCache
+        cachetype: 'localStorage', // Typo: should be cacheType
+        enableDebugLogging: true
+      } as any;
+
+      expect(() => validateOptions(invalidOptions)).toThrow(
+        'Unknown configuration properties detected: byPassCache, cachetype.\n' +
+        'Valid properties are: cacheType, enableDebugLogging, autoSync, ttl, bypassCache, maxRetries, retryDelay, indexedDBConfig, webStorageConfig, memoryConfig, customCacheMapFactory, evictionConfig.\n' +
+        'Did you mean: "byPassCache" → "bypassCache", "cachetype" → "cacheType"?'
+      );
+    });
+
+    it('should throw error for unknown IndexedDB config properties', () => {
+      expect(() => createOptions({
+        cacheType: 'indexedDB',
+        indexedDBConfig: {
+          dbname: 'test', // Typo: should be dbName
+          storename: 'cache' // Typo: should be storeName
+        } as any
+      })).toThrow(
+        'Unknown IndexedDB configuration properties: dbname, storename.\n' +
+        'Valid properties are: dbName, version, storeName, size.\n' +
+        'Did you mean: "dbname" → "dbName", "storename" → "storeName"?'
+      );
+    });
+
+    it('should throw error for unknown WebStorage config properties', () => {
+      expect(() => createOptions({
+        cacheType: 'localStorage',
+        webStorageConfig: {
+          keyprefix: 'test:' // Typo: should be keyPrefix
+        } as any
+      })).toThrow(
+        'Unknown WebStorage configuration properties: keyprefix.\n' +
+        'Valid properties are: keyPrefix, compress, size.\n' +
+        'Did you mean: "keyprefix" → "keyPrefix"?'
+      );
+    });
+
+    it('should throw error for unknown Memory config properties', () => {
+      expect(() => createOptions({
+        cacheType: 'memory',
+        memoryConfig: {
+          maxitems: 1000 // Typo: should be maxItems
+        } as any
+      })).toThrow(
+        'Unknown Memory configuration properties: maxitems.\n' +
+        'Valid properties are: maxItems, size.\n' +
+        'Did you mean: "maxitems" → "maxItems"?'
+      );
+    });
+
+    it('should throw error for unknown Eviction config properties', () => {
+      expect(() => createOptions({
+        cacheType: 'memory',
+        evictionConfig: {
+          evictionstrategy: 'lru' // Typo: should be type
+        } as any
+      })).toThrow(
+        'Unknown Eviction configuration properties: evictionstrategy.\n' +
+        'Valid properties are: type, config.\n' +
+        'Did you mean: "evictionstrategy" → "type"?'
+      );
+    });
+
+    it('should throw error for invalid eviction strategy type', () => {
+      expect(() => createOptions({
+        cacheType: 'memory',
+        evictionConfig: {
+          type: 'LRU' // Typo: should be 'lru'
+        } as any
+      })).toThrow(
+        'Invalid eviction strategy type: "LRU". Valid types are: lru, lfu, fifo, mru, random, arc, 2q. Did you mean "lru"?'
+      );
+    });
+
+    it('should throw error for invalid eviction strategy type with underscore', () => {
+      expect(() => createOptions({
+        cacheType: 'memory',
+        evictionConfig: {
+          type: 'two_queue' // Typo: should be '2q'
+        } as any
+      })).toThrow(
+        'Invalid eviction strategy type: "two_queue". Valid types are: lru, lfu, fifo, mru, random, arc, 2q. Did you mean "2q"?'
+      );
+    });
+
+    it('should validate eviction config successfully', () => {
+      const validOptions = createOptions({
+        cacheType: 'memory',
+        evictionConfig: {
+          type: 'lru'
+        }
+      });
+
+      expect(() => validateOptions(validOptions)).not.toThrow();
+    });
+
+    it('should catch typos when creating options with createOptions', () => {
+      expect(() => createOptions({
+        cacheType: 'memory',
+        byPassCache: true // Typo: should be bypassCache
+      } as any)).toThrow(
+        'Unknown configuration properties detected: byPassCache.\n' +
+        'Valid properties are: cacheType, enableDebugLogging, autoSync, ttl, bypassCache, maxRetries, retryDelay, indexedDBConfig, webStorageConfig, memoryConfig, customCacheMapFactory, evictionConfig.\n' +
+        'Did you mean: "byPassCache" → "bypassCache"?'
+      );
+    });
+
+    it('should catch nested config typos when creating options', () => {
+      expect(() => createOptions({
+        cacheType: 'indexedDB',
+        indexedDBConfig: {
+          dbname: 'test' // Typo: should be dbName
+        } as any
+      })).toThrow(
+        'Unknown IndexedDB configuration properties: dbname.\n' +
+        'Valid properties are: dbName, version, storeName, size.\n' +
+        'Did you mean: "dbname" → "dbName"?'
+      );
     });
   });
 
@@ -137,11 +281,9 @@ describe('Options', () => {
     });
 
     it('should throw error for custom cache without factory', () => {
-      const options = createOptions<TestItem, 'test'>({
+      expect(() => createOptions<TestItem, 'test'>({
         cacheType: 'custom'
-      });
-
-      expect(() => createCacheMap(testKta, options)).toThrow('Custom cache map factory is required when cacheType is "custom"');
+      })).toThrow('customCacheMapFactory is required when cacheType is "custom"');
     });
   });
 
@@ -261,11 +403,8 @@ describe('Options', () => {
       // Mock browser environment
       global.window = {} as any;
 
-      const localStorageOptions = createOptions<TestItem, 'test'>({ cacheType: 'localStorage' });
-      const sessionStorageOptions = createOptions<TestItem, 'test'>({ cacheType: 'sessionStorage' });
-
-      expect(() => validateOptions(localStorageOptions)).toThrow('localStorage is not available in non-browser environments');
-      expect(() => validateOptions(sessionStorageOptions)).toThrow('sessionStorage is not available in non-browser environments');
+      expect(() => createOptions<TestItem, 'test'>({ cacheType: 'localStorage' })).toThrow('localStorage is not available in non-browser environments');
+      expect(() => createOptions<TestItem, 'test'>({ cacheType: 'sessionStorage' })).toThrow('sessionStorage is not available in non-browser environments');
     });
 
     it('should validate IndexedDB availability', () => {
@@ -273,8 +412,7 @@ describe('Options', () => {
       global.window = {} as any;
       delete (global as any).indexedDB;
 
-      const indexedDBOptions = createOptions<TestItem, 'test'>({ cacheType: 'indexedDB' });
-      expect(() => validateOptions(indexedDBOptions)).toThrow('indexedDB is not available in this environment');
+      expect(() => createOptions<TestItem, 'test'>({ cacheType: 'indexedDB' })).toThrow('indexedDB is not available in this environment');
     });
 
     it('should pass validation in node environment for memory cache', () => {
@@ -313,8 +451,7 @@ describe('Options', () => {
       ];
 
       invalidOptions.forEach(opts => {
-        const options = createOptions<TestItem, 'test'>(opts);
-        expect(() => validateOptions(options)).toThrow();
+        expect(() => createOptions<TestItem, 'test'>(opts)).toThrow();
       });
     });
 

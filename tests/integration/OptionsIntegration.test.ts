@@ -48,10 +48,8 @@ describe('Full Options Integration Tests', () => {
     it('should maintain options consistency from factory to instance', () => {
       const options: Partial<Options<TestItem, 'test'>> = {
         cacheType: 'memory',
-        memoryConfig: {
-          maxItems: 1000,
-          ttl: 300000
-        },
+        memoryConfig: { maxItems: 1000 },
+        ttl: 300000,
         enableDebugLogging: true,
         autoSync: false,
         maxRetries: 5,
@@ -71,7 +69,8 @@ describe('Full Options Integration Tests', () => {
       // All should have the same options
       const expectedOptions = {
         cacheType: 'memory',
-        memoryConfig: { maxItems: 1000, ttl: 300000 },
+        memoryConfig: { maxItems: 1000 },
+        ttl: 300000,
         enableDebugLogging: true,
         autoSync: false,
         maxRetries: 5,
@@ -148,8 +147,7 @@ describe('Full Options Integration Tests', () => {
           compress: true
         },
         memoryConfig: {
-          maxItems: 2000,
-          ttl: 600000
+          maxItems: 2000
         },
         enableDebugLogging: true,
         autoSync: false,
@@ -168,7 +166,6 @@ describe('Full Options Integration Tests', () => {
       expect(instance.options?.webStorageConfig?.keyPrefix).toBe('complex:app:');
       expect(instance.options?.webStorageConfig?.compress).toBe(true);
       expect(instance.options?.memoryConfig?.maxItems).toBe(2000);
-      expect(instance.options?.memoryConfig?.ttl).toBe(600000);
       expect(instance.options?.enableDebugLogging).toBe(true);
       expect(instance.options?.autoSync).toBe(false);
       expect(instance.options?.ttl).toBe(1800000);

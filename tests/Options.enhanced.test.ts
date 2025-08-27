@@ -197,33 +197,33 @@ describe('Enhanced Options System Tests', () => {
       ];
 
       invalidConfigs.forEach(config => {
-        const options = createOptions<TestItem, 'test'>(config);
-        expect(() => validateOptions(options)).toThrow();
+        expect(() => {
+          const options = createOptions<TestItem, 'test'>(config);
+          validateOptions(options);
+        }).toThrow();
       });
     });
 
     it('should validate size configurations for all cache types', () => {
       // Web storage with invalid size
-      const webOptions = createOptions<TestItem, 'test'>({
+      expect(() => createOptions<TestItem, 'test'>({
         cacheType: 'localStorage',
         webStorageConfig: {
           size: {
-            maxSizeBytes: '0KB'
+            maxSizeBytes: 'invalid-size'
           }
         }
-      });
-      expect(() => validateOptions(webOptions)).toThrow();
+      })).toThrow();
 
       // IndexedDB with invalid size
-      const indexedDBOptions = createOptions<TestItem, 'test'>({
+      expect(() => createOptions<TestItem, 'test'>({
         cacheType: 'indexedDB',
         indexedDBConfig: {
           size: {
             maxItems: -1
           }
         }
-      });
-      expect(() => validateOptions(indexedDBOptions)).toThrow();
+      })).toThrow();
     });
 
     it('should handle edge case validation scenarios', () => {
