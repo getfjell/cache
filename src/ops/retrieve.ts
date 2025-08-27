@@ -34,6 +34,27 @@ export const retrieve = async <
     throw new Error('Key for Retrieve is not a valid ItemKey');
   }
 
+  // Check if cache bypass is enabled
+  if (context.options?.bypassCache) {
+    logger.debug('Cache bypass enabled, fetching directly from API', { key });
+    statsManager.incrementMisses();
+    
+    try {
+      const { api } = context;
+      const retrieved = await api.get(key);
+      if (retrieved) {
+        logger.debug('API response received (not cached due to bypass)', { key });
+        return [null, validatePK(retrieved, pkType) as V];
+      } else {
+        logger.debug('API returned null', { key });
+        return [null, null];
+      }
+    } catch (error) {
+      logger.error('API request failed', { key, error });
+      throw error;
+    }
+  }
+
   const containsItemKey = await cacheMap.includesKey(key);
 
   let retrieved: V | null;
