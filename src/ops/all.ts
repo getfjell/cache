@@ -28,6 +28,20 @@ export const all = async <
   const { api, cacheMap, pkType, ttlManager } = context;
   logger.default('all', { query, locations });
 
+  // Check if cache bypass is enabled
+  if (context.options?.bypassCache) {
+    logger.debug('Cache bypass enabled, fetching directly from API', { query, locations });
+
+    try {
+      const ret = await api.all(query, locations);
+      logger.debug('API response received (not cached due to bypass)', { query, locations, itemCount: ret.length });
+      return [context, validatePK(ret, pkType) as V[]];
+    } catch (error) {
+      logger.error('API request failed', { query, locations, error });
+      throw error;
+    }
+  }
+
   // Generate query hash for caching
   const queryHash = createQueryHash(pkType, query, locations);
   logger.debug('Generated query hash for all', { queryHash });

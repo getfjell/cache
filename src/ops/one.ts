@@ -28,6 +28,25 @@ export const one = async <
   const { api, cacheMap, pkType, ttlManager } = context;
   logger.default('one', { query, locations });
 
+  // Check if cache bypass is enabled
+  if (context.options?.bypassCache) {
+    logger.debug('Cache bypass enabled, fetching directly from API', { query, locations });
+
+    try {
+      const retItem = await api.one(query, locations);
+      if (retItem) {
+        logger.debug('API response received (not cached due to bypass)', { query, locations });
+        return [context, validatePK(retItem, pkType) as V];
+      } else {
+        logger.debug('API returned null', { query, locations });
+        return [context, null];
+      }
+    } catch (error) {
+      logger.error('API request failed', { query, locations, error });
+      throw error;
+    }
+  }
+
   // Generate query hash for caching
   const queryHash = createQueryHash(pkType, query, locations);
   logger.debug('Generated query hash for one', { queryHash });

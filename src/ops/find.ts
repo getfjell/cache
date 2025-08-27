@@ -27,6 +27,20 @@ export const find = async <
   const { api, cacheMap, pkType, ttlManager, eventEmitter } = context;
   logger.default('find', { finder, params, locations });
 
+  // Check if cache bypass is enabled
+  if (context.options?.bypassCache) {
+    logger.debug('Cache bypass enabled, fetching directly from API', { finder, params, locations });
+
+    try {
+      const ret = await api.find(finder, params, locations);
+      logger.debug('API response received (not cached due to bypass)', { finder, params, locations, itemCount: ret.length });
+      return [context, validatePK(ret, pkType) as V[]];
+    } catch (error) {
+      logger.error('API request failed', { finder, params, locations, error });
+      throw error;
+    }
+  }
+
   // Generate query hash for caching
   const queryHash = createFinderHash(finder, params, locations);
   logger.debug('Generated query hash for find', { queryHash, finder, params, locations });

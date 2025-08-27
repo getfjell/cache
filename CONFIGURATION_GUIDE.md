@@ -90,6 +90,48 @@ const cache = factory(coordinate, { registry });
 - Optional compression
 - Key namespacing for conflict avoidance
 
+## 4. Cache Bypass Configuration
+
+**Best for**: Real-time data, debugging, development environments, when you need to always fetch fresh data
+
+```typescript
+const bypassOptions: Partial<Options<User, 'user'>> = {
+  cacheType: 'memory',
+  bypassCache: true,            // Completely bypass cache, always fetch from API
+  enableDebugLogging: true,     // Enable logging to see bypass behavior
+  autoSync: false,              // Not needed when bypassing cache
+  maxRetries: 3,                // Retry failed API calls
+  retryDelay: 1000              // Wait 1 second between retries
+};
+
+const factory = createInstanceFactory(api, bypassOptions);
+const cache = factory(coordinate, { registry });
+```
+
+**Key Features**:
+- **No caching**: Every request goes directly to the API
+- **Real-time data**: Always get the latest information
+- **Debugging friendly**: See exactly what the API returns
+- **Development ready**: Perfect for testing and development
+- **Performance trade-off**: Slower response times, higher API usage
+
+**Use Cases**:
+- Development and testing environments
+- Real-time dashboards requiring live data
+- Debugging cache-related issues
+- When you need to ensure data freshness
+- Performance testing without cache interference
+
+**Behavior with bypassCache: true**:
+- `get()` → Direct API call, no cache check
+- `one()` → Direct API call, no cache check  
+- `all()` → Direct API call, no cache check
+- `find()` → Direct API call, no cache check
+- `findOne()` → Direct API call, no cache check
+- `retrieve()` → Direct API call, no cache check
+
+**Note**: When `bypassCache: true`, the `ttl` setting is ignored since no caching occurs.
+
 ## Environment-Based Auto-Configuration
 
 Automatically select the optimal cache type based on the runtime environment:
