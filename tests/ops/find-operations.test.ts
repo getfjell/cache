@@ -299,6 +299,64 @@ describe('Find Operations', () => {
     });
   });
 
+  describe('find operation with bypassCache enabled', () => {
+    beforeEach(() => {
+      context.options = { ...context.options, bypassCache: true };
+    });
+
+    it('should fetch directly from API without checking cache', async () => {
+      const finder = 'by-value';
+      const params = { value: 100 };
+      const locations: [] = [];
+
+      mockApi.find.mockResolvedValue([testItems[0]]);
+
+      const [updatedContext, results] = await find(
+        finder,
+        params,
+        locations as any,
+        context
+      );
+
+      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
+      expect(results).toEqual([testItems[0]]);
+      expect(updatedContext.cacheMap).toBe(cacheMap);
+
+      // Should not cache the result
+      expect(await updatedContext.cacheMap.get(priKey1)).toBeNull();
+    });
+
+    it('should handle empty results from API without caching', async () => {
+      const finder = 'non-existent';
+      const params = { value: 999 };
+      const locations: [] = [];
+
+      mockApi.find.mockResolvedValue([]);
+
+      const [updatedContext, results] = await find(
+        finder,
+        params,
+        locations as any,
+        context
+      );
+
+      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
+      expect(results).toEqual([]);
+      expect(updatedContext.cacheMap).toBe(cacheMap);
+    });
+
+    it('should handle API errors properly', async () => {
+      const finder = 'by-value';
+      const params = { value: 100 };
+      const locations: [] = [];
+      const apiError = new Error('API Error');
+
+      mockApi.find.mockRejectedValue(apiError);
+
+      await expect(find(finder, params, locations as any, context)).rejects.toThrow('API Error');
+    });
+  });
+
   describe('findOne operation', () => {
     it('should fetch from API and cache result when no cached data exists', async () => {
       const finder = 'by-id';
@@ -507,6 +565,69 @@ describe('Find Operations', () => {
 
       expect(mockApi.findOne).not.toHaveBeenCalled();
       expect(result).toEqual(testItems[0]); // Should return first item only
+    });
+  });
+
+  describe('findOne operation with bypassCache enabled', () => {
+    beforeEach(() => {
+      context.options = { ...context.options, bypassCache: true };
+    });
+
+    it('should fetch directly from API without checking cache', async () => {
+      const finder = 'by-id';
+      const finderParams = { id: '1' };
+      const locations: [] = [];
+
+      mockApi.findOne.mockResolvedValue(testItems[0]);
+
+      const [updatedContext, result] = await findOne(
+        finder,
+        finderParams as any,
+        locations as any,
+        context
+      );
+
+      expect(mockApi.findOne).toHaveBeenCalledWith(finder, finderParams, locations);
+      expect(result).toEqual(testItems[0]);
+      expect(updatedContext.cacheMap).toBe(cacheMap);
+      
+      // Should not cache the result
+      expect(await updatedContext.cacheMap.get(priKey1)).toBeNull();
+    });
+
+    it('should handle complex parameters without caching', async () => {
+      const finder = 'complex-findOne';
+      const finderParams = {
+        stringParam: 'test',
+        numberParam: 42,
+        booleanParam: true,
+        dateParam: new Date('2023-01-01'),
+        arrayParam: ['x', 'y', 'z']
+      };
+      const locations: [] = [];
+
+      mockApi.findOne.mockResolvedValue(testItems[0]);
+
+      const [, result] = await findOne(
+        finder,
+        finderParams as any,
+        locations as any,
+        context
+      );
+
+      expect(mockApi.findOne).toHaveBeenCalledWith(finder, finderParams, locations);
+      expect(result).toEqual(testItems[0]);
+    });
+
+    it('should handle API errors properly', async () => {
+      const finder = 'by-id';
+      const finderParams = { id: '1' };
+      const locations: [] = [];
+      const apiError = new Error('API Error');
+
+      mockApi.findOne.mockRejectedValue(apiError);
+
+      await expect(findOne(finder, finderParams as any, locations as any, context)).rejects.toThrow('API Error');
     });
   });
 
