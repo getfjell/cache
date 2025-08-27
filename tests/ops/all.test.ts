@@ -210,6 +210,61 @@ describe('all operation', () => {
     });
   });
 
+  describe('when bypassCache is enabled', () => {
+    beforeEach(() => {
+      context.options = { ...context.options, bypassCache: true };
+    });
+
+    it('should fetch directly from API without checking cache', async () => {
+      const query = { limit: 10 };
+      const items = [testItem1, testItem2];
+
+      vi.mocked(mockApi.all).mockResolvedValue(items);
+
+      const [resultContext, result] = await all(query, testLocations, context);
+
+      expect(mockCacheMap.getQueryResult).not.toHaveBeenCalled();
+      expect(mockCacheMap.get).not.toHaveBeenCalled();
+      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations);
+      expect(mockCacheMap.set).not.toHaveBeenCalled();
+      expect(mockCacheMap.setQueryResult).not.toHaveBeenCalled();
+      expect(result).toEqual(items);
+      expect(resultContext).toBe(context);
+    });
+
+    it('should handle empty results from API', async () => {
+      const query = { limit: 10 };
+      const items: TestItem[] = [];
+
+      vi.mocked(mockApi.all).mockResolvedValue(items);
+
+      const [resultContext, result] = await all(query, testLocations, context);
+
+      expect(mockCacheMap.getQueryResult).not.toHaveBeenCalled();
+      expect(mockCacheMap.get).not.toHaveBeenCalled();
+      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations);
+      expect(mockCacheMap.set).not.toHaveBeenCalled();
+      expect(mockCacheMap.setQueryResult).not.toHaveBeenCalled();
+      expect(result).toEqual([]);
+      expect(resultContext).toBe(context);
+    });
+
+    it('should handle API errors properly', async () => {
+      const query = { limit: 10 };
+      const apiError = new Error('API Error');
+
+      vi.mocked(mockApi.all).mockRejectedValue(apiError);
+
+      await expect(all(query, testLocations, context)).rejects.toThrow('API Error');
+
+      expect(mockCacheMap.getQueryResult).not.toHaveBeenCalled();
+      expect(mockCacheMap.get).not.toHaveBeenCalled();
+      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations);
+      expect(mockCacheMap.set).not.toHaveBeenCalled();
+      expect(mockCacheMap.setQueryResult).not.toHaveBeenCalled();
+    });
+  });
+
   describe('error handling', () => {
     it('should handle NotFoundError by caching empty result', async () => {
       const query = { limit: 5 };

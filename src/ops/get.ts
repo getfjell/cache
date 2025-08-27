@@ -71,6 +71,27 @@ export const get = async <
     throw new Error('Key for Get is not a valid ItemKey');
   }
 
+  // Check if cache bypass is enabled
+  if (context.options?.bypassCache) {
+    logger.debug('Cache bypass enabled, fetching directly from API', { key });
+    statsManager.incrementMisses();
+
+    try {
+      const ret = await api.get(key);
+      if (ret) {
+        // Don't cache the result when bypass is enabled
+        logger.debug('API response received (not cached due to bypass)', { key });
+        return [context, validatePK(ret, pkType) as V];
+      } else {
+        logger.debug('API returned null', { key });
+        return [context, null];
+      }
+    } catch (error) {
+      logger.error('API request failed', { key, error });
+      throw error;
+    }
+  }
+
   // Check cache first if TTL is enabled
   if (ttlManager.isTTLEnabled()) {
     const keyStr = JSON.stringify(key);
