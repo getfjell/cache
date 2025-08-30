@@ -25,6 +25,7 @@ import { Options } from "./Options";
 import { TTLManager } from "./ttl/TTLManager";
 import { EvictionManager } from "./eviction/EvictionManager";
 import { CacheStatsManager } from "./CacheStats";
+import { Registry } from "@fjell/registry";
 
 export interface Operations<
   V extends Item<S, L1, L2, L3, L4, L5>,
@@ -93,6 +94,7 @@ export interface Operations<
 
   /**
    * Executes an action on an item via API and caches the result.
+   * Also handles cache invalidation for affected items returned by the action.
    */
   action(
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
@@ -102,6 +104,7 @@ export interface Operations<
 
   /**
    * Executes an action on all items matching criteria via API and caches results.
+   * Also handles cache invalidation for affected items returned by the action.
    */
   allAction(
     action: string,
@@ -176,11 +179,12 @@ export const createOperations = <
     eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>,
     ttlManager: TTLManager,
     evictionManager: EvictionManager,
-    statsManager: CacheStatsManager
+    statsManager: CacheStatsManager,
+    registry: Registry
   ): Operations<V, S, L1, L2, L3, L4, L5> => {
 
   // Create the cache context once and reuse it across all operations
-  const context = createCacheContext(api, cacheMap, pkType, options, eventEmitter, ttlManager, evictionManager, statsManager);
+  const context = createCacheContext(api, cacheMap, pkType, options, eventEmitter, ttlManager, evictionManager, statsManager, registry);
 
   return {
     all: (query, locations) => all(query, locations, context).then(([ctx, result]) => result),
