@@ -72,7 +72,7 @@ export const createInstanceFactory = <
     const evictionManager = new EvictionManager();
     const statsManager = new CacheStatsManager();
     const operations = createOperations(
-      api, coordinate, cacheMap, pkType, instanceOptions, eventEmitter, ttlManager, evictionManager, statsManager);
+      api, coordinate, cacheMap, pkType, instanceOptions, eventEmitter, ttlManager, evictionManager, statsManager, context.registry);
 
     return {
       coordinate,

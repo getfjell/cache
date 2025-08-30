@@ -47,6 +47,7 @@ describe('action operation', () => {
   let mockEventEmitter: any;
   let mockTtlManager: any;
   let mockEvictionManager: any;
+  let mockRegistry: any;
   let context: CacheContext<TestItem, 'test', 'container'>;
 
   afterEach(() => {
@@ -57,9 +58,9 @@ describe('action operation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Mock API
+    // Mock API - now returns tuple [updatedItem, affectedItems]
     mockApi = {
-      action: vi.fn().mockResolvedValue(updatedItem)
+      action: vi.fn().mockResolvedValue([updatedItem, []])
     } as any;
 
     // Mock CacheMap
@@ -120,6 +121,12 @@ describe('action operation', () => {
       getMaxSize: vi.fn().mockReturnValue(undefined)
     } as any;
 
+    // Mock Registry
+    mockRegistry = {
+      get: vi.fn(),
+      type: 'cache'
+    } as any;
+
     // Create context
     context = {
       api: mockApi,
@@ -128,6 +135,7 @@ describe('action operation', () => {
       eventEmitter: mockEventEmitter,
       ttlManager: mockTtlManager,
       evictionManager: mockEvictionManager,
+      registry: mockRegistry,
       options: {}
     } as CacheContext<TestItem, 'test', 'container'>;
   });
@@ -167,7 +175,7 @@ describe('action operation', () => {
     it('should execute action with composite key', async () => {
       // Setup
       const comUpdatedItem = { ...updatedItem, key: comKey1 };
-      (mockApi.action as any).mockResolvedValue(comUpdatedItem);
+      (mockApi.action as any).mockResolvedValue([comUpdatedItem, []]);
 
       // Execute
       const [resultContext, resultItem] = await action(comKey1, actionName, actionBody, context);
@@ -231,7 +239,7 @@ describe('action operation', () => {
     it('should use the updated item key for caching', async () => {
       // Setup - return item with different key than input
       const differentKeyItem = { ...updatedItem, key: comKey1 };
-      (mockApi.action as any).mockResolvedValue(differentKeyItem);
+      (mockApi.action as any).mockResolvedValue([differentKeyItem, []]);
 
       // Execute
       await action(priKey1, actionName, actionBody, context);
@@ -259,7 +267,7 @@ describe('action operation', () => {
     it('should use JSON stringified key for TTL registration', async () => {
       // Setup with composite key
       const comUpdatedItem = { ...updatedItem, key: comKey1 };
-      (mockApi.action as any).mockResolvedValue(comUpdatedItem);
+      (mockApi.action as any).mockResolvedValue([comUpdatedItem, []]);
 
       // Execute
       await action(comKey1, actionName, actionBody, context);
@@ -435,7 +443,7 @@ describe('action operation', () => {
         additionalField: 'test',
         key: comKey1
       };
-      (mockApi.action as any).mockResolvedValue(differentItem);
+      (mockApi.action as any).mockResolvedValue([differentItem, []]);
 
       // Execute
       const [resultContext, resultItem] = await action(comKey1, actionName, actionBody, context);
