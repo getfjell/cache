@@ -62,6 +62,7 @@ describe('allAction operation', () => {
   let mockCacheMap: CacheMap<TestItem, 'test', 'container', 'section'>;
   let mockTtlManager: any;
   let mockEvictionManager: any;
+  let mockRegistry: any;
   let context: CacheContext<TestItem, 'test', 'container', 'section'>;
 
   beforeEach(() => {
@@ -95,6 +96,12 @@ describe('allAction operation', () => {
       onItemAdded: vi.fn().mockReturnValue([]) // Returns empty array by default (no evictions)
     };
 
+    // Mock Registry
+    mockRegistry = {
+      get: vi.fn(),
+      type: 'cache'
+    } as any;
+
     // Mock event emitter
     const mockEventEmitter = {
       emit: vi.fn()
@@ -113,14 +120,16 @@ describe('allAction operation', () => {
       ttlManager: mockTtlManager,
       evictionManager: mockEvictionManager,
       eventEmitter: mockEventEmitter,
-      statsManager: mockStatsManager
+      statsManager: mockStatsManager,
+      registry: mockRegistry
     } as unknown as CacheContext<TestItem, 'test', 'container', 'section'>;
   });
 
   describe('basic functionality', () => {
     it('should execute allAction and cache results', async () => {
       const mockResults = [testItem1, testItem2, testItem3];
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      // Mock API to return tuple [results, affectedItems]
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
 
       const [returnedContext, results] = await allAction(
         testAction,
@@ -160,7 +169,7 @@ describe('allAction operation', () => {
 
     it('should work with empty locations array', async () => {
       const mockResults = [testItem1];
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
 
       const [returnedContext, results] = await allAction(
         testAction,
@@ -177,7 +186,7 @@ describe('allAction operation', () => {
 
     it('should work with default parameters', async () => {
       const mockResults = [testItem1];
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
 
       const [returnedContext, results] = await allAction(
         testAction,
@@ -193,7 +202,7 @@ describe('allAction operation', () => {
     });
 
     it('should handle empty results array', async () => {
-      vi.mocked(mockApi.allAction).mockResolvedValue([]);
+      vi.mocked(mockApi.allAction).mockResolvedValue([[], []]);
 
       const [returnedContext, results] = await allAction(
         testAction,
@@ -221,7 +230,7 @@ describe('allAction operation', () => {
       const evictedKey1 = JSON.stringify(priKey2);
       const evictedKey2 = JSON.stringify(comKey1);
 
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
 
       // Mock eviction manager to return evicted keys
       mockEvictionManager.onItemAdded
@@ -254,7 +263,7 @@ describe('allAction operation', () => {
         JSON.stringify(comKey1)
       ];
 
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
       mockEvictionManager.onItemAdded.mockReturnValue(evictedKeys);
 
       await allAction(testAction, testBody, testLocations, context);
@@ -267,7 +276,7 @@ describe('allAction operation', () => {
 
     it('should handle no evictions', async () => {
       const mockResults = [testItem1];
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
       mockEvictionManager.onItemAdded.mockReturnValue([]); // No evictions
 
       await allAction(testAction, testBody, testLocations, context);
@@ -329,7 +338,7 @@ describe('allAction operation', () => {
       const mockResults = [testItem1];
       const malformedEvictedKey = 'invalid-json-key';
 
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
       mockEvictionManager.onItemAdded.mockReturnValue([malformedEvictedKey]);
 
       // Should not throw even with malformed JSON
@@ -347,7 +356,7 @@ describe('allAction operation', () => {
   describe('call sequencing', () => {
     it('should invalidate cache and make API call', async () => {
       const mockResults = [testItem1];
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
 
       await allAction(testAction, testBody, testLocations, context);
 
@@ -360,7 +369,7 @@ describe('allAction operation', () => {
       const mockResults = [testItem1];
       const evictedKey = JSON.stringify(priKey2);
 
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
       mockEvictionManager.onItemAdded.mockReturnValue([evictedKey]);
 
       await allAction(testAction, testBody, testLocations, context);
@@ -372,7 +381,7 @@ describe('allAction operation', () => {
 
     it('should call TTL and eviction managers for cached items', async () => {
       const mockResults = [testItem1];
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
 
       await allAction(testAction, testBody, testLocations, context);
 
@@ -392,7 +401,7 @@ describe('allAction operation', () => {
         value: i * 10
       } as TestItem));
 
-      vi.mocked(mockApi.allAction).mockResolvedValue(largeResultSet);
+      vi.mocked(mockApi.allAction).mockResolvedValue([largeResultSet, []]);
 
       const [returnedContext, results] = await allAction(
         testAction,
@@ -412,7 +421,7 @@ describe('allAction operation', () => {
 
     it('should handle mixed primary and composite keys', async () => {
       const mixedResults = [testItem1, testItem3]; // pri key and com key
-      vi.mocked(mockApi.allAction).mockResolvedValue(mixedResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mixedResults, []]);
 
       const [returnedContext, results] = await allAction(
         testAction,
@@ -434,7 +443,7 @@ describe('allAction operation', () => {
 
     it('should maintain operation atomicity on partial failures', async () => {
       const mockResults = [testItem1, testItem2];
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
 
       // Make the second TTL manager call throw
       mockTtlManager.onItemAdded
@@ -460,7 +469,7 @@ describe('allAction operation', () => {
       vi.mocked(mockCacheMap.allIn).mockResolvedValue([testItem1, testItem2]);
 
       const mockResults = [testItem1, testItem2]; // Same items, so they're modified
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
 
       await allAction(testAction, testBody, testLocations, context);
 
@@ -482,7 +491,7 @@ describe('allAction operation', () => {
       vi.mocked(mockCacheMap.allIn).mockResolvedValue([]);
 
       const mockResults = [testItem1, testItem2]; // New items
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
 
       await allAction(testAction, testBody, testLocations, context);
 
@@ -504,7 +513,7 @@ describe('allAction operation', () => {
       vi.mocked(mockCacheMap.allIn).mockResolvedValue([testItem1]); // Only item1 exists
 
       const mockResults = [testItem1, testItem2]; // item1 is modified, item2 is new
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
 
       await allAction(testAction, testBody, testLocations, context);
 
@@ -523,7 +532,7 @@ describe('allAction operation', () => {
       vi.mocked(mockCacheMap.allIn).mockRejectedValue(new Error('Cache error'));
 
       const mockResults = [testItem1];
-      vi.mocked(mockApi.allAction).mockResolvedValue(mockResults);
+      vi.mocked(mockApi.allAction).mockResolvedValue([mockResults, []]);
 
       // Should not throw an error
       await expect(allAction(testAction, testBody, testLocations, context)).resolves.toBeDefined();
