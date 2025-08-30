@@ -22,6 +22,7 @@ Fjell Cache provides intelligent caching capabilities for complex data models an
 - **Advanced Eviction Policies**: LRU, LFU, FIFO, MRU, Random, ARC, and 2Q strategies for optimal performance
 - **Performance Monitoring**: Built-in cache statistics and utilization tracking
 - **Cache Introspection**: Runtime visibility into cache implementation type, eviction policies, and capabilities
+- **Automatic Cache Invalidation**: Smart cache invalidation for actions that automatically clears related caches based on affected items
 
 ## Installation
 
@@ -64,6 +65,15 @@ const cacheInfo = userCache.getCacheInfo();
 console.log(`Using ${cacheInfo.implementationType} cache`);
 console.log(`TTL support: ${cacheInfo.supportsTTL}`);
 console.log(`Eviction support: ${cacheInfo.supportsEviction}`);
+
+// Automatic cache invalidation for actions
+const [updatedUser, affectedItems] = await userCache.operations.action(
+  userKey, 
+  'updateProfile', 
+  { name: 'John Doe' }
+);
+// The system automatically invalidates related caches based on affectedItems
+// No manual cache management required!
 ```
 
 ## Configuration Options

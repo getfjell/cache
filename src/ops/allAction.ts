@@ -1,11 +1,14 @@
 import {
+  ComKey,
   Item,
   LocKeyArray,
+  PriKey,
   validatePK
 } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
+import { handleActionCacheInvalidation } from "../utils/cacheInvalidation";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('allAction');
@@ -24,7 +27,7 @@ export const allAction = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[]]> => {
-  const { api, cacheMap, pkType, eventEmitter } = context;
+  const { api, cacheMap, pkType, eventEmitter, registry } = context;
   logger.default('allAction', { action, body, locations });
 
   // Get existing items in the specified locations before executing the action
@@ -47,8 +50,36 @@ export const allAction = async <
   await cacheMap.invalidateLocation(locations);
 
   let ret: V[] = [];
+  let affectedItems: Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>> = [];
   try {
-    ret = await api.allAction(action, body, locations);
+    const result = await api.allAction(action, body, locations);
+
+    // Handle the new return type: [V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]
+    if (Array.isArray(result) && result.length === 2) {
+      ret = (result as unknown as [V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>])[0];
+      affectedItems = (result as unknown as [V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>])[1];
+    } else {
+      // Fallback for backward compatibility
+      ret = result as V[];
+      affectedItems = [];
+    }
+
+    // Handle cache invalidation based on affected items
+    if (affectedItems && affectedItems.length > 0) {
+      logger.debug('Handling cache invalidation for affected items', {
+        affectedItemsCount: affectedItems.length
+      });
+
+      try {
+        await handleActionCacheInvalidation(registry, affectedItems);
+      } catch (error) {
+        logger.warning('Failed to handle cache invalidation for affected items', {
+          error: error instanceof Error ? error.message : String(error),
+          affectedItems
+        });
+        // Continue with the operation even if cache invalidation fails
+      }
+    }
 
     // Cache all results after the action
     logger.debug('Caching allAction results', { resultCount: ret.length });
