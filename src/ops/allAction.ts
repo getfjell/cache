@@ -54,13 +54,18 @@ export const allAction = async <
   try {
     const result = await api.allAction(action, body, locations);
 
-    // Handle the new return type: [V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]
+    // Handle the return type: [V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]
     if (Array.isArray(result) && result.length === 2) {
-      ret = (result as unknown as [V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>])[0];
-      affectedItems = (result as unknown as [V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>])[1];
+      ret = result[0];
+      affectedItems = result[1];
     } else {
-      // Fallback for backward compatibility
-      ret = result as V[];
+      // This should never happen with the current API contract, but handle gracefully
+      logger.warning('Unexpected result format from allAction', {
+        resultType: typeof result,
+        isArray: Array.isArray(result),
+        resultLength: Array.isArray(result) ? result.length : 'not array'
+      });
+      ret = [];
       affectedItems = [];
     }
 
