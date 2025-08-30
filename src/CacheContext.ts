@@ -1,5 +1,6 @@
 import { Item } from "@fjell/core";
 import { ClientApi } from "@fjell/client-api";
+import { Registry } from "@fjell/registry";
 import { CacheMap } from "./CacheMap";
 import { Options } from "./Options";
 import { CacheEventEmitter } from "./events/CacheEventEmitter";
@@ -44,6 +45,9 @@ export interface CacheContext<
 
   /** Statistics manager for tracking cache metrics */
   statsManager: CacheStatsManager;
+
+  /** Registry for locating other cache instances for invalidation */
+  registry: Registry;
 }
 
 /**
@@ -65,7 +69,8 @@ export const createCacheContext = <
     eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>,
     ttlManager: TTLManager,
     evictionManager: EvictionManager,
-    statsManager: CacheStatsManager
+    statsManager: CacheStatsManager,
+    registry: Registry
   ): CacheContext<V, S, L1, L2, L3, L4, L5> => {
   return {
     api,
@@ -75,6 +80,7 @@ export const createCacheContext = <
     eventEmitter,
     ttlManager,
     evictionManager,
-    statsManager
+    statsManager,
+    registry
   };
 };
