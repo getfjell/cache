@@ -47,11 +47,11 @@ describe('PItemCache', () => {
     apiMock = {
       all: vi.fn().mockReturnValue(items),
       one: vi.fn().mockReturnValue(items[0]),
-      action: vi.fn().mockReturnValue(items[0]),
+      action: vi.fn().mockReturnValue([items[0], []]),
       create: vi.fn().mockReturnValue([key1, items[0]]),
       remove: vi.fn().mockReturnValue(items[0]),
       update: vi.fn().mockReturnValue(items[0]),
-      allAction: vi.fn().mockReturnValue([]),
+      allAction: vi.fn().mockReturnValue([[], []]),
       allFacet: vi.fn().mockReturnValue({ facetData: "test" }),
       get: vi.fn().mockReturnValue(items[0]),
       find: vi.fn().mockReturnValue(items),

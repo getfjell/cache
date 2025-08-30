@@ -175,7 +175,7 @@ export const createCache = <
   // and is passed through CacheContext to operations for external eviction management
 
   // Create operations with event emitter, eviction manager, and stats manager
-  const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions, eventEmitter, ttlManager, evictionManager, statsManager);
+  const operations = createOperations(api, coordinate, cacheMap, pkType, completeOptions, eventEmitter, ttlManager, evictionManager, statsManager, registry);
 
   const cache = {
     coordinate,

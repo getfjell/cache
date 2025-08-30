@@ -2,11 +2,13 @@ import {
   ComKey,
   isValidItemKey,
   Item,
+  LocKeyArray,
   PriKey,
   validatePK
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
+import { handleActionCacheInvalidation } from "../utils/cacheInvalidation";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('action');
@@ -25,7 +27,7 @@ export const action = async <
   body: any = {},
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
-  const { api, cacheMap, pkType } = context;
+  const { api, cacheMap, pkType, registry } = context;
   logger.default('action', { key, action, body });
 
   if (!isValidItemKey(key)) {
@@ -37,7 +39,26 @@ export const action = async <
   logger.debug('Invalidating item key before action', { key });
   cacheMap.invalidateItemKeys([key]);
 
-  const updated = await api.action(key, action, body);
+  const result = await api.action(key, action, body);
+  const updated = result[0];
+  const affectedItems = result[1];
+
+  // Handle cache invalidation based on affected items
+  if (affectedItems && affectedItems.length > 0) {
+    logger.debug('Handling cache invalidation for affected items', {
+      affectedItemsCount: affectedItems.length
+    });
+
+    try {
+      await handleActionCacheInvalidation(registry, affectedItems);
+    } catch (error) {
+      logger.warning('Failed to handle cache invalidation for affected items', {
+        error: error instanceof Error ? error.message : String(error),
+        affectedItems
+      });
+      // Continue with the operation even if cache invalidation fails
+    }
+  }
 
   // Cache the result after the action
   logger.debug('Caching action result', { updatedKey: updated.key });
@@ -68,7 +89,7 @@ export const action = async <
     key: updated.key,
     action
   });
-  const itemEvent = CacheEventFactory.itemUpdated(updated.key, updated as V, null, 'api');
+  const itemEvent = CacheEventFactory.itemUpdated<V, S, L1, L2, L3, L4, L5>(updated.key, updated as V, null, 'api');
   context.eventEmitter.emit(itemEvent);
 
   // Emit query invalidated event so components can react

@@ -114,7 +114,7 @@ describe("Combined Item Cache Tests", () => {
 
   it("should call the action method with correct parameters", async () => {
     // @ts-ignore
-    mockApi.action.mockResolvedValue(items[0]);
+    mockApi.action.mockResolvedValue([items[0], []]);
     const action = "testAction";
     const body = { data: "testData" };
     await itemCache.operations.action(key1, action, body);
@@ -123,7 +123,7 @@ describe("Combined Item Cache Tests", () => {
 
   it("should call the action method with correct parameters and no body", async () => {
     // @ts-ignore
-    mockApi.action.mockResolvedValue(items[0]);
+    mockApi.action.mockResolvedValue([items[0], []]);
     const action = "testAction";
     await itemCache.operations.action(key1, action);
     expect(mockApi.action).toHaveBeenCalledWith(key1, action, {});
@@ -131,7 +131,7 @@ describe("Combined Item Cache Tests", () => {
 
   it("should call the allAction method with correct parameters", async () => {
     // @ts-ignore
-    mockApi.allAction.mockResolvedValue(items);
+    mockApi.allAction.mockResolvedValue([items, []]);
     const action = "testAction";
     const body = { data: "testData" };
     const locations: LocKeyArray<"container"> = loc1;
