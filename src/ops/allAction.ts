@@ -26,7 +26,7 @@ export const allAction = async <
   body: any = {},
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
-): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[]]> => {
+): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]> => {
   const { api, cacheMap, pkType, eventEmitter, registry } = context;
   logger.default('allAction', { action, body, locations });
 
@@ -187,5 +187,5 @@ export const allAction = async <
       throw e;
     }
   }
-  return [context, validatePK(ret, pkType) as V[]];
+  return [context, validatePK(ret, pkType) as V[], affectedItems];
 };

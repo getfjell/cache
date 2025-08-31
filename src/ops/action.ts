@@ -26,7 +26,7 @@ export const action = async <
   action: string,
   body: any = {},
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
-): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
+): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V, Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]> => {
   const { api, cacheMap, pkType, registry } = context;
   logger.default('action', { key, action, body });
 
@@ -105,5 +105,5 @@ export const action = async <
   );
   context.eventEmitter.emit(queryInvalidatedEvent);
 
-  return [context, validatePK(updated, pkType) as V];
+  return [context, validatePK(updated, pkType) as V, affectedItems];
 };

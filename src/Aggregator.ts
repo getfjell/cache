@@ -38,13 +38,13 @@ export interface Aggregator<
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     action: string,
     body?: any
-  ) => Promise<V>;
+  ) => Promise<[V, Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]>;
 
   allAction: (
     action: string,
     body?: any,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ) => Promise<V[]>;
+  ) => Promise<[V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]>;
 
   allFacet: (
     facet: string,
@@ -269,22 +269,22 @@ export const createAggregator = async <
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     action: string,
     body: any = {},
-  ): Promise<V> => {
+  ): Promise<[V, Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]> => {
     logger.default('action', { key, action, body });
-    const item = await cache.operations.action(key, action, body);
+    const [item, affectedItems] = await cache.operations.action(key, action, body);
     const populatedItem = await populate(item);
-    return populatedItem;
+    return [populatedItem, affectedItems];
   }
 
   const allAction = async (
     action: string,
     body: any = {},
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): Promise<V[]> => {
+  ): Promise<[V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]> => {
     logger.default('action', { action, body, locations });
-    const items = await cache.operations.allAction(action, body, locations);
+    const [items, affectedItems] = await cache.operations.allAction(action, body, locations);
     const populatedItems = await Promise.all(items.map(async (item: V) => populate(item)));
-    return populatedItems;
+    return [populatedItems, affectedItems];
   }
 
   const allFacet = async (
