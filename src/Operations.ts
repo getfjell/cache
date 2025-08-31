@@ -100,7 +100,7 @@ export interface Operations<
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
     action: string,
     body?: any
-  ): Promise<V>;
+  ): Promise<[V, Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]>;
 
   /**
    * Executes an action on all items matching criteria via API and caches results.
@@ -110,7 +110,7 @@ export interface Operations<
     action: string,
     body?: any,
     locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<V[]>;
+  ): Promise<[V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]>;
 
   /**
    * Executes a facet query on an item via API (pass-through, no caching).
@@ -171,17 +171,17 @@ export const createOperations = <
   L4 extends string = never,
   L5 extends string = never
 >(
-    api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-    coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
-    cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
-    pkType: S,
-    options: Options<V, S, L1, L2, L3, L4, L5>,
-    eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>,
-    ttlManager: TTLManager,
-    evictionManager: EvictionManager,
-    statsManager: CacheStatsManager,
-    registry: Registry
-  ): Operations<V, S, L1, L2, L3, L4, L5> => {
+  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
+  coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
+  cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
+  pkType: S,
+  options: Options<V, S, L1, L2, L3, L4, L5>,
+  eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>,
+  ttlManager: TTLManager,
+  evictionManager: EvictionManager,
+  statsManager: CacheStatsManager,
+  registry: Registry
+): Operations<V, S, L1, L2, L3, L4, L5> => {
 
   // Create the cache context once and reuse it across all operations
   const context = createCacheContext(api, cacheMap, pkType, options, eventEmitter, ttlManager, evictionManager, statsManager, registry);
@@ -194,8 +194,8 @@ export const createOperations = <
     retrieve: (key) => retrieve(key, context).then(([ctx, result]) => result),
     remove: (key) => remove(key, context).then((ctx) => undefined),
     update: (key, item) => update(key, item, context).then(([ctx, result]) => result),
-    action: (key, actionName, body) => action(key, actionName, body, context).then(([ctx, result]) => result),
-    allAction: (actionName, body, locations) => allAction(actionName, body, locations, context).then(([ctx, result]) => result),
+    action: (key, actionName, body) => action(key, actionName, body, context).then(([ctx, result, affectedItems]) => [result, affectedItems]),
+    allAction: (actionName, body, locations) => allAction(actionName, body, locations, context).then(([ctx, result, affectedItems]) => [result, affectedItems]),
     facet: (key, facetName, params) => facet(key, facetName, params, context).then(result => result),
     allFacet: (facetName, params, locations) => allFacet(facetName, params, locations, context).then(result => result),
     find: (finder, params, locations) => find(finder, params, locations, context).then(([ctx, result]) => result),
