@@ -171,17 +171,17 @@ export const createOperations = <
   L4 extends string = never,
   L5 extends string = never
 >(
-  api: ClientApi<V, S, L1, L2, L3, L4, L5>,
-  coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
-  cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
-  pkType: S,
-  options: Options<V, S, L1, L2, L3, L4, L5>,
-  eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>,
-  ttlManager: TTLManager,
-  evictionManager: EvictionManager,
-  statsManager: CacheStatsManager,
-  registry: Registry
-): Operations<V, S, L1, L2, L3, L4, L5> => {
+    api: ClientApi<V, S, L1, L2, L3, L4, L5>,
+    coordinate: Coordinate<S, L1, L2, L3, L4, L5>,
+    cacheMap: CacheMap<V, S, L1, L2, L3, L4, L5>,
+    pkType: S,
+    options: Options<V, S, L1, L2, L3, L4, L5>,
+    eventEmitter: CacheEventEmitter<V, S, L1, L2, L3, L4, L5>,
+    ttlManager: TTLManager,
+    evictionManager: EvictionManager,
+    statsManager: CacheStatsManager,
+    registry: Registry
+  ): Operations<V, S, L1, L2, L3, L4, L5> => {
 
   // Create the cache context once and reuse it across all operations
   const context = createCacheContext(api, cacheMap, pkType, options, eventEmitter, ttlManager, evictionManager, statsManager, registry);
