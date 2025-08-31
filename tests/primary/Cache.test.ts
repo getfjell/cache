@@ -90,7 +90,7 @@ describe('PItemCache', () => {
     const result = await cache.operations.allAction(action);
 
     expect(apiMock.allAction).toHaveBeenCalledWith(action, {}, []);
-    expect(result).toEqual([]);
+    expect(result).toEqual([[], []]);
   });
 
   it('should call allFacet method', async () => {
