@@ -441,19 +441,19 @@ describe('Aggregator', () => {
     });
 
     it('actions', async () => {
-      (itemCacheMock.operations.action as any).mockResolvedValue(items[0]);
+      (itemCacheMock.operations.action as any).mockResolvedValue([items[0], []]);
       (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const item = await aggregator.action(items[0].key, 'doSomething');
+      const [item] = await aggregator.action(items[0].key, 'doSomething');
 
       expect(item?.aggs?.other.item).toEqual(otherItems[0]);
     });
 
     it('allActions', async () => {
-      (itemCacheMock.operations.allAction as any).mockResolvedValue(items);
+      (itemCacheMock.operations.allAction as any).mockResolvedValue([items, []]);
       (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const aggregatedItems = await aggregator.allAction('doSomethingToAll');
+      const [aggregatedItems] = await aggregator.allAction('doSomethingToAll');
 
       expect(aggregatedItems[0].aggs?.other.item).toEqual(otherItems[0]);
     });
