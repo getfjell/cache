@@ -1,7 +1,7 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.7.17",
+  "version": "4.7.18",
   "keywords": [
     "cache",
     "fjell"
@@ -36,7 +36,7 @@
     "docs:test": "cd docs && npm run test"
   },
   "dependencies": {
-    "@fjell/client-api": "^4.4.29",
+    "@fjell/client-api": "^4.4.31",
     "@fjell/core": "^4.4.40",
     "@fjell/http-api": "^4.4.37",
     "@fjell/logging": "^4.4.45",
