@@ -18,14 +18,15 @@ export const reset = async <
   options: Options<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheMap<V, S, L1, L2, L3, L4, L5>]> => {
   try {
-    // Validate options before creating cache map
+    // Validate options first
     validateOptions(options);
 
-    // Create a new cache map using the same configuration as the original
-    const cacheMap = createCacheMap<V, S, L1, L2, L3, L4, L5>(coordinate.kta, options);
-    return [cacheMap];
+    // Create a new cache map with the provided configuration
+    const newCacheMap = createCacheMap<V, S, L1, L2, L3, L4, L5>(coordinate.kta, options);
+
+    return [newCacheMap];
   } catch (error) {
-    // Re-throw any validation or creation errors
+    // Re-throw any errors during reset
     throw error;
   }
 };

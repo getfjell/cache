@@ -337,6 +337,19 @@ export class TTLManager {
   }
 
   /**
+   * Clear all TTL metadata and reset the manager
+   */
+  public clear(): void {
+    // Stop auto cleanup
+    this.stopAutoCleanup();
+    
+    // Clear any internal state if needed
+    // Note: TTL metadata is stored in the cache map, so clearing the cache map will clear TTL data
+    
+    logger.debug('TTL manager cleared');
+  }
+
+  /**
    * Cleanup resources
    */
   public destroy(): void {
