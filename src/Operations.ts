@@ -201,6 +201,6 @@ export const createOperations = <
     find: (finder, params, locations) => find(finder, params, locations, context).then(([ctx, result]) => result),
     findOne: (finder, params, locations) => findOne(finder, params, locations, context).then(([ctx, result]) => result),
     set: (key, item) => set(key, item, context).then(([ctx, result]) => result),
-    reset: () => reset(coordinate, options).then(() => undefined)
+    reset: () => reset(coordinate, context.options).then(() => undefined)
   };
 };
