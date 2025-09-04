@@ -163,6 +163,19 @@ export class EvictionManager {
   }
 
   /**
+   * Clear all eviction metadata and reset the manager
+   */
+  public clear(): void {
+    if (this.evictionStrategy) {
+      // Call reset on the strategy if it has one
+      if (typeof (this.evictionStrategy as any).reset === 'function') {
+        (this.evictionStrategy as any).reset();
+      }
+    }
+    logger.debug('Eviction manager cleared');
+  }
+
+  /**
    * Create eviction context from current cache state
    * @param metadataProvider - Cache metadata provider
    * @param newItemSize - Size of item being added (optional)
