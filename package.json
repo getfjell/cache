@@ -1,7 +1,7 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.7.19",
+  "version": "4.7.20",
   "keywords": [
     "cache",
     "fjell"
@@ -29,6 +29,7 @@
     "lint": "eslint . --ext .ts --fix",
     "clean": "rm -rf dist",
     "test": "vitest run --coverage",
+    "precommit": "npm run clean && npm run lint && npm run build && npm run test",
     "prepublishOnly": "npm run clean && npm run build",
     "docs:dev": "cd docs && npm run dev",
     "docs:build": "cd docs && npm run build",
@@ -36,11 +37,11 @@
     "docs:test": "cd docs && npm run test"
   },
   "dependencies": {
-    "@fjell/client-api": "^4.4.32",
-    "@fjell/core": "^4.4.41",
-    "@fjell/http-api": "^4.4.38",
-    "@fjell/logging": "^4.4.46",
-    "@fjell/registry": "^4.4.36",
+    "@fjell/client-api": "^4.4.33",
+    "@fjell/core": "^4.4.42",
+    "@fjell/http-api": "^4.4.39",
+    "@fjell/logging": "^4.4.47",
+    "@fjell/registry": "^4.4.39",
     "fast-safe-stringify": "^2.1.1",
     "flatted": "^3.3.3",
     "yocto-queue": "^1.2.1"
@@ -48,7 +49,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.33.0",
-    "@fjell/eslint-config": "^1.1.24",
+    "@fjell/eslint-config": "^1.1.25",
     "@swc/core": "^1.13.3",
     "@tsconfig/recommended": "^1.0.10",
     "@types/multer": "^2.0.0",
