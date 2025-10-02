@@ -29,6 +29,7 @@
     "lint": "eslint . --ext .ts --fix",
     "clean": "rm -rf dist",
     "test": "vitest run --coverage",
+    "precommit": "npm run clean && npm run lint && npm run build && npm run test",
     "prepublishOnly": "npm run clean && npm run build",
     "docs:dev": "cd docs && npm run dev",
     "docs:build": "cd docs && npm run build",
