@@ -36,7 +36,7 @@ describe('CacheMap', () => {
         deleted: { at: null },
       },
       refs: {
-        banana: { kt: "banana", pk: "0" as UUID },
+        banana: { key: { kt: "banana", pk: "0" as UUID } },
       }
     },
     {
@@ -47,7 +47,7 @@ describe('CacheMap', () => {
         deleted: { at: null },
       },
       refs: {
-        banana: { kt: "banana", pk: "1" as UUID },
+        banana: { key: { kt: "banana", pk: "1" as UUID } },
       }
     },
     {
@@ -58,7 +58,7 @@ describe('CacheMap', () => {
         deleted: { at: null },
       },
       refs: {
-        banana: { kt: "banana", pk: "2" as UUID },
+        banana: { key: { kt: "banana", pk: "2" as UUID } },
       }
     }
   ];
@@ -71,7 +71,7 @@ describe('CacheMap', () => {
       deleted: { at: null },
     },
     refs: {
-      banana: { kt: "banana", pk: "3" as UUID },
+      banana: { key: { kt: "banana", pk: "3" as UUID } },
     }
   };
 
@@ -341,7 +341,7 @@ describe('CacheMap', () => {
           deleted: { at: null },
         },
         refs: {
-          banana: { kt: "banana", pk: "0" as UUID }, // Same banana reference as items[0]
+          banana: { key: { kt: "banana", pk: "0" as UUID } }, // Same banana reference as items[0]
         }
       };
       await cacheMap.set(key3, duplicateItem);
