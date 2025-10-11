@@ -33,7 +33,7 @@ describe('Aggregator', () => {
         deleted: { at: null },
       },
       refs: {
-        other: otherKey1,
+        other: { key: otherKey1 },
       }
     },
     {
@@ -147,7 +147,7 @@ describe('Aggregator', () => {
     const populatedItem = await aggregator.populate(items[0]);
 
     expect(populatedItem.aggs).toHaveProperty('other');
-    expect(populatedItem.aggs?.['other'].item).toEqual(otherItems[0]);
+    expect(populatedItem.aggs?.['other'][0].item).toEqual(otherItems[0]);
   });
 
   it('should throw an error if a mandatory reference is missing', async () => {
@@ -428,7 +428,7 @@ describe('Aggregator', () => {
 
       const aggregatedItems = await aggregator.all();
 
-      expect(aggregatedItems[0].aggs?.other.item).toEqual(otherItems[0]);
+      expect(aggregatedItems[0].aggs?.other[0].item).toEqual(otherItems[0]);
     });
 
     it('one', async () => {
@@ -437,7 +437,7 @@ describe('Aggregator', () => {
 
       const item = await aggregator.one();
 
-      expect(item?.aggs?.other.item).toEqual(otherItems[0]);
+      expect(item?.aggs?.other[0].item).toEqual(otherItems[0]);
     });
 
     it('actions', async () => {
@@ -446,7 +446,7 @@ describe('Aggregator', () => {
 
       const [item] = await aggregator.action(items[0].key, 'doSomething');
 
-      expect(item?.aggs?.other.item).toEqual(otherItems[0]);
+      expect(item?.aggs?.other[0].item).toEqual(otherItems[0]);
     });
 
     it('allActions', async () => {
@@ -455,7 +455,7 @@ describe('Aggregator', () => {
 
       const [aggregatedItems] = await aggregator.allAction('doSomethingToAll');
 
-      expect(aggregatedItems[0].aggs?.other.item).toEqual(otherItems[0]);
+      expect(aggregatedItems[0].aggs?.other[0].item).toEqual(otherItems[0]);
     });
 
     it('create', async () => {
@@ -464,7 +464,7 @@ describe('Aggregator', () => {
 
       const item = await aggregator.create(items[0]);
 
-      expect(item?.aggs?.other.item).toEqual(otherItems[0]);
+      expect(item?.aggs?.other[0].item).toEqual(otherItems[0]);
     });
 
     it('get', async () => {
@@ -473,7 +473,7 @@ describe('Aggregator', () => {
 
       const item = await aggregator.get(items[0].key);
 
-      expect(item?.aggs?.other.item).toEqual(otherItems[0]);
+      expect(item?.aggs?.other[0].item).toEqual(otherItems[0]);
     });
 
     it('retrieve', async () => {
@@ -482,7 +482,7 @@ describe('Aggregator', () => {
 
       const item = await aggregator.retrieve(items[0].key);
 
-      expect(item?.aggs?.other.item).toEqual(otherItems[0]);
+      expect(item?.aggs?.other[0].item).toEqual(otherItems[0]);
     });
 
     it('remove', async () => {
@@ -500,7 +500,7 @@ describe('Aggregator', () => {
 
       const item = await aggregator.update(items[0].key, items[0]);
 
-      expect(item?.aggs?.other.item).toEqual(otherItems[0]);
+      expect(item?.aggs?.other[0].item).toEqual(otherItems[0]);
     });
 
     it('find', async () => {
@@ -509,7 +509,7 @@ describe('Aggregator', () => {
 
       const aggregatedItems = await aggregator.find('findAll');
 
-      expect(aggregatedItems[0]?.aggs?.other.item).toEqual(otherItems[0]);
+      expect(aggregatedItems[0]?.aggs?.other[0].item).toEqual(otherItems[0]);
     });
 
     it('set', async () => {
@@ -518,7 +518,7 @@ describe('Aggregator', () => {
 
       const item = await aggregator.set(items[0].key, items[0]);
 
-      expect(item?.aggs?.other.item).toEqual(otherItems[0]);
+      expect(item?.aggs?.other[0].item).toEqual(otherItems[0]);
     });
 
   });
