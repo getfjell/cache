@@ -1,5 +1,6 @@
 
 import {
+  Aggregation,
   ComKey,
   Item,
   ItemQuery,
@@ -201,12 +202,15 @@ export const createAggregator = async <
       const newItem = await cacheConfig.cache.operations.retrieve(ref);
       if (newItem) {
         if (item.aggs === undefined) {
-          item.aggs = {};
+          item.aggs = {} as Record<string, Aggregation<any, any, any, any, any, any>[]>;
         }
-        item.aggs[key] = {
-          key: ref,
+        if (!item.aggs![key]) {
+          item.aggs![key] = [];
+        }
+        item.aggs![key].push({
+          key: ref.key,
           item: newItem as Item,
-        };
+        });
       }
     }
   }
