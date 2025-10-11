@@ -156,7 +156,7 @@ describe('Aggregator - Extended Tests', () => {
     const aggregatedItem = await aggregator.findOne('testFinder', { param: 'value' }, []);
 
     expect(itemCacheMock.operations.findOne).toHaveBeenCalledWith('testFinder', { param: 'value' }, []);
-    expect(aggregatedItem?.aggs?.other.item).toEqual(otherItems[0]);
+    expect(aggregatedItem?.aggs?.other[0].item).toEqual(otherItems[0]);
   });
 
   it('should handle reset method', async () => {
