@@ -8,6 +8,7 @@ import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";
 import { createQueryHash } from "../normalization";
 import { estimateValueSize } from "../utils/CacheSize";
+import { validateLocations } from "../validation/LocationKeyValidator";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('one');
@@ -25,8 +26,11 @@ export const one = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V | null]> => {
-  const { api, cacheMap, pkType, ttlManager } = context;
+  const { api, cacheMap, pkType, ttlManager, coordinate } = context;
   logger.default('one', { query, locations });
+
+  // Validate location key order
+  validateLocations(locations, coordinate, 'one');
 
   // Check if cache bypass is enabled
   if (context.options?.bypassCache) {

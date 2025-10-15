@@ -9,6 +9,7 @@ import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
 import { handleActionCacheInvalidation } from "../utils/cacheInvalidation";
+import { validateLocations } from "../validation/LocationKeyValidator";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('allAction');
@@ -27,8 +28,11 @@ export const allAction = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]> => {
-  const { api, cacheMap, pkType, eventEmitter, registry } = context;
+  const { api, cacheMap, pkType, eventEmitter, registry, coordinate } = context;
   logger.default('allAction', { action, body, locations });
+
+  // Validate location key order
+  validateLocations(locations, coordinate, 'allAction');
 
   // Get existing items in the specified locations before executing the action
   // This helps us track which items were modified
