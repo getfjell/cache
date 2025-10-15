@@ -3,6 +3,7 @@ import {
   LocKeyArray
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
+import { validateLocations } from "../validation/LocationKeyValidator";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('allFacet');
@@ -21,8 +22,12 @@ export const allFacet = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<any> => {
-  const { api } = context;
+  const { api, coordinate } = context;
   logger.default('allFacet', { facet, params, locations });
+
+  // Validate location key order
+  validateLocations(locations, coordinate, 'allFacet');
+
   const ret = await api.allFacet(facet, params, locations);
   return ret;
 };
