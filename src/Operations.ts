@@ -184,7 +184,7 @@ export const createOperations = <
   ): Operations<V, S, L1, L2, L3, L4, L5> => {
 
   // Create the cache context once and reuse it across all operations
-  const context = createCacheContext(api, cacheMap, pkType, options, eventEmitter, ttlManager, evictionManager, statsManager, registry);
+  const context = createCacheContext(api, cacheMap, pkType, options, eventEmitter, ttlManager, evictionManager, statsManager, registry, coordinate);
 
   return {
     all: (query, locations) => all(query, locations, context).then(([ctx, result]) => result),

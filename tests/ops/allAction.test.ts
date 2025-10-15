@@ -5,6 +5,7 @@ import { ComKey, Item, LocKeyArray, PriKey, UUID } from '@fjell/core';
 import { ClientApi } from '@fjell/client-api';
 import { NotFoundError } from '@fjell/http-api';
 import { CacheMap } from '../../src/CacheMap';
+import { createCoordinate } from '@fjell/registry';
 
 // Test data types
 interface TestItem extends Item<'test', 'container', 'section'> {
@@ -121,7 +122,8 @@ describe('allAction operation', () => {
       evictionManager: mockEvictionManager,
       eventEmitter: mockEventEmitter,
       statsManager: mockStatsManager,
-      registry: mockRegistry
+      registry: mockRegistry,
+      coordinate: createCoordinate(['test', 'container', 'section'], [])
     } as unknown as CacheContext<TestItem, 'test', 'container', 'section'>;
   });
 

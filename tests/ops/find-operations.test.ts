@@ -7,6 +7,7 @@ import { CacheContext, createCacheContext } from '../../src/CacheContext';
 import { Options } from '../../src/Options';
 import { createFinderHash } from '../../src/normalization';
 import { CacheStatsManager } from '../../src/CacheStats';
+import { createCoordinate } from '@fjell/registry';
 
 describe('Find Operations', () => {
   interface TestItem extends Item<'test', 'container'> {
@@ -81,7 +82,9 @@ describe('Find Operations', () => {
     } as any;
 
     const mockStatsManager = new CacheStatsManager();
-    context = createCacheContext(mockApi, cacheMap, 'test', options, mockEventEmitter, mockTtlManager, mockEvictionManager, mockStatsManager);
+    const mockRegistry = {} as any;
+    const mockCoordinate = createCoordinate(['test', 'container'], []);
+    context = createCacheContext(mockApi, cacheMap, 'test', options, mockEventEmitter, mockTtlManager, mockEvictionManager, mockStatsManager, mockRegistry, mockCoordinate);
   });
 
   describe('find operation', () => {
