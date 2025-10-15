@@ -6,6 +6,7 @@ import { ClientApi } from '@fjell/client-api';
 import { ComKey, IQFactory, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/core';
 import { NotFoundError } from '@fjell/http-api';
 import { createQueryHash } from '../../src/normalization';
+import { createCoordinate } from '@fjell/registry';
 
 describe('one operation', () => {
   // Test data types
@@ -111,7 +112,10 @@ describe('one operation', () => {
       eventEmitter: mockEventEmitter,
       ttlManager: mockTtlManager,
       evictionManager: mockEvictionManager,
-      options: {}
+      options: {},
+      statsManager: {} as any,
+      registry: {} as any,
+      coordinate: createCoordinate(['test', 'container'], [])
     } as CacheContext<TestItem, 'test', 'container'>;
   });
 

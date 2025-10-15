@@ -6,6 +6,7 @@ import {
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
 import { createFinderHash } from "../normalization";
+import { validateLocations } from "../validation/LocationKeyValidator";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('findOne');
@@ -24,8 +25,11 @@ export const findOne = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
-  const { api, cacheMap, pkType, ttlManager, eventEmitter } = context;
+  const { api, cacheMap, pkType, ttlManager, eventEmitter, coordinate } = context;
   logger.default('findOne', { finder, finderParams, locations });
+
+  // Validate location key order
+  validateLocations(locations, coordinate, 'findOne');
 
   // Check if cache bypass is enabled
   if (context.options?.bypassCache) {

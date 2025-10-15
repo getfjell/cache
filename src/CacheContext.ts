@@ -1,6 +1,6 @@
 import { Item } from "@fjell/core";
 import { ClientApi } from "@fjell/client-api";
-import { Registry } from "@fjell/registry";
+import { Coordinate, Registry } from "@fjell/registry";
 import { CacheMap } from "./CacheMap";
 import { Options } from "./Options";
 import { CacheEventEmitter } from "./events/CacheEventEmitter";
@@ -48,6 +48,9 @@ export interface CacheContext<
 
   /** Registry for locating other cache instances for invalidation */
   registry: Registry;
+
+  /** Coordinate for entity hierarchy validation */
+  coordinate: Coordinate<S, L1, L2, L3, L4, L5>;
 }
 
 /**
@@ -70,7 +73,8 @@ export const createCacheContext = <
     ttlManager: TTLManager,
     evictionManager: EvictionManager,
     statsManager: CacheStatsManager,
-    registry: Registry
+    registry: Registry,
+    coordinate: Coordinate<S, L1, L2, L3, L4, L5>
   ): CacheContext<V, S, L1, L2, L3, L4, L5> => {
   return {
     api,
@@ -81,6 +85,7 @@ export const createCacheContext = <
     ttlManager,
     evictionManager,
     statsManager,
-    registry
+    registry,
+    coordinate
   };
 };
