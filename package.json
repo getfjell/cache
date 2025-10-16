@@ -1,7 +1,7 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.7.31",
+  "version": "4.7.32",
   "keywords": [
     "cache",
     "fjell"
@@ -37,11 +37,11 @@
     "docs:test": "cd docs && npm run test"
   },
   "dependencies": {
-    "@fjell/client-api": "^4.4.42",
-    "@fjell/core": "^4.4.46",
+    "@fjell/client-api": "^4.4.43",
+    "@fjell/core": "^4.4.47",
     "@fjell/http-api": "^4.4.39",
     "@fjell/logging": "^4.4.47",
-    "@fjell/registry": "^4.4.48",
+    "@fjell/registry": "^4.4.49",
     "fast-safe-stringify": "^2.1.1",
     "flatted": "^3.3.3",
     "yocto-queue": "^1.2.1"
