@@ -7,7 +7,8 @@
 
 // @ts-nocheck
 import { createInstanceFactory, Options } from '../src/index';
-import { createCoordinate, createRegistry } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
+import { createRegistry } from '@fjell/registry';
 import { Item } from '@fjell/core';
 
 // Sample item interface

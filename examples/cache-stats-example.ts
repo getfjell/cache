@@ -1,6 +1,7 @@
 import { createCache } from '../src';
 import { createPItemApi } from '@fjell/client-api';
-import { createCoordinate, createRegistry } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
+import { createRegistry } from '@fjell/registry';
 import { Item, PriKey } from '@fjell/core';
 
 // Define a simple widget type for demonstration

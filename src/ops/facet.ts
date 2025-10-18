@@ -1,5 +1,6 @@
 import {
   ComKey,
+  createFacetWrapper,
   Item,
   PriKey
 } from "@fjell/core";
@@ -22,8 +23,15 @@ export const facet = async <
   params: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<any> => {
-  const { api } = context;
+  const { coordinate, api } = context;
   logger.default('facet', { key, facet });
-  const ret = await api.facet(key, facet, params);
-  return ret;
+  
+  const wrappedFacet = createFacetWrapper(
+    coordinate,
+    async (k, f, p) => {
+      return await api.facet(k, f, p ?? {});
+    }
+  );
+  
+  return await wrappedFacet(key, facet, params);
 };

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Cache, createCache } from '../../src/Cache';
-import { createCoordinate, createRegistry } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
+import { createRegistry } from '@fjell/registry';
 import { Item, PriKey } from '@fjell/core';
 
 // Test data types

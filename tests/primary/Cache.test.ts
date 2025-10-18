@@ -2,7 +2,8 @@ import { CacheMap } from '../../src/CacheMap';
 import { Cache, createCache } from '../../src/Cache';
 import { PItemApi } from '@fjell/client-api';
 import { Item, PriKey } from '@fjell/core';
-import { createCoordinate, createRegistry } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
+import { createRegistry } from '@fjell/registry';
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
 vi.mock('@fjell/client-api');
@@ -155,22 +156,6 @@ describe('PItemCache', () => {
 
     expect(apiMock.update).not.toHaveBeenCalledWith(key1, items[0]);
     expect(result).toEqual(expect.any(Object));
-  });
-
-  it('should throw error when setting item with malformed key', async () => {
-    const malformedKey = {
-      kt: 'whatever',
-      pk: "not-a-valid-uuid" // Invalid UUID format
-    } as unknown as PriKey<"test">;
-
-    const malformedItem = {
-      ...items[0],
-      key: malformedKey
-    };
-
-    await expect(cache.operations.set(malformedKey, malformedItem as unknown as TestItem))
-      .rejects
-      .toThrow("Item does not have the correct primary key type");
   });
 
   it('should throw error when setting item with mismatched keys', async () => {

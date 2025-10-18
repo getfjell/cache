@@ -5,7 +5,7 @@ import { ComKey, Item, LocKeyArray, PriKey, UUID } from '@fjell/core';
 import { ClientApi } from '@fjell/client-api';
 import { NotFoundError } from '@fjell/http-api';
 import { CacheMap } from '../../src/CacheMap';
-import { createCoordinate } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
 
 // Test data types
 interface TestItem extends Item<'test', 'container', 'section'> {
@@ -53,7 +53,7 @@ describe('allAction operation', () => {
   } as TestItem;
 
   const testAction = 'processAll';
-  const testBody = { operation: 'bulk-update', metadata: { source: 'test' } };
+  const testBody = { operation: 'bulk-update', metadata: 'test' };
   const testLocations: LocKeyArray<'container', 'section'> = [
     { kt: 'container', lk: 'container1' as UUID },
     { kt: 'section', lk: 'section1' as UUID }
