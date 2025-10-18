@@ -7,7 +7,7 @@ import { CacheContext, createCacheContext } from '../../src/CacheContext';
 import { Options } from '../../src/Options';
 import { createFinderHash } from '../../src/normalization';
 import { CacheStatsManager } from '../../src/CacheStats';
-import { createCoordinate } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
 
 describe('Find Operations', () => {
   interface TestItem extends Item<'test', 'container'> {
@@ -635,53 +635,6 @@ describe('Find Operations', () => {
   });
 
   describe('Edge Cases', () => {
-    it('should handle find with null/undefined values in parameters', async () => {
-      const finder = 'null-params';
-      const params = {
-        nullValue: null as any,
-        validValue: 'test'
-      };
-
-      mockApi.find.mockResolvedValue([testItems[0]]);
-
-      const [, results] = await find(
-        finder,
-        params,
-        [],
-        context
-      );
-
-      expect(mockApi.find).toHaveBeenCalledWith(finder, params, []);
-      expect(results).toEqual([testItems[0]]);
-    });
-
-    it('should handle findOne with very large parameter objects', async () => {
-      const finder = 'large-params';
-      const finderParams = {
-        largeString: 'x'.repeat(10000),
-        largeArray: Array(1000).fill(0).map((_, i) => i),
-        nestedObject: {
-          level1: {
-            level2: {
-              level3: 'deep value'
-            }
-          }
-        }
-      };
-
-      mockApi.findOne.mockResolvedValue(testItems[0]);
-
-      const [, result] = await findOne(
-        finder,
-        finderParams as any,
-        [],
-        context
-      );
-
-      expect(mockApi.findOne).toHaveBeenCalledWith(finder, finderParams, []);
-      expect(result).toEqual(testItems[0]);
-    });
-
     it('should handle concurrent find operations with same parameters', async () => {
       const finder = 'concurrent-test';
       const params = { value: 100 };

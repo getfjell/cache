@@ -6,7 +6,7 @@ import { ClientApi } from '@fjell/client-api';
 import { ComKey, Item, LocKeyArray, PriKey, UUID } from '@fjell/core';
 import { NotFoundError } from '@fjell/http-api';
 import { createQueryHash } from '../../src/normalization';
-import { createCoordinate } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
 
 describe('all operation', () => {
   // Test data types

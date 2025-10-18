@@ -1,10 +1,10 @@
 import {
   ComKey,
+  createActionWrapper,
   isValidItemKey,
   Item,
   LocKeyArray,
-  PriKey,
-  validatePK
+  PriKey
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
@@ -27,8 +27,35 @@ export const action = async <
   body: any = {},
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V, Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]> => {
-  const { api, cacheMap, pkType, registry } = context;
+  const { coordinate } = context;
   logger.default('action', { key, action, body });
+
+  const wrappedAction = createActionWrapper(
+    coordinate,
+    async (k, a, b) => {
+      return await executeActionLogic(k, a, b, context);
+    }
+  );
+
+  const result = await wrappedAction(key, action, body);
+  return [context, result[0], result[1]];
+};
+
+async function executeActionLogic<
+  V extends Item<S, L1, L2, L3, L4, L5>,
+  S extends string,
+  L1 extends string = never,
+  L2 extends string = never,
+  L3 extends string = never,
+  L4 extends string = never,
+  L5 extends string = never
+>(
+  key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+  action: string,
+  body: any,
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<[V, Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]> {
+  const { api, cacheMap, pkType, registry } = context;
 
   if (!isValidItemKey(key)) {
     logger.error('Key for Action is not a valid ItemKey: %j', key);
@@ -105,5 +132,5 @@ export const action = async <
   );
   context.eventEmitter.emit(queryInvalidatedEvent);
 
-  return [context, validatePK(updated, pkType) as V, affectedItems];
-};
+  return [updated, affectedItems];
+}

@@ -1,9 +1,9 @@
 import {
   ComKey,
+  createUpdateWrapper,
   isValidItemKey,
   Item,
-  PriKey,
-  validatePK
+  PriKey
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
@@ -25,8 +25,34 @@ export const update = async <
   v: Partial<Item<S, L1, L2, L3, L4, L5>>,
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
-  const { api, cacheMap, pkType } = context;
+  const { coordinate } = context;
   logger.default('update', { key, v });
+
+  const wrappedUpdate = createUpdateWrapper(
+    coordinate,
+    async (k, item) => {
+      return await executeUpdateLogic(k, item, context);
+    }
+  );
+
+  const result = await wrappedUpdate(key, v);
+  return [context, result];
+};
+
+async function executeUpdateLogic<
+  V extends Item<S, L1, L2, L3, L4, L5>,
+  S extends string,
+  L1 extends string = never,
+  L2 extends string = never,
+  L3 extends string = never,
+  L4 extends string = never,
+  L5 extends string = never
+>(
+  key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+  v: Partial<Item<S, L1, L2, L3, L4, L5>>,
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<V> {
+  const { api, cacheMap, pkType } = context;
 
   if (!isValidItemKey(key)) {
     logger.error('Key for Update is not a valid ItemKey: %j', key);
@@ -91,9 +117,9 @@ export const update = async <
     );
     context.eventEmitter.emit(queryInvalidatedEvent);
 
-    return [context, validatePK(updated, pkType) as V];
+    return updated;
   } catch (e) {
     logger.error("Error updating item", { error: e });
     throw e;
   }
-};
+}
