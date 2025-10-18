@@ -2,13 +2,13 @@ import {
   Item,
   ItemQuery,
   LocKeyArray,
+  validateLocations,
   validatePK
 } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";
 import { createQueryHash } from "../normalization";
 import { estimateValueSize } from "../utils/CacheSize";
-import { validateLocations } from "../validation/LocationKeyValidator";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('one');

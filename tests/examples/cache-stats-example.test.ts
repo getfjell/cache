@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cacheStatsExample } from '../../examples/cache-stats-example';
 import { createCache } from '../../src';
 import { createPItemApi } from '@fjell/client-api';
-import { createCoordinate, createRegistry } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
+import { createRegistry } from '@fjell/registry';
 import { Item, PriKey } from '@fjell/core';
 
 // Mock the console.log to capture output

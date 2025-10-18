@@ -1,11 +1,11 @@
 import {
   Item,
   LocKeyArray,
+  validateLocations,
   validatePK
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
-import { validateLocations } from "../validation/LocationKeyValidator";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('create');
@@ -29,7 +29,10 @@ export const create = async <
   // Validate location key order
   validateLocations(locations, coordinate, 'create');
 
-  const created = await api.create(v, locations);
+  const created = await api.create(
+    v,
+    locations.length > 0 ? { locations: locations as LocKeyArray<L1, L2, L3, L4, L5> } : undefined
+  );
   cacheMap.set(created.key, created);
 
   // Set TTL metadata for the newly cached item

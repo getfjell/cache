@@ -1,9 +1,9 @@
 import {
   Item,
-  LocKeyArray
+  LocKeyArray,
+  validateLocations
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
-import { validateLocations } from "../validation/LocationKeyValidator";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('allFacet');

@@ -1,12 +1,12 @@
 import {
   Item,
   LocKeyArray,
+  validateLocations,
   validatePK
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
 import { createFinderHash } from "../normalization";
-import { validateLocations } from "../validation/LocationKeyValidator";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('find');

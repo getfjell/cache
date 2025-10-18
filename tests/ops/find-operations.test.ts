@@ -7,7 +7,7 @@ import { CacheContext, createCacheContext } from '../../src/CacheContext';
 import { Options } from '../../src/Options';
 import { createFinderHash } from '../../src/normalization';
 import { CacheStatsManager } from '../../src/CacheStats';
-import { createCoordinate } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
 
 describe('Find Operations', () => {
   interface TestItem extends Item<'test', 'container'> {

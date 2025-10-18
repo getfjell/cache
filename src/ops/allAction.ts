@@ -3,13 +3,13 @@ import {
   Item,
   LocKeyArray,
   PriKey,
+  validateLocations,
   validatePK
 } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
 import { handleActionCacheInvalidation } from "../utils/cacheInvalidation";
-import { validateLocations } from "../validation/LocationKeyValidator";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('allAction');

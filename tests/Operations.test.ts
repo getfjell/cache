@@ -215,11 +215,11 @@ describe('Cache Operations', () => {
 
       // Test with locations in options
       await ops.create({ name: 'Test' }, { locations: [] });
-      expect(mockApi.create).toHaveBeenCalledWith({ name: 'Test' }, []);
+      expect(mockApi.create).toHaveBeenCalledWith({ name: 'Test' }, undefined);
 
       // Test without options
       await ops.create({ name: 'Test2' });
-      expect(mockApi.create).toHaveBeenCalledWith({ name: 'Test2' }, []);
+      expect(mockApi.create).toHaveBeenCalledWith({ name: 'Test2' }, undefined);
     });
 
     it('should implement upsert correctly when item exists', async () => {
@@ -278,7 +278,7 @@ describe('Cache Operations', () => {
       // Test create path (item doesn't exist)
       mockApi.get = vi.fn().mockResolvedValue(null);
       await ops.upsert(key, { name: 'New' }, []);
-      expect(mockApi.create).toHaveBeenCalledWith({ name: 'New' }, []);
+      expect(mockApi.create).toHaveBeenCalledWith({ name: 'New' }, undefined);
     });
   });
 });
