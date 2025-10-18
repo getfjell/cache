@@ -73,7 +73,8 @@ Perfect for monitoring cache performance and optimizing cache strategies in prod
 ```typescript
 // Import fjell-cache functionality
 import { createCache } from '@fjell/cache';
-import { createCoordinate, createRegistry } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
+import { createRegistry } from '@fjell/registry';
 import { ClientApi } from '@fjell/client-api';
 
 // Create a registry for cache management

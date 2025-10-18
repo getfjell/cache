@@ -18,7 +18,7 @@ import { createInstance } from '../src/Instance';
 import { createRegistry } from '../src/Registry';
 import { ClientApi } from '@fjell/client-api';
 import { Item, PriKey } from '@fjell/core';
-import { createCoordinate } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
 
 // Define our business models with relationships
 interface Customer extends Item<'customer'> {

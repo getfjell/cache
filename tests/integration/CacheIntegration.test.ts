@@ -4,7 +4,8 @@ import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
 import { LocalStorageCacheMap } from '../../src/browser/LocalStorageCacheMap';
 import { SessionStorageCacheMap } from '../../src/browser/SessionStorageCacheMap';
 import { ComKey, Item, PriKey, UUID } from '@fjell/core';
-import { createCoordinate, createRegistry } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
+import { createRegistry } from '@fjell/registry';
 
 // Use browser storage mocks from test setup
 

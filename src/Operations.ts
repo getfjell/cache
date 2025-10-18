@@ -8,7 +8,7 @@ import {
 } from "@fjell/core";
 import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/core";
 import { ClientApi } from "@fjell/client-api";
-import { Coordinate } from "@fjell/registry";
+import { Coordinate } from "@fjell/core";
 import { CacheMap } from "./CacheMap";
 import { createCacheContext } from "./CacheContext";
 import { CacheEventEmitter } from "./events/CacheEventEmitter";

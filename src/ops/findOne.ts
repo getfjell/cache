@@ -1,12 +1,12 @@
 import {
   Item,
   LocKeyArray,
+  validateLocations,
   validatePK
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
 import { createFinderHash } from "../normalization";
-import { validateLocations } from "../validation/LocationKeyValidator";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('findOne');
@@ -37,6 +37,9 @@ export const findOne = async <
     
     try {
       const ret = await api.findOne(finder, finderParams, locations);
+      if (ret === null) {
+        throw new Error(`findOne returned null for finder: ${finder}`);
+      }
       logger.debug('API response received (not cached due to bypass)', { finder, finderParams, locations });
       return [context, validatePK(ret, pkType) as V];
     } catch (error) {
@@ -69,6 +72,10 @@ export const findOne = async <
 
   // Fetch from API
   const ret = await api.findOne(finder, finderParams, locations);
+
+  if (ret === null) {
+    throw new Error(`findOne returned null for finder: ${finder}`);
+  }
 
   // Store individual item in cache
   cacheMap.set(ret.key, ret);
