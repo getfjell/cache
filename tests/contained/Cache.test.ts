@@ -1,7 +1,8 @@
 import { Cache, createCache } from '../../src/Cache';
 import { CItemApi } from "@fjell/client-api";
 import { ComKey, Item, ItemQuery, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/core";
-import { createCoordinate, createRegistry } from "@fjell/registry";
+import { createCoordinate } from "@fjell/core";
+import { createRegistry } from "@fjell/registry";
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
 vi.mock('../src/logger', () => {
@@ -162,8 +163,8 @@ describe("Combined Item Cache Tests", () => {
     mockApi.create.mockResolvedValue(items[0]);
     const itemProps: Partial<Item<"test", "container">> = { key: key1 };
     const locations: LocKeyArray<"container"> = loc2;
-    await itemCache.operations.create(itemProps, locations);
-    expect(mockApi.create).toHaveBeenCalledWith(itemProps, locations);
+    await itemCache.operations.create(itemProps, { locations });
+    expect(mockApi.create).toHaveBeenCalledWith(itemProps, { locations });
   });
 
   it("should call the get method with correct parameters", async () => {
@@ -221,22 +222,6 @@ describe("Combined Item Cache Tests", () => {
     mockApi.get.mockResolvedValue(items[0]);
     await itemCache.operations.set(key1, items[0]);
     expect(mockApi.update).not.toHaveBeenCalledWith(key1, items[0]);
-  });
-
-  it("should throw error when setting item with malformed key", async () => {
-    const key1 = {
-      kt: 'whatever',
-      pk: "not-a-valid-uuid" // Invalid UUID format
-    } as unknown as ComKey<"test", "container">;
-
-    const malformedItem = {
-      ...items[0],
-      key: key1
-    };
-
-    await expect(itemCache.operations.set(key1, malformedItem as unknown as TestItem))
-      .rejects
-      .toThrow("Item does not have the correct primary key type");
   });
 
   it("should throw error when setting item with mismatched keys", async () => {

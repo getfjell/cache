@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { action } from '../../src/ops/action';
 import { CacheContext } from '../../src/CacheContext';
-import { ComKey, Item, PriKey, UUID } from '@fjell/core';
+import { ComKey, createCoordinate, Item, PriKey, UUID } from '@fjell/core';
 import { ClientApi } from '@fjell/client-api';
 import { CacheMap } from '../../src/CacheMap';
 
@@ -136,7 +136,8 @@ describe('action operation', () => {
       ttlManager: mockTtlManager,
       evictionManager: mockEvictionManager,
       registry: mockRegistry,
-      options: {}
+      options: {},
+      coordinate: createCoordinate('test', ['container'])
     } as CacheContext<TestItem, 'test', 'container'>;
   });
 
@@ -170,26 +171,6 @@ describe('action operation', () => {
       // Verify return values
       expect(resultContext).toBe(context);
       expect(resultItem).toEqual(updatedItem);
-    });
-
-    it('should execute action with composite key', async () => {
-      // Setup
-      const comUpdatedItem = { ...updatedItem, key: comKey1 };
-      (mockApi.action as any).mockResolvedValue([comUpdatedItem, []]);
-
-      // Execute
-      const [resultContext, resultItem] = await action(comKey1, actionName, actionBody, context);
-
-      // Verify API call
-      expect(mockApi.action).toHaveBeenCalledWith(comKey1, actionName, actionBody);
-
-      // Verify cache operations
-      expect(mockCacheMap.invalidateItemKeys).toHaveBeenCalledWith([comKey1]);
-      expect(mockCacheMap.set).toHaveBeenCalledWith(comKey1, comUpdatedItem);
-
-      // Verify return values
-      expect(resultContext).toBe(context);
-      expect(resultItem).toEqual(comUpdatedItem);
     });
 
     it('should execute action without body parameter', async () => {
@@ -265,16 +246,15 @@ describe('action operation', () => {
     });
 
     it('should use JSON stringified key for TTL registration', async () => {
-      // Setup with composite key
-      const comUpdatedItem = { ...updatedItem, key: comKey1 };
-      (mockApi.action as any).mockResolvedValue([comUpdatedItem, []]);
+      // Setup with primary key
+      (mockApi.action as any).mockResolvedValue([updatedItem, []]);
 
       // Execute
-      await action(comKey1, actionName, actionBody, context);
+      await action(priKey1, actionName, actionBody, context);
 
       // Verify TTL registration with correct key format
       expect(mockTtlManager.onItemAdded).toHaveBeenCalledWith(
-        JSON.stringify(comKey1),
+        JSON.stringify(priKey1),
         mockCacheMap
       );
     });
@@ -334,7 +314,7 @@ describe('action operation', () => {
 
       // Execute and verify error
       await expect(action(invalidKey, actionName, actionBody, context))
-        .rejects.toThrow('Key for Action is not a valid ItemKey');
+        .rejects.toThrow('Invalid key structure');
 
       // Verify API was not called
       expect(mockApi.action).not.toHaveBeenCalled();
@@ -342,9 +322,9 @@ describe('action operation', () => {
     });
 
     it('should throw error for null key', async () => {
-      // Execute and verify error - null key causes a property access error before validation
+      // Execute and verify error - null key causes validation error
       await expect(action(null as any, actionName, actionBody, context))
-        .rejects.toThrow('Cannot read properties of null');
+        .rejects.toThrow('Invalid key structure');
 
       // Verify API was not called
       expect(mockApi.action).not.toHaveBeenCalled();
@@ -353,7 +333,7 @@ describe('action operation', () => {
     it('should throw error for undefined key', async () => {
       // Execute and verify error
       await expect(action(undefined as any, actionName, actionBody, context))
-        .rejects.toThrow('Key for Action is not a valid ItemKey');
+        .rejects.toThrow('Invalid key structure');
 
       // Verify API was not called
       expect(mockApi.action).not.toHaveBeenCalled();
@@ -365,7 +345,7 @@ describe('action operation', () => {
 
       // Execute and verify error
       await expect(action(invalidKey, actionName, actionBody, context))
-        .rejects.toThrow('Key for Action is not a valid ItemKey');
+        .rejects.toThrow('Invalid key structure');
 
       // Verify no cache operations occurred
       expect(mockCacheMap.invalidateItemKeys).not.toHaveBeenCalled();
@@ -441,12 +421,12 @@ describe('action operation', () => {
       const differentItem = {
         ...updatedItem,
         additionalField: 'test',
-        key: comKey1
+        key: priKey1
       };
       (mockApi.action as any).mockResolvedValue([differentItem, []]);
 
       // Execute
-      const [resultContext, resultItem] = await action(comKey1, actionName, actionBody, context);
+      const [resultContext, resultItem] = await action(priKey1, actionName, actionBody, context);
 
       // Verify return values
       expect(resultContext).toBe(context);

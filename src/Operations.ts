@@ -1,6 +1,14 @@
+import {
+  AffectedKeys,
+  Operations as CoreOperations,
+  CreateOptions,
+  isOperationComKey as isComKey,
+  isOperationPriKey as isPriKey,
+  OperationParams
+} from "@fjell/core";
 import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/core";
 import { ClientApi } from "@fjell/client-api";
-import { Coordinate } from "@fjell/registry";
+import { Coordinate } from "@fjell/core";
 import { CacheMap } from "./CacheMap";
 import { createCacheContext } from "./CacheContext";
 import { CacheEventEmitter } from "./events/CacheEventEmitter";
@@ -27,6 +35,18 @@ import { EvictionManager } from "./eviction/EvictionManager";
 import { CacheStatsManager } from "./CacheStats";
 import { Registry } from "@fjell/registry";
 
+// Re-export core types
+export type { OperationParams, AffectedKeys, CreateOptions };
+export { isPriKey, isComKey };
+
+/**
+ * Cache Operations interface extends core Operations and adds cache-specific methods.
+ *
+ * Inherits all standard operations from @fjell/core, plus:
+ * - retrieve: Get from cache without API fallback
+ * - set: Set directly in cache
+ * - reset: Clear cache
+ */
 export interface Operations<
   V extends Item<S, L1, L2, L3, L4, L5>,
   S extends string,
@@ -35,121 +55,18 @@ export interface Operations<
   L3 extends string = never,
   L4 extends string = never,
   L5 extends string = never,
-> {
-
-  /**
-   * Retrieves all the items that match the query from cache or API.
-   * Items are cached automatically after retrieval.
-   */
-  all(
-    query?: ItemQuery,
-    locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<V[]>;
-
-  /**
-   * Retrieves the first item that matches the query from cache or API.
-   * Item is cached automatically after retrieval.
-   */
-  one(
-    query?: ItemQuery,
-    locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<V | null>;
-
-  /**
-   * Creates a new item via API and caches it.
-   */
-  create(
-    item: Partial<Item<S, L1, L2, L3, L4, L5>>,
-    locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<V>;
-
-  /**
-   * Gets an item by key from cache or API and caches it.
-   */
-  get(
-    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
-  ): Promise<V | null>;
-
+> extends CoreOperations<V, S, L1, L2, L3, L4, L5> {
   /**
    * Retrieves an item from cache if available, otherwise from API.
+   * Similar to get() but distinguishes between cache-first retrieval.
    */
   retrieve(
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
   ): Promise<V | null>;
 
   /**
-   * Removes an item via API and from cache.
-   */
-  remove(
-    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
-  ): Promise<void>;
-
-  /**
-   * Updates an item via API and caches the result.
-   */
-  update(
-    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    item: Partial<Item<S, L1, L2, L3, L4, L5>>
-  ): Promise<V>;
-
-  /**
-   * Executes an action on an item via API and caches the result.
-   * Also handles cache invalidation for affected items returned by the action.
-   */
-  action(
-    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    action: string,
-    body?: any
-  ): Promise<[V, Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]>;
-
-  /**
-   * Executes an action on all items matching criteria via API and caches results.
-   * Also handles cache invalidation for affected items returned by the action.
-   */
-  allAction(
-    action: string,
-    body?: any,
-    locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<[V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]>;
-
-  /**
-   * Executes a facet query on an item via API (pass-through, no caching).
-   */
-  facet(
-    key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
-    facet: string,
-    params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>
-  ): Promise<any>;
-
-  /**
-   * Executes a facet query on all items matching criteria via API (pass-through, no caching).
-   */
-  allFacet(
-    facet: string,
-    params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
-    locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<any>;
-
-  /**
-   * Finds items using a finder method via API and caches results.
-   */
-  find(
-    finder: string,
-    params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
-    locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<V[]>;
-
-  /**
-   * Finds a single item using a finder method via API and caches result.
-   */
-  findOne(
-    finder: string,
-    params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
-    locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ): Promise<V>;
-
-  /**
    * Sets an item directly in cache without API call.
+   * Useful for manual cache population.
    */
   set(
     key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
@@ -189,11 +106,25 @@ export const createOperations = <
   return {
     all: (query, locations) => all(query, locations, context).then(([ctx, result]) => result),
     one: (query, locations) => one(query, locations, context).then(([ctx, result]) => result),
-    create: (item, locations) => create(item, locations, context).then(([ctx, result]) => result),
+    create: (item, options) => {
+      // Handle CreateOptions - extract locations if provided
+      const locations = options?.locations || [];
+      return create(item, locations, context).then(([ctx, result]) => result);
+    },
     get: (key) => get(key, context).then(([ctx, result]) => result),
     retrieve: (key) => retrieve(key, context).then(([ctx, result]) => result),
     remove: (key) => remove(key, context).then((ctx) => undefined),
     update: (key, item) => update(key, item, context).then(([ctx, result]) => result),
+    upsert: async (key, itemProperties, locations) => {
+      // Implement upsert using get/create/update
+      const existing = await get(key, context).then(([ctx, result]) => result);
+      if (existing) {
+        return update(key, itemProperties, context).then(([ctx, result]) => result);
+      } else {
+        // For creation, we need to pass locations
+        return create(itemProperties, locations || [], context).then(([ctx, result]) => result);
+      }
+    },
     action: (key, actionName, body) => action(key, actionName, body, context).then(([ctx, result, affectedItems]) => [result, affectedItems]),
     allAction: (actionName, body, locations) => allAction(actionName, body, locations, context).then(([ctx, result, affectedItems]) => [result, affectedItems]),
     facet: (key, facetName, params) => facet(key, facetName, params, context).then(result => result),

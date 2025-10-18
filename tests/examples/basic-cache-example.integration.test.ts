@@ -10,7 +10,7 @@ import {
 import { runBasicCacheExample } from '../../examples/basic-cache-example';
 import { createCache } from '../../src/Cache';
 import { createRegistry } from '../../src/Registry';
-import { createCoordinate } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
 import { ClientApi } from '@fjell/client-api';
 import { Item, PriKey } from '@fjell/core';
 
@@ -90,7 +90,7 @@ describe('Basic Cache Example Integration Tests', () => {
       // Test cache behavior with empty data to exercise edge cases
       const { createCache } = await import('../../src/Cache');
       const { createRegistry } = await import('../../src/Registry');
-      const { createCoordinate } = await import('@fjell/registry');
+      const { createCoordinate } = await import('@fjell/core');
 
       const emptyApi = {
         async all() { return []; },
@@ -124,7 +124,7 @@ describe('Basic Cache Example Integration Tests', () => {
     it('should test cache memory behavior and performance characteristics', async () => {
       const { createCache } = await import('../../src/Cache');
       const { createRegistry } = await import('../../src/Registry');
-      const { createCoordinate } = await import('@fjell/registry');
+      const { createCoordinate } = await import('@fjell/core');
 
       interface TestItem extends Item<'test'> {
         id: string;
@@ -199,7 +199,7 @@ describe('Basic Cache Example Integration Tests', () => {
     it('should handle concurrent cache operations correctly', async () => {
       const { createCache } = await import('../../src/Cache');
       const { createRegistry } = await import('../../src/Registry');
-      const { createCoordinate } = await import('@fjell/registry');
+      const { createCoordinate } = await import('@fjell/core');
 
       interface ConcurrentItem extends Item<'concurrent'> {
         id: string;
@@ -264,7 +264,7 @@ describe('Basic Cache Example Integration Tests', () => {
     it('should handle data consistency and cache invalidation scenarios', async () => {
       const { createCache } = await import('../../src/Cache');
       const { createRegistry } = await import('../../src/Registry');
-      const { createCoordinate } = await import('@fjell/registry');
+      const { createCoordinate } = await import('@fjell/core');
 
       interface ConsistencyItem extends Item<'consistency'> {
         id: string;
@@ -348,7 +348,7 @@ describe('Basic Cache Example Integration Tests', () => {
     it('should handle various API response scenarios and edge cases', async () => {
       const { createCache } = await import('../../src/Cache');
       const { createRegistry } = await import('../../src/Registry');
-      const { createCoordinate } = await import('@fjell/registry');
+      const { createCoordinate } = await import('@fjell/core');
 
       interface EdgeCaseItem extends Item<'edge'> {
         id: string;
@@ -406,7 +406,7 @@ describe('Basic Cache Example Integration Tests', () => {
     it('should test complex query patterns and filtering', async () => {
       const { createCache } = await import('../../src/Cache');
       const { createRegistry } = await import('../../src/Registry');
-      const { createCoordinate } = await import('@fjell/registry');
+      const { createCoordinate } = await import('@fjell/core');
 
       interface QueryItem extends Item<'query'> {
         id: string;

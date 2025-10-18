@@ -1,9 +1,9 @@
 import {
+  Coordinate,
   Item
 } from "@fjell/core";
 import { CacheMap } from "../CacheMap";
 import { createCacheMap, Options, validateOptions } from "../Options";
-import { Coordinate } from "@fjell/registry";
 
 export const reset = async <
   V extends Item<S, L1, L2, L3, L4, L5>,

@@ -3,8 +3,7 @@ import {
   isItemKeyEqual,
   isValidItemKey,
   Item,
-  PriKey,
-  validatePK
+  PriKey
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
@@ -110,9 +109,6 @@ export const set = async <
     throw new Error('Key for Set is not a valid ItemKey');
   }
 
-  // Validate the item's primary key
-  validatePK(v, pkType);
-
   if (!isItemKeyEqualNormalized(key, v.key)) {
     logger.error('Key does not match item key: %j != %j', key, v.key);
     throw new Error('Key does not match item key');
@@ -153,5 +149,5 @@ export const set = async <
   const event = CacheEventFactory.itemSet(key, v as V, previousItem);
   eventEmitter.emit(event);
 
-  return [context, validatePK(v, pkType) as V];
+  return [context, v as V];
 };

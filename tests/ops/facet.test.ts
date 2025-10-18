@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { facet } from '../../src/ops/facet';
-import { type ComKey, type Item, type PriKey, type UUID } from '@fjell/core';
+import { type ComKey, createCoordinate, type Item, type PriKey, type UUID } from '@fjell/core';
 import { CacheContext } from '../../src/CacheContext';
 
 // Define test types
@@ -14,15 +14,23 @@ describe('facet', () => {
   };
 
   const context = {
-    api: mockApi
+    api: mockApi,
+    coordinate: createCoordinate(['test', 'l1', 'l2'], [])
   } as unknown as TestContext;
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should call api.facet with primary key', async () => {
-    const key: PriKey<'test'> = { kt: 'test', pk: '123' as UUID };
+  it('should call api.facet with composite key', async () => {
+    const key: ComKey<'test', 'l1', 'l2'> = {
+      kt: 'test',
+      pk: '123' as UUID,
+      loc: [
+        { kt: 'l1', lk: 'l1-value' as UUID },
+        { kt: 'l2', lk: 'l2-value' as UUID }
+      ]
+    };
     const facetName = 'testFacet';
     const params = { param1: 'value1' };
     const expectedResult = { count: 5 };
@@ -57,7 +65,14 @@ describe('facet', () => {
   });
 
   it('should handle empty params object', async () => {
-    const key: PriKey<'test'> = { kt: 'test', pk: '123' as UUID };
+    const key: ComKey<'test', 'l1', 'l2'> = {
+      kt: 'test',
+      pk: '123' as UUID,
+      loc: [
+        { kt: 'l1', lk: 'l1-value' as UUID },
+        { kt: 'l2', lk: 'l2-value' as UUID }
+      ]
+    };
     const facetName = 'testFacet';
     const expectedResult = { count: 5 };
 
@@ -70,7 +85,14 @@ describe('facet', () => {
   });
 
   it('should handle complex parameter types', async () => {
-    const key: PriKey<'test'> = { kt: 'test', pk: '123' as UUID };
+    const key: ComKey<'test', 'l1', 'l2'> = {
+      kt: 'test',
+      pk: '123' as UUID,
+      loc: [
+        { kt: 'l1', lk: 'l1-value' as UUID },
+        { kt: 'l2', lk: 'l2-value' as UUID }
+      ]
+    };
     const facetName = 'testFacet';
     const date = new Date();
     const params = {
@@ -91,7 +113,14 @@ describe('facet', () => {
   });
 
   it('should handle api errors', async () => {
-    const key: PriKey<'test'> = { kt: 'test', pk: '123' as UUID };
+    const key: ComKey<'test', 'l1', 'l2'> = {
+      kt: 'test',
+      pk: '123' as UUID,
+      loc: [
+        { kt: 'l1', lk: 'l1-value' as UUID },
+        { kt: 'l2', lk: 'l2-value' as UUID }
+      ]
+    };
     const facetName = 'testFacet';
     const error = new Error('API Error');
 

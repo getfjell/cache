@@ -1,12 +1,11 @@
 import {
+  createFindWrapper,
   Item,
-  LocKeyArray,
-  validatePK
+  LocKeyArray
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
 import { createFinderHash } from "../normalization";
-import { validateLocations } from "../validation/LocationKeyValidator";
 import LibLogger from "../logger";
 
 const logger = LibLogger.get('find');
@@ -25,11 +24,35 @@ export const find = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[]]> => {
-  const { api, cacheMap, pkType, ttlManager, eventEmitter, coordinate } = context;
+  const { coordinate } = context;
   logger.default('find', { finder, params, locations });
 
-  // Validate location key order
-  validateLocations(locations, coordinate, 'find');
+  const wrappedFind = createFindWrapper(
+    coordinate,
+    async (f, p, locs) => {
+      return await executeFindLogic(f, p ?? {}, locs ?? [], context);
+    }
+  );
+
+  const result = await wrappedFind(finder, params, locations);
+  return [context, result];
+};
+
+async function executeFindLogic<
+  V extends Item<S, L1, L2, L3, L4, L5>,
+  S extends string,
+  L1 extends string = never,
+  L2 extends string = never,
+  L3 extends string = never,
+  L4 extends string = never,
+  L5 extends string = never
+>(
+  finder: string,
+  params: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+  locations: LocKeyArray<L1, L2, L3, L4, L5> | [],
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<V[]> {
+  const { api, cacheMap, pkType, ttlManager, eventEmitter } = context;
 
   // Check if cache bypass is enabled
   if (context.options?.bypassCache) {
@@ -38,7 +61,7 @@ export const find = async <
     try {
       const ret = await api.find(finder, params, locations);
       logger.debug('API response received (not cached due to bypass)', { finder, params, locations, itemCount: ret.length });
-      return [context, validatePK(ret, pkType) as V[]];
+      return ret;
     } catch (error) {
       logger.error('API request failed', { finder, params, locations, error });
       throw error;
@@ -69,7 +92,7 @@ export const find = async <
     }
 
     if (allItemsAvailable) {
-      return [context, validatePK(cachedItems, pkType) as V[]];
+      return cachedItems;
     } else {
       logger.debug('Some cached items missing, invalidating query cache');
       cacheMap.deleteQueryResult(queryHash);
@@ -108,5 +131,5 @@ export const find = async <
   const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(params, locations, ret);
   eventEmitter.emit(event);
 
-  return [context, validatePK(ret, pkType) as V[]];
-};
+  return ret;
+}

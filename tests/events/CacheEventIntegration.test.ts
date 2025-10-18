@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Item, ItemQuery, PriKey } from '@fjell/core';
 import { Cache, createCache } from '../../src/Cache';
 import { AnyCacheEvent, CacheEventListener, CacheSubscription } from '../../src/events/CacheEventTypes';
-import { createCoordinate, createRegistry } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
+import { createRegistry } from '@fjell/registry';
 
 // Test item interface
 interface TestItem extends Item<'test'> {

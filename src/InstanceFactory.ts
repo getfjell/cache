@@ -2,7 +2,7 @@ import { Item } from "@fjell/core";
 import { ClientApi } from "@fjell/client-api";
 import { InstanceFactory as BaseInstanceFactory, Registry, RegistryHub } from "@fjell/registry";
 import { Instance } from "./Instance";
-import { Coordinate } from "@fjell/registry";
+import { Coordinate } from "@fjell/core";
 import { createOperations } from "./Operations";
 import { createCacheMap, createOptions, Options, validateOptions } from "./Options";
 import { TTLManager } from "./ttl/TTLManager";
