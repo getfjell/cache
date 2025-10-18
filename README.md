@@ -24,6 +24,30 @@ Fjell Cache provides intelligent caching capabilities for complex data models an
 - **Cache Introspection**: Runtime visibility into cache implementation type, eviction policies, and capabilities
 - **Automatic Cache Invalidation**: Smart cache invalidation for actions that automatically clears related caches based on affected items
 
+## v3.0.0 Breaking Changes
+
+Version 3.0 adopts the centralized Operations interface from `@fjell/core`, providing:
+- **Consistent interface** across all Fjell packages
+- **Better type safety** with shared validation logic
+- **New `upsert` method** for update-or-create operations
+- **Updated `create` signature** using `CreateOptions` parameter
+
+### Migration Required
+
+The `create` operation now accepts `CreateOptions` instead of a direct locations array:
+
+```typescript
+// Before (v2.x)
+await cache.operations.create(item, locations);
+
+// After (v3.0)
+await cache.operations.create(item, { locations });
+```
+
+All other operations remain **backward compatible**. Cache-specific methods (`retrieve`, `set`, `reset`) work identically.
+
+For detailed migration instructions, see [MIGRATION_v3.md](./MIGRATION_v3.md).
+
 ## Installation
 
 ```bash

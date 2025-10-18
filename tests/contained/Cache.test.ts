@@ -162,7 +162,7 @@ describe("Combined Item Cache Tests", () => {
     mockApi.create.mockResolvedValue(items[0]);
     const itemProps: Partial<Item<"test", "container">> = { key: key1 };
     const locations: LocKeyArray<"container"> = loc2;
-    await itemCache.operations.create(itemProps, locations);
+    await itemCache.operations.create(itemProps, { locations });
     expect(mockApi.create).toHaveBeenCalledWith(itemProps, locations);
   });
 
