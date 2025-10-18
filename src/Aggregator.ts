@@ -306,7 +306,10 @@ export const createAggregator = async <
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
   ): Promise<V> => {
     logger.default('create', { v, locations });
-    const item = await cache.operations.create(v, locations);
+    // Handle empty array case - pass undefined options instead of { locations: [] }
+    const item = locations.length === 0
+      ? await cache.operations.create(v)
+      : await cache.operations.create(v, { locations: locations as LocKeyArray<L1, L2, L3, L4, L5> });
     const populatedItem = await populate(item);
     return populatedItem;
   }
@@ -377,9 +380,12 @@ export const createAggregator = async <
     finder: string,
     finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
     locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): Promise<V> => {
+  ): Promise<V | null> => {
     logger.default('find', { finder, finderParams, locations });
     const item = await cache.operations.findOne(finder, finderParams, locations);
+    if (!item) {
+      return null;
+    }
     const populatedItem = await populate(item);
     return populatedItem;
   }
