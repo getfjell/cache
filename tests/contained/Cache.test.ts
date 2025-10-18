@@ -1,7 +1,8 @@
 import { Cache, createCache } from '../../src/Cache';
 import { CItemApi } from "@fjell/client-api";
 import { ComKey, Item, ItemQuery, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/core";
-import { createCoordinate, createRegistry } from "@fjell/registry";
+import { createCoordinate } from "@fjell/core";
+import { createRegistry } from "@fjell/registry";
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
 vi.mock('../src/logger', () => {
@@ -163,7 +164,7 @@ describe("Combined Item Cache Tests", () => {
     const itemProps: Partial<Item<"test", "container">> = { key: key1 };
     const locations: LocKeyArray<"container"> = loc2;
     await itemCache.operations.create(itemProps, { locations });
-    expect(mockApi.create).toHaveBeenCalledWith(itemProps, locations);
+    expect(mockApi.create).toHaveBeenCalledWith(itemProps, { locations });
   });
 
   it("should call the get method with correct parameters", async () => {

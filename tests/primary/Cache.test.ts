@@ -2,7 +2,8 @@ import { CacheMap } from '../../src/CacheMap';
 import { Cache, createCache } from '../../src/Cache';
 import { PItemApi } from '@fjell/client-api';
 import { Item, PriKey } from '@fjell/core';
-import { createCoordinate, createRegistry } from '@fjell/registry';
+import { createCoordinate } from '@fjell/core';
+import { createRegistry } from '@fjell/registry';
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
 vi.mock('@fjell/client-api');
