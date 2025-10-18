@@ -1,9 +1,9 @@
 import {
   ComKey,
+  createGetWrapper,
   isValidItemKey,
   Item,
-  PriKey,
-  validatePK
+  PriKey
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
@@ -60,8 +60,34 @@ export const get = async <
   key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V | null]> => {
-  const { api, cacheMap, pkType, ttlManager, statsManager } = context;
+  const { api, cacheMap, pkType, ttlManager, statsManager, coordinate } = context;
   logger.default('get', { key, defaultTTL: ttlManager.getDefaultTTL() });
+
+  // Use wrapper for validation
+  const wrappedGet = createGetWrapper(
+    coordinate,
+    async (k) => {
+      return await executeGetLogic(k, context);
+    }
+  );
+
+  const result = await wrappedGet(key);
+  return [context, result];
+};
+
+async function executeGetLogic<
+  V extends Item<S, L1, L2, L3, L4, L5>,
+  S extends string,
+  L1 extends string = never,
+  L2 extends string = never,
+  L3 extends string = never,
+  L4 extends string = never,
+  L5 extends string = never
+>(
+  key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<V | null> {
+  const { api, cacheMap, pkType, ttlManager, statsManager } = context;
 
   // Track cache request
   statsManager.incrementRequests();
@@ -81,10 +107,10 @@ export const get = async <
       if (ret) {
         // Don't cache the result when bypass is enabled
         logger.debug('API response received (not cached due to bypass)', { key });
-        return [context, validatePK(ret, pkType) as V];
+        return ret;
       } else {
         logger.debug('API returned null', { key });
-        return [context, null];
+        return null;
       }
     } catch (error) {
       logger.error('API request failed', { key, error });
@@ -102,7 +128,7 @@ export const get = async <
       if (isValid) {
         logger.debug('Cache hit with valid TTL', { key, defaultTTL: ttlManager.getDefaultTTL() });
         statsManager.incrementHits();
-        return [context, validatePK(cachedItem, pkType) as V];
+        return cachedItem;
       } else {
         // Item expired, remove it from cache
         logger.debug('Cache item expired, removing', { key });
@@ -120,7 +146,7 @@ export const get = async <
     if (cachedItem) {
       logger.debug('Cache hit (TTL disabled)', { key });
       statsManager.incrementHits();
-      return [context, validatePK(cachedItem, pkType) as V];
+      return cachedItem;
     } else {
       statsManager.incrementMisses();
     }
@@ -202,10 +228,5 @@ export const get = async <
     throw e;
   }
 
-  return [
-    context,
-    ret ?
-      validatePK(ret, pkType) as V :
-      null
-  ];
+  return ret || null;
 };

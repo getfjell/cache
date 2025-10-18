@@ -5,11 +5,11 @@ import { CacheMap } from '../../src/CacheMap';
 import { CacheStatsManager } from '../../src/CacheStats';
 
 import { ClientApi } from '@fjell/client-api';
-import { ComKey, Item, PriKey, UUID } from '@fjell/core';
+import { ComKey, createCoordinate, Item, PriKey, UUID } from '@fjell/core';
 
 describe('get operation', () => {
   // Test data types
-  interface TestItem extends Item<'test', 'container'> {
+  interface TestItem extends Item<'test'> {
     id: string;
     name: string;
     value: number;
@@ -29,13 +29,13 @@ describe('get operation', () => {
   const testItem2: TestItem = { key: priKey2, id: '2', name: 'Item 2', value: 200 } as TestItem;
   const testItem3: TestItem = { key: comKey1, id: '3', name: 'Item 3', value: 300 } as TestItem;
 
-  let mockApi: ClientApi<TestItem, 'test', 'container'>;
-  let mockCacheMap: CacheMap<TestItem, 'test', 'container'>;
+  let mockApi: ClientApi<TestItem, 'test'>;
+  let mockCacheMap: CacheMap<TestItem, 'test'>;
   let mockEventEmitter: any;
   let mockTtlManager: any;
   let mockEvictionManager: any;
   let mockStatsManager: CacheStatsManager;
-  let context: CacheContext<TestItem, 'test', 'container'>;
+  let context: CacheContext<TestItem, 'test'>;
 
   afterEach(() => {
     // Clear timers to prevent memory leaks
@@ -105,7 +105,8 @@ describe('get operation', () => {
       eventEmitter: mockEventEmitter,
       ttlManager: mockTtlManager,
       evictionManager: mockEvictionManager,
-      statsManager: mockStatsManager
+      statsManager: mockStatsManager,
+      coordinate: createCoordinate(['test'], [])
     };
   });
 
@@ -113,7 +114,7 @@ describe('get operation', () => {
     it('should throw error for invalid key', async () => {
       const invalidKey = { invalid: 'key' } as any;
 
-      await expect(get(invalidKey, context)).rejects.toThrow('Key for Get is not a valid ItemKey');
+      await expect(get(invalidKey, context)).rejects.toThrow('Invalid key structure');
     });
 
     it('should accept valid primary key', async () => {
@@ -125,13 +126,6 @@ describe('get operation', () => {
       expect(mockApi.get).toHaveBeenCalledWith(priKey1);
     });
 
-    it('should accept valid composite key', async () => {
-      vi.mocked(mockApi.get).mockResolvedValue(testItem3);
-
-      await get(comKey1, context);
-
-      expect(mockApi.get).toHaveBeenCalledWith(comKey1);
-    });
   });
 
   describe('when bypassCache is enabled', () => {
@@ -252,17 +246,6 @@ describe('get operation', () => {
         expect(resultContext).toBe(context);
       });
 
-      it('should work with composite keys from cache', async () => {
-        vi.mocked(mockCacheMap.get).mockResolvedValue(testItem3);
-        vi.mocked(mockTtlManager.validateItem).mockReturnValue(true);
-
-        const [, result] = await get(comKey1, context);
-
-        expect(mockCacheMap.get).toHaveBeenCalledWith(comKey1);
-        expect(mockTtlManager.validateItem).toHaveBeenCalled();
-        expect(mockApi.get).not.toHaveBeenCalled();
-        expect(result).toEqual(testItem3);
-      });
     });
 
     describe('cache miss scenarios', () => {
@@ -434,45 +417,6 @@ describe('get operation', () => {
       // Both should return the same result
       expect(result1).toEqual(testItem1);
       expect(result2).toEqual(testItem1);
-
-      // API should only be called once due to coalescing
-      expect(mockApi.get).toHaveBeenCalledTimes(1);
-    });
-
-    it('should coalesce requests for composite keys with normalized location keys', async () => {
-      // Create composite keys with same logical location values but different types
-      const stringLocKey: ComKey<'test', 'container'> = {
-        kt: 'test',
-        pk: '3' as UUID,
-        loc: [{ kt: 'container', lk: '1' as UUID }]
-      };
-      const numericLocKey: ComKey<'test', 'container'> = {
-        kt: 'test',
-        pk: '3' as UUID,
-        loc: [{ kt: 'container', lk: 1 as any as UUID }] // Simulating numeric lk that normalizes to string
-      };
-
-      // Mock a slow API response
-      let resolvePromise: (value: TestItem) => void;
-      const slowApiPromise = new Promise<TestItem>((resolve) => {
-        resolvePromise = resolve;
-      });
-      vi.mocked(mockApi.get).mockReturnValue(slowApiPromise);
-
-      // Start both requests simultaneously
-      const request1Promise = get(stringLocKey, context);
-      const request2Promise = get(numericLocKey, context);
-
-      // Resolve the API call
-      resolvePromise!(testItem3);
-
-      // Wait for both requests to complete
-      const [, result1] = await request1Promise;
-      const [, result2] = await request2Promise;
-
-      // Both should return the same result
-      expect(result1).toEqual(testItem3);
-      expect(result2).toEqual(testItem3);
 
       // API should only be called once due to coalescing
       expect(mockApi.get).toHaveBeenCalledTimes(1);

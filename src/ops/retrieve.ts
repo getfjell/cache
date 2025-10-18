@@ -2,8 +2,7 @@ import {
   ComKey,
   isValidItemKey,
   Item,
-  PriKey,
-  validatePK
+  PriKey
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import LibLogger from "../logger";
@@ -44,7 +43,7 @@ export const retrieve = async <
       const retrieved = await api.get(key);
       if (retrieved) {
         logger.debug('API response received (not cached due to bypass)', { key });
-        return [null, validatePK(retrieved, pkType) as V];
+        return [null, retrieved];
       } else {
         logger.debug('API returned null', { key });
         return [null, null];
@@ -73,9 +72,7 @@ export const retrieve = async <
 
   const retValue: [CacheContext<V, S, L1, L2, L3, L4, L5> | null, V | null] = [
     contextToReturn,
-    retrieved ?
-      validatePK(retrieved, pkType) as V :
-      null
+    retrieved || null
   ];
 
   return retValue;
