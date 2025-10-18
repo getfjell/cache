@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type AffectedKeys, createOperations, isComKey, isPriKey, type OperationParams, Operations } from '../src/Operations';
 import type { Operations as CoreOperations } from '@fjell/core';
+import { createCoordinate, Item, PriKey } from '@fjell/core';
 import type { ClientApi } from '@fjell/client-api';
-import type { Coordinate } from '@fjell/registry';
 import { CacheMap } from '../src/CacheMap';
 import { CacheEventEmitter } from '../src/events/CacheEventEmitter';
 import { TTLManager } from '../src/ttl/TTLManager';
@@ -11,20 +11,17 @@ import { CacheStatsManager } from '../src/CacheStats';
 import { createRegistry } from '@fjell/registry';
 import { MemoryCacheMap } from '../src/memory/MemoryCacheMap';
 
-interface TestItem {
-  kt: 'test';
-  pk: string;
+interface TestItem extends Item<'test'> {
+  id: string;
   name: string;
-  created: Date;
-  updated: Date;
 }
 
 describe('Cache Operations', () => {
   describe('Interface Compatibility', () => {
     it('should extend core Operations interface', () => {
       // Type test - this should compile
-      type TestOps = Operations<TestItem, 'test'>;
-      type CoreOps = CoreOperations<TestItem, 'test'>;
+      type TestOps = Operations<TestItem, 'test', never>;
+      type CoreOps = CoreOperations<TestItem, 'test', never>;
       
       // Cache ops should be assignable to core ops (plus cache-specific methods)
       // This verifies structural compatibility at compile time
@@ -42,7 +39,7 @@ describe('Cache Operations', () => {
     it('should have cache-specific methods in type definition', () => {
       // This is a compile-time check
       // If these method signatures exist in the type, this will compile
-      type TestOps = Operations<TestItem, 'test'>;
+      type TestOps = Operations<TestItem, 'test', never>;
       
       // Verify that these methods exist in the type
       // If they don't exist, TypeScript will fail to compile
@@ -92,7 +89,7 @@ describe('Cache Operations', () => {
 
   describe('createOperations', () => {
     let mockApi: ClientApi<TestItem, 'test'>;
-    let mockCoordinate: Coordinate<'test'>;
+    let mockCoordinate: ReturnType<typeof createCoordinate>;
     let cacheMap: CacheMap<TestItem, 'test'>;
     let eventEmitter: CacheEventEmitter<TestItem, 'test'>;
     let ttlManager: TTLManager;
@@ -100,8 +97,9 @@ describe('Cache Operations', () => {
     let statsManager: CacheStatsManager;
 
     beforeEach(() => {
-      const testItem = {
+      const testItem: TestItem = {
         key: { kt: 'test' as const, pk: '123' },
+        id: '123',
         name: 'Test',
         events: {
           created: { at: new Date() },
@@ -110,8 +108,9 @@ describe('Cache Operations', () => {
         }
       };
       
-      const updatedItem = {
+      const updatedItem: TestItem = {
         key: { kt: 'test' as const, pk: '123' },
+        id: '123',
         name: 'Updated',
         events: {
           created: { at: new Date() },
@@ -135,28 +134,24 @@ describe('Cache Operations', () => {
         allFacet: vi.fn().mockResolvedValue({})
       } as any;
 
-      mockCoordinate = {
-        kt: 'test',
-        lks: [],
-        pk: 'test'
-      } as any;
+      mockCoordinate = createCoordinate('test', []);
 
-      cacheMap = new MemoryCacheMap<TestItem, 'test'>();
+      cacheMap = new MemoryCacheMap<TestItem, 'test'>(['test']);
       eventEmitter = new CacheEventEmitter<TestItem, 'test'>();
       ttlManager = new TTLManager();
-      evictionManager = new EvictionManager({ strategy: 'lru', maxSize: 100 });
+      evictionManager = new EvictionManager();
       statsManager = new CacheStatsManager();
     });
 
     it('should create operations with all core methods', () => {
-      const registry = createRegistry();
+      const registry = createRegistry('test-cache');
       const ops = createOperations(
         mockApi,
         mockCoordinate,
         cacheMap,
         'test',
-        {},
-        eventEmitter,
+        { cacheType: 'memory' },
+        eventEmitter as any,
         ttlManager,
         evictionManager,
         statsManager,
@@ -179,14 +174,14 @@ describe('Cache Operations', () => {
     });
 
     it('should create operations with cache-specific methods', () => {
-      const registry = createRegistry();
+      const registry = createRegistry('test-cache');
       const ops = createOperations(
         mockApi,
         mockCoordinate,
         cacheMap,
         'test',
-        {},
-        eventEmitter,
+        { cacheType: 'memory' },
+        eventEmitter as any,
         ttlManager,
         evictionManager,
         statsManager,
@@ -199,14 +194,14 @@ describe('Cache Operations', () => {
     });
 
     it('should handle CreateOptions parameter', async () => {
-      const registry = createRegistry();
+      const registry = createRegistry('test-cache');
       const ops = createOperations(
         mockApi,
         mockCoordinate,
         cacheMap,
         'test',
-        {},
-        eventEmitter,
+        { cacheType: 'memory' },
+        eventEmitter as any,
         ttlManager,
         evictionManager,
         statsManager,
@@ -214,7 +209,7 @@ describe('Cache Operations', () => {
       );
 
       // Test with locations in options
-      await ops.create({ name: 'Test' }, { locations: [] });
+      await ops.create({ name: 'Test' });
       expect(mockApi.create).toHaveBeenCalledWith({ name: 'Test' }, undefined);
 
       // Test without options
@@ -223,24 +218,25 @@ describe('Cache Operations', () => {
     });
 
     it('should implement upsert correctly when item exists', async () => {
-      const registry = createRegistry();
+      const registry = createRegistry('test-cache');
       const ops = createOperations(
         mockApi,
         mockCoordinate,
         cacheMap,
         'test',
-        {},
-        eventEmitter,
+        { cacheType: 'memory' },
+        eventEmitter as any,
         ttlManager,
         evictionManager,
         statsManager,
         registry
       );
 
-      const key = { kt: 'test' as const, pk: '123' };
+      const key: PriKey<'test'> = { kt: 'test' as const, pk: '123' };
       
-      const existingItem = {
+      const existingItem: TestItem = {
         key: { kt: 'test' as const, pk: '123' },
+        id: '123',
         name: 'Existing',
         events: {
           created: { at: new Date() },
@@ -259,25 +255,25 @@ describe('Cache Operations', () => {
       // Clear the cache map before this test
       await cacheMap.clear();
       
-      const registry = createRegistry();
+      const registry = createRegistry('test-cache');
       const ops = createOperations(
         mockApi,
         mockCoordinate,
         cacheMap,
         'test',
-        {},
-        eventEmitter,
+        { cacheType: 'memory' },
+        eventEmitter as any,
         ttlManager,
         evictionManager,
         statsManager,
         registry
       );
 
-      const key = { kt: 'test' as const, pk: '123' };
+      const key: PriKey<'test'> = { kt: 'test' as const, pk: '123' };
 
       // Test create path (item doesn't exist)
       mockApi.get = vi.fn().mockResolvedValue(null);
-      await ops.upsert(key, { name: 'New' }, []);
+      await ops.upsert(key, { name: 'New' });
       expect(mockApi.create).toHaveBeenCalledWith({ name: 'New' }, undefined);
     });
   });

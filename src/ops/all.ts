@@ -1,9 +1,8 @@
 import {
+  createAllWrapper,
   Item,
   ItemQuery,
-  LocKeyArray,
-  validateLocations,
-  validatePK
+  LocKeyArray
 } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";
@@ -29,8 +28,32 @@ export const all = async <
   const { api, cacheMap, pkType, ttlManager, coordinate } = context;
   logger.default('all', { query, locations });
 
-  // Validate location key order
-  validateLocations(locations, coordinate, 'all');
+  // Use wrapper for validation
+  const wrappedAll = createAllWrapper(
+    coordinate,
+    async (q, locs) => {
+      return await executeAllLogic(q ?? {}, locs ?? [], context);
+    }
+  );
+
+  const result = await wrappedAll(query, locations);
+  return [context, result];
+};
+
+async function executeAllLogic<
+  V extends Item<S, L1, L2, L3, L4, L5>,
+  S extends string,
+  L1 extends string = never,
+  L2 extends string = never,
+  L3 extends string = never,
+  L4 extends string = never,
+  L5 extends string = never
+>(
+  query: ItemQuery,
+  locations: LocKeyArray<L1, L2, L3, L4, L5> | [],
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<V[]> {
+  const { api, cacheMap, pkType, ttlManager } = context;
 
   // Check if cache bypass is enabled
   if (context.options?.bypassCache) {
@@ -39,7 +62,7 @@ export const all = async <
     try {
       const ret = await api.all(query, locations);
       logger.debug('API response received (not cached due to bypass)', { query, locations, itemCount: ret.length });
-      return [context, validatePK(ret, pkType) as V[]];
+      return ret;
     } catch (error) {
       logger.error('API request failed', { query, locations, error });
       throw error;
@@ -70,7 +93,7 @@ export const all = async <
     }
 
     if (allItemsAvailable) {
-      return [context, validatePK(cachedItems, pkType) as V[]];
+      return cachedItems;
     } else {
       logger.debug('Some cached items missing, invalidating query cache');
       cacheMap.deleteQueryResult(queryHash);
@@ -89,7 +112,7 @@ export const all = async <
       await cacheMap.setQueryResult(queryHash, itemKeys);
       logger.debug('Cached query result from direct cache hit', { queryHash, itemKeyCount: itemKeys.length });
 
-      return [context, validatePK(directCachedItems, pkType) as V[]];
+      return directCachedItems;
     }
   } catch (error) {
     logger.debug('Error querying cache directly, proceeding to API', { error });
@@ -135,5 +158,5 @@ export const all = async <
       throw e;
     }
   }
-  return [context, validatePK(ret, pkType) as V[]];
+  return ret;
 };

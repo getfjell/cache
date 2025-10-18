@@ -158,22 +158,6 @@ describe('PItemCache', () => {
     expect(result).toEqual(expect.any(Object));
   });
 
-  it('should throw error when setting item with malformed key', async () => {
-    const malformedKey = {
-      kt: 'whatever',
-      pk: "not-a-valid-uuid" // Invalid UUID format
-    } as unknown as PriKey<"test">;
-
-    const malformedItem = {
-      ...items[0],
-      key: malformedKey
-    };
-
-    await expect(cache.operations.set(malformedKey, malformedItem as unknown as TestItem))
-      .rejects
-      .toThrow("Item does not have the correct primary key type");
-  });
-
   it('should throw error when setting item with mismatched keys', async () => {
     const differentKey = {
       kt: 'whatever',

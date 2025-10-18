@@ -1,5 +1,6 @@
 import {
   ComKey,
+  createRemoveWrapper,
   isValidItemKey,
   Item,
   PriKey
@@ -22,8 +23,33 @@ export const remove = async <
   key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<CacheContext<V, S, L1, L2, L3, L4, L5>> => {
-  const { api, cacheMap } = context;
+  const { coordinate } = context;
   logger.default('remove', { key });
+
+  const wrappedRemove = createRemoveWrapper(
+    coordinate,
+    async (k) => {
+      await executeRemoveLogic(k, context);
+    }
+  );
+
+  await wrappedRemove(key);
+  return context;
+};
+
+async function executeRemoveLogic<
+  V extends Item<S, L1, L2, L3, L4, L5>,
+  S extends string,
+  L1 extends string = never,
+  L2 extends string = never,
+  L3 extends string = never,
+  L4 extends string = never,
+  L5 extends string = never
+>(
+  key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>,
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<void> {
+  const { api, cacheMap } = context;
 
   if (!isValidItemKey(key)) {
     logger.error('Key for Remove is not a valid ItemKey: %j', key);
@@ -48,7 +74,7 @@ export const remove = async <
     }
 
     const queryInvalidatedEvent = CacheEventFactory.createQueryInvalidatedEvent(
-      [], // We don't track which specific queries were invalidated
+      [],
       'item_changed',
       { source: 'operation', context: { operation: 'remove' } }
     );
@@ -57,9 +83,6 @@ export const remove = async <
     logger.debug('Successfully removed item from API and cache', { key });
   } catch (e) {
     logger.error("Error deleting item", { error: e });
-    // Don't delete from cache if API deletion failed
     throw e;
   }
-
-  return context;
-};
+}

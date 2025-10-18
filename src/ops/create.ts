@@ -1,8 +1,7 @@
 import {
+  createCreateWrapper,
   Item,
-  LocKeyArray,
-  validateLocations,
-  validatePK
+  LocKeyArray
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
@@ -23,16 +22,37 @@ export const create = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
-  const { api, cacheMap, pkType, eventEmitter, ttlManager, evictionManager, coordinate } = context;
+  const { coordinate } = context;
   logger.default('create', { v, locations });
 
-  // Validate location key order
-  validateLocations(locations, coordinate, 'create');
-
-  const created = await api.create(
-    v,
-    locations.length > 0 ? { locations: locations as LocKeyArray<L1, L2, L3, L4, L5> } : undefined
+  const wrappedCreate = createCreateWrapper(
+    coordinate,
+    async (item, createOptions) => {
+      const locs = createOptions?.locations ?? [];
+      return await executeCreateLogic(item, locs, context);
+    }
   );
+
+  const result = await wrappedCreate(v, locations.length > 0 ? { locations: locations as LocKeyArray<L1, L2, L3, L4, L5> } : undefined);
+  return [context, result];
+};
+
+async function executeCreateLogic<
+  V extends Item<S, L1, L2, L3, L4, L5>,
+  S extends string,
+  L1 extends string = never,
+  L2 extends string = never,
+  L3 extends string = never,
+  L4 extends string = never,
+  L5 extends string = never
+>(
+  v: Partial<Item<S, L1, L2, L3, L4, L5>>,
+  locations: LocKeyArray<L1, L2, L3, L4, L5> | [],
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<V> {
+  const { api, cacheMap, pkType, eventEmitter, ttlManager, evictionManager } = context;
+
+  const created = await api.create(v, locations.length > 0 ? { locations: locations as LocKeyArray<L1, L2, L3, L4, L5> } : undefined);
   cacheMap.set(created.key, created);
 
   // Set TTL metadata for the newly cached item
@@ -61,5 +81,5 @@ export const create = async <
   );
   eventEmitter.emit(queryInvalidatedEvent);
 
-  return [context, validatePK(created, pkType) as V];
-};
+  return created;
+}

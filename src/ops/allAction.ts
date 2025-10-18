@@ -1,10 +1,9 @@
 import {
   ComKey,
+  createAllActionWrapper,
   Item,
   LocKeyArray,
-  PriKey,
-  validateLocations,
-  validatePK
+  PriKey
 } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";
@@ -28,11 +27,35 @@ export const allAction = async <
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]> => {
-  const { api, cacheMap, pkType, eventEmitter, registry, coordinate } = context;
+  const { coordinate } = context;
   logger.default('allAction', { action, body, locations });
 
-  // Validate location key order
-  validateLocations(locations, coordinate, 'allAction');
+  const wrappedAllAction = createAllActionWrapper(
+    coordinate,
+    async (a, b, locs) => {
+      return await executeAllActionLogic(a, b, locs ?? [], context);
+    }
+  );
+
+  const result = await wrappedAllAction(action, body, locations);
+  return [context, result[0], result[1]];
+};
+
+async function executeAllActionLogic<
+  V extends Item<S, L1, L2, L3, L4, L5>,
+  S extends string,
+  L1 extends string = never,
+  L2 extends string = never,
+  L3 extends string = never,
+  L4 extends string = never,
+  L5 extends string = never
+>(
+  action: string,
+  body: any,
+  locations: LocKeyArray<L1, L2, L3, L4, L5> | [],
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<[V[], Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]> {
+  const { api, cacheMap, pkType, eventEmitter, registry } = context;
 
   // Get existing items in the specified locations before executing the action
   // This helps us track which items were modified
@@ -191,5 +214,5 @@ export const allAction = async <
       throw e;
     }
   }
-  return [context, validatePK(ret, pkType) as V[], affectedItems];
-};
+  return [ret, affectedItems];
+}

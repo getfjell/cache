@@ -53,7 +53,7 @@ describe('allAction operation', () => {
   } as TestItem;
 
   const testAction = 'processAll';
-  const testBody = { operation: 'bulk-update', metadata: { source: 'test' } };
+  const testBody = { operation: 'bulk-update', metadata: 'test' };
   const testLocations: LocKeyArray<'container', 'section'> = [
     { kt: 'container', lk: 'container1' as UUID },
     { kt: 'section', lk: 'section1' as UUID }
