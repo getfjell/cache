@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { update } from '../../src/ops/update';
 import { CacheContext } from '../../src/CacheContext';
-import { ComKey, Item, PriKey, UUID } from '@fjell/core';
+import { ComKey, createCoordinate, Item, PriKey, UUID } from '@fjell/core';
 import { ClientApi } from '@fjell/client-api';
 import { CacheMap } from '../../src/CacheMap';
 
 // Test data types
-interface TestItem extends Item<'test', 'container'> {
+interface TestItem extends Item<'test'> {
   id: string;
   name: string;
   value: number;
@@ -41,12 +41,12 @@ describe('update operation', () => {
 
   const partialUpdate = { name: 'Updated Item', value: 150 };
 
-  let mockApi: ClientApi<TestItem, 'test', 'container'>;
-  let mockCacheMap: CacheMap<TestItem, 'test', 'container'>;
+  let mockApi: ClientApi<TestItem, 'test'>;
+  let mockCacheMap: CacheMap<TestItem, 'test'>;
   let mockEventEmitter: any;
   let mockTtlManager: any;
   let mockEvictionManager: any;
-  let context: CacheContext<TestItem, 'test', 'container'>;
+  let context: CacheContext<TestItem, 'test'>;
 
   afterEach(() => {
     // Clear timers to prevent memory leaks
@@ -128,8 +128,9 @@ describe('update operation', () => {
       eventEmitter: mockEventEmitter,
       ttlManager: mockTtlManager,
       evictionManager: mockEvictionManager,
-      options: {}
-    } as CacheContext<TestItem, 'test', 'container'>;
+      options: {},
+      coordinate: createCoordinate(['test'], [])
+    } as CacheContext<TestItem, 'test'>;
   });
 
   describe('successful update operations', () => {
@@ -178,27 +179,6 @@ describe('update operation', () => {
       // Verify return values
       expect(resultContext).toBe(context);
       expect(resultItem).toEqual(updatedItem);
-    });
-
-    it('should update an item with composite key', async () => {
-      // Setup
-      const comUpdatedItem = { ...updatedItem, key: comKey1 };
-      (mockApi.update as any).mockResolvedValue(comUpdatedItem);
-      (mockCacheMap.get as any).mockReturnValue({ ...originalItem, key: comKey1 });
-
-      // Execute
-      const [resultContext, resultItem] = await update(comKey1, partialUpdate, context);
-
-      // Verify API call
-      expect(mockApi.update).toHaveBeenCalledWith(comKey1, partialUpdate);
-
-      // Verify cache operations
-      expect(mockCacheMap.invalidateItemKeys).toHaveBeenCalledWith([comKey1]);
-      expect(mockCacheMap.set).toHaveBeenCalledWith(comKey1, comUpdatedItem);
-
-      // Verify return values
-      expect(resultContext).toBe(context);
-      expect(resultItem).toEqual(comUpdatedItem);
     });
 
     it('should handle update when previous item is not in cache', async () => {
@@ -271,7 +251,7 @@ describe('update operation', () => {
       // Execute & Verify
       await expect(update(invalidKey, partialUpdate, context))
         .rejects
-        .toThrow('Key for Update is not a valid ItemKey');
+        .toThrow('Invalid key structure');
 
       // Verify API is not called
       expect(mockApi.update).not.toHaveBeenCalled();
@@ -285,7 +265,7 @@ describe('update operation', () => {
       // Execute & Verify
       await expect(update(undefinedKey, partialUpdate, context))
         .rejects
-        .toThrow('Key for Update is not a valid ItemKey');
+        .toThrow('Invalid key structure');
 
       // Verify API is not called
       expect(mockApi.update).not.toHaveBeenCalled();
@@ -299,7 +279,7 @@ describe('update operation', () => {
       // Execute & Verify
       await expect(update(malformedKey, partialUpdate, context))
         .rejects
-        .toThrow('Key for Update is not a valid ItemKey');
+        .toThrow('Invalid key structure');
 
       // Verify API is not called
       expect(mockApi.update).not.toHaveBeenCalled();

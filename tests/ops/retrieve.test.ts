@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { retrieve } from '../../src/ops/retrieve';
 import { CacheContext } from '../../src/CacheContext';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
-import { ComKey, Item, PriKey, UUID } from '@fjell/core';
+import { ComKey, createCoordinate, Item, PriKey, UUID } from '@fjell/core';
 import * as getOp from '../../src/ops/get';
 import { CacheStatsManager } from '../../src/CacheStats';
 
@@ -127,7 +127,8 @@ describe('retrieve operation', () => {
       eventEmitter: mockEventEmitter,
       ttlManager: mockTTLManager,
       evictionManager: mockEvictionManager,
-      statsManager: mockStatsManager
+      statsManager: mockStatsManager,
+      coordinate: createCoordinate(['test'], [])
     };
   });
 

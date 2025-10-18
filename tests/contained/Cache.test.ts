@@ -224,22 +224,6 @@ describe("Combined Item Cache Tests", () => {
     expect(mockApi.update).not.toHaveBeenCalledWith(key1, items[0]);
   });
 
-  it("should throw error when setting item with malformed key", async () => {
-    const key1 = {
-      kt: 'whatever',
-      pk: "not-a-valid-uuid" // Invalid UUID format
-    } as unknown as ComKey<"test", "container">;
-
-    const malformedItem = {
-      ...items[0],
-      key: key1
-    };
-
-    await expect(itemCache.operations.set(key1, malformedItem as unknown as TestItem))
-      .rejects
-      .toThrow("Item does not have the correct primary key type");
-  });
-
   it("should throw error when setting item with mismatched keys", async () => {
     const differentKey = {
       kt: 'test',

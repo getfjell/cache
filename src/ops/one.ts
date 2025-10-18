@@ -1,9 +1,8 @@
 import {
+  createOneWrapper,
   Item,
   ItemQuery,
-  LocKeyArray,
-  validateLocations,
-  validatePK
+  LocKeyArray
 } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";
@@ -29,8 +28,32 @@ export const one = async <
   const { api, cacheMap, pkType, ttlManager, coordinate } = context;
   logger.default('one', { query, locations });
 
-  // Validate location key order
-  validateLocations(locations, coordinate, 'one');
+  // Use wrapper for validation
+  const wrappedOne = createOneWrapper(
+    coordinate,
+    async (q, locs) => {
+      return await executeOneLogic(q ?? {}, locs ?? [], context);
+    }
+  );
+
+  const result = await wrappedOne(query, locations);
+  return [context, result];
+};
+
+async function executeOneLogic<
+  V extends Item<S, L1, L2, L3, L4, L5>,
+  S extends string,
+  L1 extends string = never,
+  L2 extends string = never,
+  L3 extends string = never,
+  L4 extends string = never,
+  L5 extends string = never
+>(
+  query: ItemQuery,
+  locations: LocKeyArray<L1, L2, L3, L4, L5> | [],
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<V | null> {
+  const { api, cacheMap, pkType, ttlManager } = context;
 
   // Check if cache bypass is enabled
   if (context.options?.bypassCache) {
@@ -40,10 +63,10 @@ export const one = async <
       const retItem = await api.one(query, locations);
       if (retItem) {
         logger.debug('API response received (not cached due to bypass)', { query, locations });
-        return [context, validatePK(retItem, pkType) as V];
+        return retItem;
       } else {
         logger.debug('API returned null', { query, locations });
-        return [context, null];
+        return null;
       }
     } catch (error) {
       logger.error('API request failed', { query, locations, error });
@@ -62,13 +85,13 @@ export const one = async <
 
     if (cachedItemKeys.length === 0) {
       // Cached empty result (not found)
-      return [context, null];
+      return null;
     }
 
     // Retrieve the first cached item - if missing, invalidate the query cache
     const item = await cacheMap.get(cachedItemKeys[0]);
     if (item) {
-      return [context, validatePK(item, pkType) as V];
+      return item;
     } else {
       logger.debug('Cached item missing, invalidating query cache');
       cacheMap.deleteQueryResult(queryHash);
@@ -87,7 +110,7 @@ export const one = async <
       await cacheMap.setQueryResult(queryHash, [foundItem.key]);
       logger.debug('Cached query result from direct cache hit', { queryHash, itemKey: foundItem.key });
 
-      return [context, validatePK(foundItem, pkType) as V];
+      return foundItem;
     }
   } catch (error) {
     logger.debug('Error querying cache directly, proceeding to API', { error });
@@ -143,10 +166,6 @@ export const one = async <
       throw e;
     }
   }
-  return [
-    context,
-    retItem ?
-      validatePK(retItem, pkType) as V :
-      null
-  ];
-};
+  
+  return retItem || null;
+}

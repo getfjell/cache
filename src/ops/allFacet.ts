@@ -1,7 +1,7 @@
 import {
+  createAllFacetWrapper,
   Item,
-  LocKeyArray,
-  validateLocations
+  LocKeyArray
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import LibLogger from "../logger";
@@ -25,9 +25,12 @@ export const allFacet = async <
   const { api, coordinate } = context;
   logger.default('allFacet', { facet, params, locations });
 
-  // Validate location key order
-  validateLocations(locations, coordinate, 'allFacet');
+  const wrappedAllFacet = createAllFacetWrapper(
+    coordinate,
+    async (f, p, locs) => {
+      return await api.allFacet(f, p ?? {}, locs ?? []);
+    }
+  );
 
-  const ret = await api.allFacet(facet, params, locations);
-  return ret;
+  return await wrappedAllFacet(facet, params, locations);
 };

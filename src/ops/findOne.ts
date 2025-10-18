@@ -1,8 +1,7 @@
 import {
+  createFindOneWrapper,
   Item,
-  LocKeyArray,
-  validateLocations,
-  validatePK
+  LocKeyArray
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
@@ -24,12 +23,36 @@ export const findOne = async <
   finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
-): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
-  const { api, cacheMap, pkType, ttlManager, eventEmitter, coordinate } = context;
+): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V | null]> => {
+  const { coordinate } = context;
   logger.default('findOne', { finder, finderParams, locations });
 
-  // Validate location key order
-  validateLocations(locations, coordinate, 'findOne');
+  const wrappedFindOne = createFindOneWrapper(
+    coordinate,
+    async (f, p, locs) => {
+      return await executeFindOneLogic(f, p ?? {}, locs ?? [], context);
+    }
+  );
+
+  const result = await wrappedFindOne(finder, finderParams, locations);
+  return [context, result];
+};
+
+async function executeFindOneLogic<
+  V extends Item<S, L1, L2, L3, L4, L5>,
+  S extends string,
+  L1 extends string = never,
+  L2 extends string = never,
+  L3 extends string = never,
+  L4 extends string = never,
+  L5 extends string = never
+>(
+  finder: string,
+  finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
+  locations: LocKeyArray<L1, L2, L3, L4, L5> | [],
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>
+): Promise<V> {
+  const { api, cacheMap, pkType, ttlManager, eventEmitter } = context;
 
   // Check if cache bypass is enabled
   if (context.options?.bypassCache) {
@@ -41,7 +64,7 @@ export const findOne = async <
         throw new Error(`findOne returned null for finder: ${finder}`);
       }
       logger.debug('API response received (not cached due to bypass)', { finder, finderParams, locations });
-      return [context, validatePK(ret, pkType) as V];
+      return ret;
     } catch (error) {
       logger.error('API request failed', { finder, finderParams, locations, error });
       throw error;
@@ -60,7 +83,7 @@ export const findOne = async <
     // Retrieve the first cached item - if missing, invalidate the query cache
     const item = await cacheMap.get(cachedItemKeys[0]);
     if (item) {
-      return [context, validatePK(item, pkType) as V];
+      return item;
     } else {
       logger.debug('Cached item missing, invalidating query cache');
       cacheMap.deleteQueryResult(queryHash);
@@ -100,5 +123,5 @@ export const findOne = async <
   const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(finderParams, locations, [ret]);
   eventEmitter.emit(event);
 
-  return [context, validatePK(ret, pkType) as V];
-};
+  return ret;
+}
