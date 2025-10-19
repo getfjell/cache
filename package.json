@@ -42,6 +42,11 @@
     "@fjell/http-api": "^4.4.41",
     "@fjell/logging": "^4.4.49",
     "@fjell/registry": "^4.4.51",
+    "@fjell/client-api": "^4.4.45",
+    "@fjell/core": "^4.4.49",
+    "@fjell/http-api": "^4.4.41",
+    "@fjell/logging": "^4.4.49",
+    "@fjell/registry": "^4.4.51",
     "fast-safe-stringify": "^2.1.1",
     "flatted": "^3.3.3",
     "yocto-queue": "^1.2.1"
