@@ -47,3 +47,9 @@ input/
 processed/
 
 tests/**/*.bak*
+# IDE
+.vscode/
+
+.env.development
+.env.test
+.env.production
