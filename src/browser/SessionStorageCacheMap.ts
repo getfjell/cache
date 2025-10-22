@@ -246,7 +246,11 @@ export class SessionStorageCacheMap<
 
         try {
           const parsed = JSON.parse(stored);
-          if (parsed.originalKey) {
+          if (
+            parsed.originalKey &&
+            parsed.originalVerificationHash &&
+            this.verificationHashFunction(parsed.originalKey) === parsed.originalVerificationHash
+          ) {
             keys.push(parsed.originalKey);
           }
         } catch (itemError) {
@@ -272,7 +276,12 @@ export class SessionStorageCacheMap<
 
         try {
           const parsed = JSON.parse(stored);
-          if (parsed.value != null) {
+          if (
+            parsed.value != null &&
+            parsed.originalKey &&
+            parsed.originalVerificationHash &&
+            this.verificationHashFunction(parsed.originalKey) === parsed.originalVerificationHash
+          ) {
             values.push(parsed.value);
           }
         } catch (itemError) {
