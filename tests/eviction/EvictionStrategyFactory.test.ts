@@ -178,7 +178,7 @@ describe('EvictionStrategyFactory', () => {
       it('should fallback to LRU when LFU strategy creation fails', async () => {
         // Mock the LFUEvictionStrategy module to throw an error
         vi.doMock('../../src/eviction/strategies/LFUEvictionStrategy', () => ({
-          LFUEvictionStrategy: vi.fn().mockImplementation(() => {
+          LFUEvictionStrategy: vi.fn().mockImplementation(function() {
             throw new Error('LFU creation failed');
           })
         }));
@@ -206,7 +206,7 @@ describe('EvictionStrategyFactory', () => {
       it('should fallback to LRU when ARC strategy creation fails', async () => {
         // Mock the ARCEvictionStrategy module to throw an error
         vi.doMock('../../src/eviction/strategies/ARCEvictionStrategy', () => ({
-          ARCEvictionStrategy: vi.fn().mockImplementation(() => {
+          ARCEvictionStrategy: vi.fn().mockImplementation(function() {
             throw new Error('ARC creation failed');
           })
         }));
@@ -234,7 +234,7 @@ describe('EvictionStrategyFactory', () => {
       it('should fallback to LRU when 2Q strategy creation fails', async () => {
         // Mock the TwoQueueEvictionStrategy module to throw an error
         vi.doMock('../../src/eviction/strategies/TwoQueueEvictionStrategy', () => ({
-          TwoQueueEvictionStrategy: vi.fn().mockImplementation(() => {
+          TwoQueueEvictionStrategy: vi.fn().mockImplementation(function() {
             throw new Error('2Q creation failed');
           })
         }));
@@ -262,7 +262,7 @@ describe('EvictionStrategyFactory', () => {
       it('should handle non-Error objects thrown during strategy creation', async () => {
         // Mock the LFUEvictionStrategy module to throw a string
         vi.doMock('../../src/eviction/strategies/LFUEvictionStrategy', () => ({
-          LFUEvictionStrategy: vi.fn().mockImplementation(() => {
+          LFUEvictionStrategy: vi.fn().mockImplementation(function() {
             throw 'String error';
           })
         }));

@@ -233,6 +233,7 @@ describe('Cache Type Configuration Examples', () => {
       // Mock browser environment without localStorage
       global.window = { indexedDB: {} } as any;
 
+      consoleLogSpy.mockClear(); // Clear logs from module loading
       await runExamples();
 
       // Should skip localStorage operations
@@ -243,6 +244,7 @@ describe('Cache Type Configuration Examples', () => {
       // Mock browser environment without IndexedDB
       global.window = { localStorage: {} } as any;
 
+      consoleLogSpy.mockClear(); // Clear logs from module loading
       await runExamples();
 
       // Should skip IndexedDB operations
@@ -253,6 +255,7 @@ describe('Cache Type Configuration Examples', () => {
       // Remove window object
       delete (global as any).window;
 
+      consoleLogSpy.mockClear(); // Clear logs from module loading
       await runExamples();
 
       // Should skip both localStorage and IndexedDB operations
