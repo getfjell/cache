@@ -38,10 +38,10 @@
   },
   "dependencies": {
     "@fjell/client-api": "^4.4.48",
-    "@fjell/core": "^4.4.53",
+    "@fjell/core": "^4.4.56",
     "@fjell/http-api": "^4.4.45",
     "@fjell/logging": "^4.4.52",
-    "@fjell/registry": "^4.4.55",
+    "@fjell/registry": "^4.4.58",
     "fast-safe-stringify": "^2.1.1",
     "flatted": "^3.3.3",
     "yocto-queue": "^1.2.1"
