@@ -44,7 +44,9 @@ describe('TTLCalculator', () => {
 
   describe('Item TTL Calculation', () => {
     it('should use default TTL for unknown item types', () => {
-      const result = calculator.calculateItemTTL('unknown');
+      // Use a timestamp outside peak hours to avoid adjustments
+      const nonPeakTime = new Date('2024-01-15T20:00:00'); // 8 PM
+      const result = calculator.calculateItemTTL('unknown', { timestamp: nonPeakTime });
       
       expect(result.ttl).toBe(3600);
       expect(result.baseTTL).toBe(3600);
@@ -52,7 +54,9 @@ describe('TTLCalculator', () => {
     });
 
     it('should use type-specific TTL when available', () => {
-      const result = calculator.calculateItemTTL('orderPhase');
+      // Use a timestamp outside peak hours to avoid adjustments
+      const nonPeakTime = new Date('2024-01-15T20:00:00'); // 8 PM
+      const result = calculator.calculateItemTTL('orderPhase', { timestamp: nonPeakTime });
       
       expect(result.baseTTL).toBe(1800);
       expect(result.staleThreshold).toBe(1440); // 80% of 1800
@@ -84,21 +88,27 @@ describe('TTLCalculator', () => {
 
   describe('Query TTL Calculation', () => {
     it('should use complete query TTL for complete queries', () => {
-      const result = calculator.calculateQueryTTL('all', true);
+      // Use a timestamp outside peak hours to avoid adjustments
+      const nonPeakTime = new Date('2024-01-15T20:00:00'); // 8 PM
+      const result = calculator.calculateQueryTTL('all', true, { timestamp: nonPeakTime });
       
       expect(result.baseTTL).toBe(300);
       expect(result.ttl).toBe(300);
     });
 
     it('should use faceted query TTL for incomplete queries', () => {
-      const result = calculator.calculateQueryTTL('unknown', false);
+      // Use a timestamp outside peak hours to avoid adjustments
+      const nonPeakTime = new Date('2024-01-15T20:00:00'); // 8 PM
+      const result = calculator.calculateQueryTTL('unknown', false, { timestamp: nonPeakTime });
       
       expect(result.baseTTL).toBe(60);
       expect(result.ttl).toBe(60);
     });
 
     it('should use facet-specific TTL when available', () => {
-      const result = calculator.calculateQueryTTL('report', false);
+      // Use a timestamp outside peak hours to avoid adjustments
+      const nonPeakTime = new Date('2024-01-15T20:00:00'); // 8 PM
+      const result = calculator.calculateQueryTTL('report', false, { timestamp: nonPeakTime });
       
       expect(result.baseTTL).toBe(30);
       expect(result.ttl).toBe(30);
