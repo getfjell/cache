@@ -1,0 +1,995 @@
+
+> @fjell/cache@4.7.41-dev.0 test
+> vitest run --coverage
+
+
+ RUN  v4.0.1 /Users/developer/gitw/getfjell/cache
+      Coverage enabled with v8
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Basic Properties > should have correct implementation type
+(1763111382265) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Basic Properties > should report two-layer enabled
+(1763111382266) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Basic Properties > should provide access to underlying cache
+(1763111382266) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Item Operations > should pass through get operations
+(1763111382267) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stderr | tests/eviction/strategies/LFUEvictionStrategy.test.ts > LFUEvictionStrategy > Configuration Validation and Sanitization Tests > should handle invalid configuration values gracefully
+decayFactor must be between 0 and 1, got -0.5. Correcting to 0.
+sketchWidth must be positive, got -10. Correcting to 1024.
+sketchDepth must be positive, got 0. Correcting to 4.
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Item Operations > should pass through set operations and invalidate queries
+(1763111382268) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Item Operations > should pass through delete operations and invalidate queries
+(1763111382269) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Item Operations > should pass through includes key operations
+(1763111382269) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Item Operations > should pass through allIn operations
+(1763111382269) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Item Operations > should pass through queryIn operations
+(1763111382269) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Item Operations > should pass through contains operations
+(1763111382269) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Item Operations > should handle clear operations and metadata
+(1763111382269) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Query Operations > should set and get query results with metadata
+(1763111382269) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Query Operations > should handle query result expiration based on TTL
+(1763111382270) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stderr | tests/memory/EnhancedMemoryCacheMap.test.ts > EnhancedMemoryCacheMap > Constructor with initial data > should handle invalid initial data keys gracefully
+(1763111382275) [ERROR] - [@fjell/cache] [EnhancedMemoryCacheMap] Failed to parse initial data key [{"keyStr":"invalid-json-key","error":{}}]
+
+stderr | tests/memory/MemoryCacheMap.test.ts > MemoryCacheMap > Constructor with Initial Data > should handle invalid JSON keys in initial data gracefully
+(1763111382276) [ERROR] - [@fjell/cache] [MemoryCacheMap] Failed to parse initial data key [{"keyStr":"invalid-json","error":{}}]
+
+stderr | tests/ops/set.test.ts > set operation > input validation > should throw error for undefined key
+(1763111382278) [ERROR] - [@fjell/cache] [set] Key for Set is not a valid ItemKey: 
+
+stderr | tests/ops/set.test.ts > set operation > input validation > should throw error for empty object key
+(1763111382278) [ERROR] - [@fjell/cache] [set] Key for Set is not a valid ItemKey: {}
+
+stderr | tests/ops/set.test.ts > set operation > input validation > should throw error for malformed key
+(1763111382279) [ERROR] - [@fjell/cache] [set] Key for Set is not a valid ItemKey: {"invalid":"key"}
+
+stderr | tests/ops/set.test.ts > set operation > input validation > should throw error for incomplete primary key
+(1763111382279) [ERROR] - [@fjell/cache] [set] Key for Set is not a valid ItemKey: {"kt":"test"}
+
+stderr | tests/ops/set.test.ts > set operation > input validation > should throw error for incomplete composite key
+(1763111382279) [ERROR] - [@fjell/cache] [set] Key does not match item key: {"kt":"test","pk":"1"} != {"kt":"test","pk":"3","loc":[{"kt":"container","lk":"container1"}]}
+
+stderr | tests/ops/set.test.ts > set operation > key matching validation > should throw error when key does not match item key
+(1763111382280) [ERROR] - [@fjell/cache] [set] Key does not match item key: {"kt":"test","pk":"different"} != {"kt":"test","pk":"1"}
+
+stderr | tests/ops/set.test.ts > set operation > key matching validation > should throw error when primary key type differs
+(1763111382280) [ERROR] - [@fjell/cache] [set] Key does not match item key: {"kt":"different","pk":"1"} != {"kt":"test","pk":"1"}
+
+stderr | tests/ops/set.test.ts > set operation > key matching validation > should throw error when composite key location differs
+(1763111382280) [ERROR] - [@fjell/cache] [set] Key does not match item key: {"kt":"test","pk":"3","loc":[{"kt":"container","lk":"different"}]} != {"kt":"test","pk":"3","loc":[{"kt":"container","lk":"container1"}]}
+
+stderr | tests/ops/set.test.ts > set operation > edge cases and error scenarios > should handle null values in key normalization gracefully
+(1763111382285) [ERROR] - [@fjell/cache] [set] Key for Set is not a valid ItemKey: {"kt":"test","pk":null}
+
+stderr | tests/ops/set.test.ts > set operation > edge cases and error scenarios > should handle empty string keys as invalid
+(1763111382286) [ERROR] - [@fjell/cache] [set] Key for Set is not a valid ItemKey: {"kt":"test","pk":""}
+
+ ✓ tests/memory/EnhancedMemoryCacheMap.test.ts (108 tests | 12 skipped) 22ms
+ ✓ tests/ops/set.test.ts (44 tests) 25ms
+ ✓ tests/eviction/strategies/LFUEvictionStrategy.test.ts (50 tests) 65ms
+ ✓ tests/examples/enhanced-eviction-examples.test.ts (23 tests) 138ms
+ ✓ tests/eviction/EvictionStrategyFactory.test.ts (33 tests) 43ms
+ ✓ tests/memory/MemoryCacheMap.test.ts (76 tests) 62ms
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Query Operations > should delete query results and metadata
+(1763111382420) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Query Operations > should determine query completeness correctly
+(1763111382420) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Query Operations > should handle query result with empty item keys
+(1763111382421) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Query Invalidation > should invalidate queries containing modified items
+(1763111382421) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Query Invalidation > should handle invalidation of non-existent queries gracefully
+(1763111382421) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Query Invalidation > should invalidate multiple queries for single item change
+(1763111382421) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Statistics and Cleanup > should provide two-layer statistics
+(1763111382422) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Statistics and Cleanup > should clean up expired queries
+(1763111382422) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stderr | tests/ops/get.test.ts > get operation > input validation > should throw error for invalid key
+(1763111382424) [ERROR] - [@fjell/core] [validation],[KeyValidator] Invalid key structure in get [{"key":{"invalid":"key"},"coordinate":{"kta":["test"],"scopes":[]}}]
+
+stderr | tests/ops/get.test.ts > get operation > when bypassCache is enabled > should handle API errors properly
+(1763111382428) [ERROR] - [@fjell/cache] [get] API request failed [{"key":{"kt":"test","pk":"1"},"error":{}}]
+
+stderr | tests/ops/get.test.ts > get operation > error handling > should propagate API errors
+(1763111382433) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"test","pk":"1"},"message":"API failure","stack":"Error: API failure
+    at /Users/developer/gitw/getfjell/cache/tests/ops/get.test.ts:306:24
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:157:11
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:753:26
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1602:10)
+    at runTest (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1309:12)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runSuite (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runSuite (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runFiles (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1526:3)
+    at startTests (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1559:3)
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:76:64
+    at withEnv (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:57:3)
+    at run (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:72:144)
+    at runBaseTests (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:122:2)
+    at executeTests (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init-forks.WglB-sfY.js:24:4)
+    at execute (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:99:3)
+    at process.onMessage (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:164:20)"}]
+
+stderr | tests/ops/get.test.ts > get operation > error handling > should propagate API errors even with TTL configured
+(1763111382434) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"test","pk":"1"},"message":"Network error","stack":"Error: Network error
+    at /Users/developer/gitw/getfjell/cache/tests/ops/get.test.ts:317:24
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:157:11
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:753:26
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1602:10)
+    at runTest (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1309:12)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runSuite (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runSuite (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runFiles (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1526:3)
+    at startTests (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1559:3)
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:76:64
+    at withEnv (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:57:3)
+    at run (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:72:144)
+    at runBaseTests (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:122:2)
+    at executeTests (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init-forks.WglB-sfY.js:24:4)
+    at execute (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:99:3)
+    at process.onMessage (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:164:20)"}]
+
+stderr | tests/ops/get.test.ts > get operation > error handling > should handle API errors with stack trace
+(1763111382434) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"test","pk":"1"},"message":"Detailed API error","stack":"Error stack trace"}]
+
+ ✓ tests/ops/retrieve.test.ts (37 tests) 17ms
+stderr | tests/utils/EvictionStrategies.edge-cases.test.ts > Eviction Strategies Edge Cases and Comprehensive Tests > createEvictionStrategy factory edge cases > should handle extreme configuration values for enhanced strategies
+sketchWidth should be at least 16 for optimal performance, got 1. Correcting to 16.
+adaptiveLearningRate must be between 0 and 10, got 100. Correcting to 10.
+
+stderr | tests/utils/EvictionStrategies.edge-cases.test.ts > Eviction Strategies Edge Cases and Comprehensive Tests > createEvictionStrategy factory edge cases > should handle invalid configuration values gracefully
+decayFactor must be between 0 and 1, got -0.5. Correcting to 0.
+sketchWidth must be positive, got 0. Correcting to 1024.
+sketchDepth must be positive, got -1. Correcting to 4.
+decayFactor must be between 0 and 1, got -0.5. Correcting to 0.
+sketchWidth must be positive, got 0. Correcting to 1024.
+sketchDepth must be positive, got -1. Correcting to 4.
+
+ ✓ tests/ops/get.test.ts (34 tests) 16ms
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+
+🚀 Fjell-Cache Basic Example
+============================
+
+This example demonstrates basic cache operations with User and Task models.
+
+Step 1: Setting up cache infrastructure
+--------------------------------------
+✅ Created cache registry
+✅ Created mock APIs for users and tasks
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+✅ Created cache instances (which are now also instances)
+✅ Created cache model instances
+
+Step 2: Creating test data
+-------------------------
+✅ Created user: Alice Johnson (alice@example.com)
+✅ Created user: Bob Smith (bob@example.com)
+✅ Created task: Setup project repository
+✅ Created task: Implement user authentication
+✅ Created test users and tasks
+
+Step 3: Cache operations - Fetching all items
+----------------------------------------------
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+📦 Fetching all users from storage...
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+📋 Cached 2 users: [ 'Alice Johnson', 'Bob Smith' ]
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+📦 Fetching all tasks from storage...
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+📋 Cached 2 tasks: [ 'Setup project repository', 'Implement user authentication' ]
+
+Step 4: Individual item retrieval
+---------------------------------
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+👤 Retrieved from cache: Alice Johnson (alice@example.com)
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+📝 Retrieved from cache: Setup project repository - Status: completed
+
+Step 5: Cache behavior demonstration
+-----------------------------------
+🎯 Second retrieval (should hit cache):
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+👤 Retrieved: Alice Johnson (cache hit)
+✅ Created user: Charlie Brown (charlie@example.com)
+🎯 New item retrieval (cache miss, will fetch from API):
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+🔍 Getting user with key: user-3
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+👤 Retrieved: Charlie Brown (fetched from API and cached)
+
+Step 6: Cache updates
+--------------------
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+🔄 Updated task in cache: Implement user authentication - New status: completed
+
+Step 7: Query operations
+-----------------------
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+📦 Fetching all tasks from storage...
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+🔍 Found 2 tasks through cache query
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+📝 Retrieved one task: Setup project repository
+
+Step 8: Cache management
+-----------------------
+📊 Cache Statistics:
+   👥 Users in cache: 2
+   📝 Tasks in cache: 2
+   🎯 User cache coordinate: user
+   🎯 Task cache coordinate: task
+
+Step 9: Cleanup demonstration
+-----------------------------
+🗑️ Removed user from storage
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+🎯 Cache still contains removed user: Charlie Brown
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test branch patterns that mirror the example structure for increased coverage
+📋 Fresh fetch shows 2 users (cache updated)
+
+🎉 Basic Cache Example Complete!
+================================
+
+Key concepts demonstrated:
+• Cache creation with registry and instances
+• Basic cache operations (get, set, all, find, one)
+• Cache hits vs misses
+• Cache updates and management
+• Integration with mock storage APIs
+• Cache lifecycle and data consistency
+
+
+ ✓ tests/utils/EvictionStrategies.edge-cases.test.ts (32 tests) 14ms
+stderr | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should verify cache operations with empty data scenarios
+(1763111382457) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"test","pk":"missing"},"message":"Not found: missing","stack":"Error: Not found: missing
+    at Object.get (/Users/developer/gitw/getfjell/cache/tests/examples/basic-cache-example.integration.test.ts:98:37)
+    at executeGetLogic (/Users/developer/gitw/getfjell/cache/src/ops/get.ts:166:24)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/developer/gitw/getfjell/cache/src/ops/get.ts:70:14
+    at /Users/developer/gitw/getfjell/cache/node_modules/@fjell/core/dist/index.js:1872:22
+    at get (/Users/developer/gitw/getfjell/cache/src/ops/get.ts:74:18)"}]
+
+stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test cache memory behavior and performance characteristics
+First call: 1.01ms, Cache hit: 0.28ms
+
+stdout | tests/examples/cache-type-configurations-example.integration.test.ts > Cache Type Configurations Example Integration > should import and execute cache type configurations example without errors
+🚀 Cache Type Configuration Examples
+
+1️⃣ Memory Cache Configuration
+Best for: Fast access, temporary data, development
+✅ Memory cache configured with:
+   - Max items: 1000
+   - TTL: undefinedms (0s)
+   - Debug logging: true
+   - Auto sync: true
+   - Max retries: 3
+
+2️⃣ IndexedDB Cache Configuration
+Best for: Large datasets, offline capability, persistent storage
+✅ IndexedDB cache configured with:
+   - Database: UserAppCache
+   - Version: 2
+   - Store: users
+   - Debug logging: false
+   - Max retries: 5
+   - Retry delay: 2000ms
+
+3️⃣ localStorage Cache Configuration
+Best for: User preferences, settings, moderate-sized persistent data
+✅ localStorage cache configured with:
+   - Key prefix: "myapp:users:"
+   - Compression: true
+   - Auto sync: false
+   - Max retries: 2
+   - Default expiration: 7200000ms (7200s)
+
+4️⃣ Environment-Based Configuration
+Automatically select optimal cache based on environment
+🌐 Browser with IndexedDB detected - using IndexedDB
+✅ Optimal configuration selected
+
+
+ ✓ tests/examples/cache-map-example.integration.test.ts (1 test) 16ms
+stdout | tests/examples/cache-type-configurations-example.integration.test.ts > Cache Type Configurations Example Integration > should import and execute cache type configurations example without errors
+🌐 Browser with IndexedDB detected - using IndexedDB
+
+ ✓ tests/examples/cache-type-configurations-example.integration.test.ts (1 test) 305ms
+stderr | tests/integration/CacheIntegration.test.ts > Cache Integration Tests > Error Handling and Edge Cases > should handle storage errors gracefully in browser implementations
+(1763111382504) [ERROR] - [@fjell/cache] [LocalStorageCacheMap] Error storing to localStorage (attempt 1/3) [{"key":{"kt":"test","pk":"1"},"value":{"key":{"kt":"test","pk":"1"},"id":"1","name":"Test Item","value":100},"error":{},"isLastAttempt":false}]
+(1763111382504) [ERROR] - [@fjell/cache] [LocalStorageCacheMap] Error storing to localStorage (attempt 2/3) [{"key":{"kt":"test","pk":"1"},"value":{"key":{"kt":"test","pk":"1"},"id":"1","name":"Test Item","value":100},"error":{},"isLastAttempt":false}]
+(1763111382504) [ERROR] - [@fjell/cache] [LocalStorageCacheMap] Error storing to localStorage (attempt 3/3) [{"key":{"kt":"test","pk":"1"},"value":{"key":{"kt":"test","pk":"1"},"id":"1","name":"Test Item","value":100},"error":{},"isLastAttempt":true}]
+
+ ✓ tests/examples/memory-leak-prevention.integration.test.ts (34 tests) 15ms
+ ✓ tests/integration/CacheIntegration.test.ts (15 tests) 17ms
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Statistics and Cleanup > should handle statistics with mixed expired and valid queries
+(1763111382523) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/QueryCache.test.ts > QueryCache > Debug Logging > should log operations when debug is enabled
+[QueryCache] Stored query result: debug-query
+  - Items: 1
+  - Complete: true
+  - TTL: 300s
+  - Expires: 2025-11-14T09:14:42.563Z
+
+stdout | tests/cache/layers/QueryCache.test.ts > QueryCache > Debug Logging > should log operations when debug is enabled
+[QueryCache] Cache hit for query: debug-query (1 items, complete: true)
+
+stdout | tests/cache/layers/QueryCache.test.ts > QueryCache > Debug Logging > should log operations when debug is enabled
+[QueryCache] Invalidated 1 queries matching pattern: debug.*
+
+stdout | tests/cache/layers/QueryCache.test.ts > QueryCache > Debug Logging > should log operations when debug is enabled
+[QueryCache] Cache miss for query: debug-query
+
+stdout | tests/cache/layers/QueryCache.test.ts > QueryCache > Debug Logging > should log operations when debug is enabled
+[QueryCache] Cleared 0 query results
+
+ ✓ tests/CacheMap.test.ts (40 tests) 13ms
+stderr | tests/ops/action.test.ts > action operation > input validation > should throw error for invalid item key
+(1763111382568) [ERROR] - [@fjell/core] [validation],[KeyValidator] Invalid key structure in action [{"key":{"invalid":"key"},"coordinate":{"kta":["test"],"scopes":["container"]}}]
+
+stderr | tests/ops/action.test.ts > action operation > input validation > should validate key before any cache operations
+(1763111382570) [ERROR] - [@fjell/core] [validation],[KeyValidator] Invalid key structure in action [{"key":{"kt":"test"},"coordinate":{"kta":["test"],"scopes":["container"]}}]
+
+stderr | tests/ops/action.test.ts > action operation > eviction key parsing error handling > should handle malformed evicted keys gracefully
+(1763111382573) [ERROR] - [@fjell/cache] [action] Failed to parse evicted key during deletion [{"evictedKey":"invalid-json","error":"Unexpected token 'i', "invalid-json" is not valid JSON"}]
+
+stderr | tests/ops/action.test.ts > action operation > eviction key parsing error handling > should handle malformed evicted keys gracefully
+(1763111382573) [ERROR] - [@fjell/cache] [action] Failed to parse evicted key during deletion [{"evictedKey":"{incomplete json","error":"Expected property name or '}' in JSON at position 1 (line 1 column 2)"}]
+
+stderr | tests/ops/action.test.ts > action operation > eviction key parsing error handling > should continue processing when JSON parse fails on evicted keys
+(1763111382573) [ERROR] - [@fjell/cache] [action] Failed to parse evicted key during deletion [{"evictedKey":"undefined","error":""undefined" is not valid JSON"}]
+(1763111382573) [ERROR] - [@fjell/cache] [action] Failed to parse evicted key during deletion [{"evictedKey":"{circular_ref}","error":"Expected property name or '}' in JSON at position 1 (line 1 column 2)"}]
+
+stderr | tests/ops/action.test.ts > action operation > eviction key parsing error handling > should continue processing when JSON parse fails on evicted keys
+(1763111382573) [ERROR] - [@fjell/cache] [action] Failed to parse evicted key during deletion [{"evictedKey":"invalid","error":"Unexpected token 'i', "invalid" is not valid JSON"}]
+
+stderr | tests/events/CacheEventEmitter.test.ts > CacheEventEmitter > event emission > should handle listener errors gracefully
+Error in cache event listener: Error: Test error
+    at /Users/developer/gitw/getfjell/cache/tests/events/CacheEventEmitter.test.ts:125:15
+    at Mock (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/spy/dist/index.js:266:34)
+    at CacheEventEmitter.emitToSubscription (/Users/developer/gitw/getfjell/cache/src/events/CacheEventEmitter.ts:328:9)
+    at CacheEventEmitter.emit (/Users/developer/gitw/getfjell/cache/src/events/CacheEventEmitter.ts:182:14)
+    at /Users/developer/gitw/getfjell/cache/tests/events/CacheEventEmitter.test.ts:136:28
+    at Proxy.assertThrows (file:///Users/developer/gitw/getfjell/cache/node_modules/chai/index.js:2800:5)
+    at Proxy.methodWrapper (file:///Users/developer/gitw/getfjell/cache/node_modules/chai/index.js:1701:25)
+    at Proxy.<anonymous> (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/expect/dist/index.js:1145:12)
+    at Proxy.overwritingMethodWrapper (file:///Users/developer/gitw/getfjell/cache/node_modules/chai/index.js:1751:33)
+    at Proxy.<anonymous> (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/expect/dist/index.js:1481:16)
+    at Proxy.<anonymous> (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/expect/dist/index.js:1086:14)
+    at Proxy.methodWrapper (file:///Users/developer/gitw/getfjell/cache/node_modules/chai/index.js:1701:25)
+    at /Users/developer/gitw/getfjell/cache/tests/events/CacheEventEmitter.test.ts:136:45
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:157:11
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:753:26
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1636:20
+    at new Promise (<anonymous>)
+    at runWithTimeout (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1602:10)
+    at runTest (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1309:12)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at runSuite (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runSuite (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runSuite (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runFiles (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1526:3)
+    at startTests (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1559:3)
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:76:64
+    at withEnv (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:57:3)
+    at run (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:72:144)
+    at runBaseTests (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:122:2)
+    at executeTests (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init-forks.WglB-sfY.js:24:4)
+    at execute (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:99:3)
+    at process.onMessage (file:///Users/developer/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:164:20)
+
+ ✓ tests/ops/action.test.ts (24 tests) 13ms
+ ✓ tests/events/CacheEventEmitter.test.ts (41 tests) 14ms
+stderr | tests/events/CacheEventIntegration.test.ts > Cache Event Integration > error handling > should continue emitting events even if a listener throws
+Error in cache event listener: Error: Test listener error
+    at /Users/developer/gitw/getfjell/cache/tests/events/CacheEventIntegration.test.ts:403:15
+    at Mock (file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/spy/dist/index.js:266:34)
+    at CacheEventEmitter.emitToSubscription (/Users/developer/gitw/getfjell/cache/src/events/CacheEventEmitter.ts:328:9)
+    at CacheEventEmitter.emit (/Users/developer/gitw/getfjell/cache/src/events/CacheEventEmitter.ts:182:14)
+    at set (/Users/developer/gitw/getfjell/cache/src/ops/set.ts:150:16)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/developer/gitw/getfjell/cache/tests/events/CacheEventIntegration.test.ts:413:7
+    at file:///Users/developer/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:753:20
+
+ ✓ tests/events/CacheEventIntegration.test.ts (15 tests) 14ms
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Metadata Provider Methods > should delegate metadata operations to underlying cache
+(1763111382624) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Metadata Provider Methods > should handle metadata operations when underlying cache doesn't support them
+(1763111382624) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Metadata Provider Methods > should get current size from underlying cache
+(1763111382624) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stderr | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should handle various API response scenarios and edge cases
+(1763111382624) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"edge","pk":"null-error"},"message":"Null error test","stack":"Error: Null error test
+    at Object.get (/Users/developer/gitw/getfjell/cache/tests/examples/basic-cache-example.integration.test.ts:373:35)
+    at executeGetLogic (/Users/developer/gitw/getfjell/cache/src/ops/get.ts:166:24)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/developer/gitw/getfjell/cache/src/ops/get.ts:70:14
+    at /Users/developer/gitw/getfjell/cache/node_modules/@fjell/core/dist/index.js:1872:22
+    at get (/Users/developer/gitw/getfjell/cache/src/ops/get.ts:74:18)"}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Metadata Provider Methods > should get size limits from underlying cache
+(1763111382624) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Cache Map Interface Compliance > should pass through keys() operation
+(1763111382624) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stderr | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should handle various API response scenarios and edge cases
+(1763111382624) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"edge","pk":"undefined-error"},"message":"Undefined error test","stack":"Error: Undefined error test
+    at Object.get (/Users/developer/gitw/getfjell/cache/tests/examples/basic-cache-example.integration.test.ts:376:35)
+    at executeGetLogic (/Users/developer/gitw/getfjell/cache/src/ops/get.ts:166:24)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/developer/gitw/getfjell/cache/src/ops/get.ts:70:14
+    at /Users/developer/gitw/getfjell/cache/node_modules/@fjell/core/dist/index.js:1872:22
+    at get (/Users/developer/gitw/getfjell/cache/src/ops/get.ts:74:18)"}]
+
+stderr | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should handle various API response scenarios and edge cases
+(1763111382625) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"edge","pk":"missing"},"message":"Edge case item not found: missing","stack":"Error: Edge case item not found: missing
+    at Object.get (/Users/developer/gitw/getfjell/cache/tests/examples/basic-cache-example.integration.test.ts:378:33)
+    at executeGetLogic (/Users/developer/gitw/getfjell/cache/src/ops/get.ts:166:24)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at /Users/developer/gitw/getfjell/cache/src/ops/get.ts:70:14
+    at /Users/developer/gitw/getfjell/cache/node_modules/@fjell/core/dist/index.js:1872:22
+    at get (/Users/developer/gitw/getfjell/cache/src/ops/get.ts:74:18)"}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Cache Map Interface Compliance > should pass through values() operation
+(1763111382625) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Cache Map Interface Compliance > should create a clone of the cache
+(1763111382626) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Cache Map Interface Compliance > should create a clone of the cache
+(1763111382626) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Query Metadata Extraction > should extract query type from hash correctly
+(1763111382626) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Query Metadata Extraction > should extract filter information from query hash
+(1763111382626) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Query Metadata Extraction > should handle malformed query hashes gracefully
+(1763111382626) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > CacheMap Abstract Methods > should implement invalidateItemKeys
+(1763111382626) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stderr | tests/ops/one.test.ts > one operation > when bypassCache is enabled > should handle API errors properly
+(1763111382626) [ERROR] - [@fjell/cache] [one] API request failed [{"query":{"compoundCondition":{"compoundType":"AND","conditions":[{"column":"id","value":"1","operator":"=="}]}},"locations":[],"error":{}}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > CacheMap Abstract Methods > should implement invalidateLocation
+(1763111382626) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > CacheMap Abstract Methods > should implement clearQueryResults
+(1763111382627) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Error Handling > should handle underlying cache errors gracefully
+(1763111382627) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+ ✓ tests/eviction/EvictionStrategyValidation.test.ts (82 tests) 13ms
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Error Handling > should handle query operations when queries don't exist
+(1763111382627) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Options and Configuration > should use default options when not provided
+(1763111382628) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Options and Configuration > should respect debug option in logging
+(1763111382628) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Options and Configuration > should respect debug option in logging
+(1763111382628) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Options and Configuration > should handle different TTL configurations
+(1763111382628) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Complex Scenarios > should handle rapid query invalidation and recreation
+(1763111382628) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Complex Scenarios > should handle large numbers of queries efficiently
+(1763111382629) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Complex Scenarios > should handle query results with complex item key structures
+(1763111382629) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+ ✓ tests/examples/basic-cache-example.integration.test.ts (8 tests) 188ms
+ ✓ tests/cache/layers/TwoLayerCacheMap.test.ts (43 tests) 367ms
+ ✓ tests/InstanceFactory.test.ts (63 tests) 14ms
+ ✓ tests/ops/one.test.ts (20 tests) 13ms
+stderr | tests/ops/update.test.ts > update operation > validation and error handling > should throw error for invalid key
+(1763111382676) [ERROR] - [@fjell/core] [validation],[KeyValidator] Invalid key structure in update [{"key":{"kt":"test"},"coordinate":{"kta":["test"],"scopes":[]}}]
+
+stderr | tests/ops/update.test.ts > update operation > validation and error handling > should throw error for malformed key
+(1763111382678) [ERROR] - [@fjell/core] [validation],[KeyValidator] Invalid key structure in update [{"key":{"kt":"test"},"coordinate":{"kta":["test"],"scopes":[]}}]
+
+stderr | tests/ops/update.test.ts > update operation > validation and error handling > should propagate API errors
+(1763111382678) [ERROR] - [@fjell/cache] [update] Error updating item [{"error":{}}]
+
+stderr | tests/ops/update.test.ts > update operation > validation and error handling > should handle network timeouts
+(1763111382679) [ERROR] - [@fjell/cache] [update] Error updating item [{"error":{}}]
+
+ ✓ tests/ops/update.test.ts (16 tests) 12ms
+ ✓ tests/patterns/StaleWhileRevalidate.test.ts (13 tests) 462ms
+stderr | tests/ops/find-operations.test.ts > Find Operations > find operation with bypassCache enabled > should handle API errors properly
+(1763111382697) [ERROR] - [@fjell/cache] [find] API request failed [{"finder":"by-value","params":{"value":100},"locations":[],"error":{}}]
+
+stderr | tests/ops/find-operations.test.ts > Find Operations > findOne operation with bypassCache enabled > should handle API errors properly
+(1763111382700) [ERROR] - [@fjell/cache] [findOne] API request failed [{"finder":"by-id","finderParams":{"id":"1"},"locations":[],"error":{}}]
+
+ ✓ tests/ops/find-operations.test.ts (27 tests) 12ms
+stdout | tests/examples/cache-type-configurations-example.test.ts
+🚀 Cache Type Configuration Examples
+
+1️⃣ Memory Cache Configuration
+Best for: Fast access, temporary data, development
+✅ Memory cache configured with:
+   - Max items: 1000
+   - TTL: undefinedms (0s)
+   - Debug logging: true
+   - Auto sync: true
+   - Max retries: 3
+
+2️⃣ IndexedDB Cache Configuration
+Best for: Large datasets, offline capability, persistent storage
+✅ IndexedDB cache configured with:
+   - Database: UserAppCache
+   - Version: 2
+   - Store: users
+   - Debug logging: false
+   - Max retries: 5
+   - Retry delay: 2000ms
+
+3️⃣ localStorage Cache Configuration
+Best for: User preferences, settings, moderate-sized persistent data
+✅ localStorage cache configured with:
+   - Key prefix: "myapp:users:"
+   - Compression: true
+   - Auto sync: false
+   - Max retries: 2
+   - Default expiration: 7200000ms (7200s)
+
+4️⃣ Environment-Based Configuration
+Automatically select optimal cache based on environment
+🖥️  Node.js or limited browser environment - using memory cache
+✅ Optimal configuration selected
+
+
+stderr | tests/primary/Cache.test.ts > PItemCache > should throw error when setting item with mismatched keys
+(1763111382740) [ERROR] - [@fjell/cache] [set] Key does not match item key: {"kt":"whatever","pk":"123e4567-e89b-12d3-a456-426614174000"} != {"kt":"test","pk":"123e4567-e89b-12d3-a456-426614174000"}
+
+ ✓ tests/primary/Cache.test.ts (13 tests) 12ms
+stderr | tests/Aggregator.test.ts > Aggregator > should throw an error if a mandatory reference is missing
+(1763111382754) [ERROR] - [@fjell/cache] [ItemAggregator] Item does not have mandatory ref with key, not optional  [{"key":"other","item":{"key":{"kt":"test","pk":"123e4567-e89b-12d3-a456-426614174000"},"events":{"created":{"at":{}},"updated":{"at":{}},"deleted":{"at":null}},"refs":{}}}]
+
+stderr | tests/Aggregator.test.ts > Aggregator > should throw error for missing non-optional references
+(1763111382756) [ERROR] - [@fjell/cache] [ItemAggregator] Item does not have mandatory ref with key, not optional  [{"key":"other","item":{"key":{"kt":"test","pk":"123e4567-e89b-12d3-a456-426614174000"},"events":{"created":{"at":{}},"updated":{"at":{}},"deleted":{"at":null}},"refs":{}}}]
+
+stderr | tests/Aggregator.test.ts > Aggregator > should throw error for missing references entirely
+(1763111382756) [ERROR] - [@fjell/cache] [ItemAggregator] Item does not have refs an is not optional  [{"item":{"key":{"kt":"test","pk":"123e4567-e89b-12d3-a456-426614174000"},"events":{"created":{"at":{}},"updated":{"at":{}},"deleted":{"at":null}}}}]
+
+stderr | tests/Aggregator.test.ts > Aggregator > should populate an item with events that is missing events
+(1763111382757) [ERROR] - [@fjell/cache] [ItemAggregator] Item does not have mandatory event with key [{"key":"created","item":{"key":{"kt":"test","pk":"123e4567-e89b-12d3-a456-426614174000"},"events":{"updated":{"at":{}},"deleted":{"at":null}}}}]
+
+stderr | tests/Aggregator.test.ts > Aggregator > should populate an item with events when the by key is missing
+(1763111382757) [ERROR] - [@fjell/cache] [ItemAggregator] populateEvent with an Event that does not have by [{"event":{"at":{}},"ik":{"kt":"test","pk":"123e4567-e89b-12d3-a456-426614174000"},"eventKey":"created"}]
+
+stderr | tests/Aggregator.test.ts > Aggregator > should throw an error if a mandatory event is missing
+(1763111382757) [ERROR] - [@fjell/cache] [ItemAggregator] Item does not have mandatory event with key [{"key":"created","item":{"key":{"kt":"test","pk":"123e4567-e89b-12d3-a456-426614174000"},"events":{},"refs":{}}}]
+
+ ✓ tests/examples/cache-type-configurations-example.test.ts (32 tests) 17ms
+stderr | tests/ops/remove.test.ts > remove operation > input validation > should throw error for empty object
+(1763111382762) [ERROR] - [@fjell/core] [validation],[KeyValidator] Invalid key structure in remove [{"key":{},"coordinate":{"kta":["test"],"scopes":[]}}]
+
+stderr | tests/ops/remove.test.ts > remove operation > input validation > should throw error for malformed key
+(1763111382763) [ERROR] - [@fjell/core] [validation],[KeyValidator] Invalid key structure in remove [{"key":{"invalid":"key"},"coordinate":{"kta":["test"],"scopes":[]}}]
+
+stderr | tests/ops/remove.test.ts > remove operation > input validation > should throw error for incomplete primary key
+(1763111382763) [ERROR] - [@fjell/core] [validation],[KeyValidator] Invalid key structure in remove [{"key":{"kt":"test"},"coordinate":{"kta":["test"],"scopes":[]}}]
+
+stderr | tests/ops/remove.test.ts > remove operation > input validation > should throw error for null pk
+(1763111382764) [ERROR] - [@fjell/cache] [remove] Key for Remove is not a valid ItemKey: {"kt":"test","pk":null}
+
+stderr | tests/ops/remove.test.ts > remove operation > input validation > should throw error for empty string pk
+(1763111382764) [ERROR] - [@fjell/cache] [remove] Key for Remove is not a valid ItemKey: {"kt":"test","pk":""}
+
+ ✓ tests/Aggregator.test.ts (24 tests) 11ms
+stderr | tests/ops/remove.test.ts > remove operation > error handling > should propagate API errors and not delete from cache
+(1763111382765) [ERROR] - [@fjell/cache] [remove] Error deleting item [{"error":{}}]
+
+stderr | tests/ops/remove.test.ts > remove operation > error handling > should handle network errors
+(1763111382766) [ERROR] - [@fjell/cache] [remove] Error deleting item [{"error":{}}]
+
+stderr | tests/ops/remove.test.ts > remove operation > error handling > should handle API errors with additional properties
+(1763111382766) [ERROR] - [@fjell/cache] [remove] Error deleting item [{"error":{}}]
+
+stderr | tests/ops/remove.test.ts > remove operation > operation sequence > should not call cache deletion if API call fails
+(1763111382766) [ERROR] - [@fjell/cache] [remove] Error deleting item [{"error":{}}]
+
+stdout | tests/cache/layers/QueryCache.test.ts > QueryCache > Cleanup Operations > should handle cleanup with debug logging enabled
+[QueryCache] Stored query result: debug-query1
+  - Items: 1
+  - Complete: true
+  - TTL: 0.05s
+  - Expires: 2025-11-14T09:09:42.817Z
+
+stdout | tests/cache/layers/QueryCache.test.ts > QueryCache > Cleanup Operations > should handle cleanup with debug logging enabled
+[QueryCache] Stored query result: debug-query2
+  - Items: 1
+  - Complete: true
+  - TTL: 0.05s
+  - Expires: 2025-11-14T09:09:42.817Z
+
+stderr | tests/ops/remove.test.ts > remove operation > comprehensive error scenarios > should handle API remove throwing synchronously
+(1763111382768) [ERROR] - [@fjell/cache] [remove] Error deleting item [{"error":{}}]
+
+stderr | tests/ops/all.test.ts > all operation > when bypassCache is enabled > should handle API errors properly
+(1763111382771) [ERROR] - [@fjell/cache] [all] API request failed [{"query":{"limit":10},"locations":[{"kt":"container","lk":"container1"}],"error":{}}]
+
+ ✓ tests/ops/remove.test.ts (20 tests) 11ms
+ ✓ tests/ops/allAction.test.ts (20 tests) 10ms
+ ✓ tests/ops/all.test.ts (17 tests) 12ms
+stderr | tests/contained/Cache.test.ts > Combined Item Cache Tests > should throw error when setting item with mismatched keys
+(1763111382798) [ERROR] - [@fjell/cache] [set] Key does not match item key: {"kt":"test","pk":"123e4567-e89b-12d3-a456-426614174000"} != {"kt":"test","pk":"123e4567-e89b-12d3-a456-426614174000","loc":[{"kt":"container","lk":"123e4567-e89b-12d3-a456-426614174100"}]}
+
+ ✓ tests/eviction/strategies/ARCEvictionStrategy.test.ts (41 tests) 9ms
+ ✓ tests/contained/Cache.test.ts (16 tests) 13ms
+ ✓ tests/normalization.test.ts (37 tests) 8ms
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should prevent cache poisoning from partial faceted query results
+(1763111382833) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should prevent cache poisoning from partial faceted query results
+🧪 Testing Cache Poisoning Prevention...
+📊 Step 1: Running faceted Graphics Report query...
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should prevent cache poisoning from partial faceted query results
+📝 Faceted query returned 1 item(s):
+   - GPH: Graphics
+📊 Step 2: Running complete query for all phases...
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should prevent cache poisoning from partial faceted query results
+📝 Complete query returned 5 items:
+   - GPH: Graphics
+   - CUT: Cutting
+   - FIN: Finishing
+   - QC: Quality Control
+   - SHP: Shipping
+✅ Cache poisoning prevention successful!
+   Faceted query (1 item) did NOT poison complete query (5 items)
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should cache complete queries but not use them for partial results
+(1763111382838) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should cache complete queries but not use them for partial results
+🧪 Testing Query Completeness Isolation...
+📊 Step 1: Running complete query first...
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should cache complete queries but not use them for partial results
+📊 Step 2: Running complete query again (should be cached)...
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should cache complete queries but not use them for partial results
+📊 Step 3: Running faceted query (should call API)...
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should cache complete queries but not use them for partial results
+✅ Query completeness isolation working correctly!
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should use different TTLs for complete vs partial queries
+(1763111382839) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should use different TTLs for complete vs partial queries
+🧪 Testing Different TTL Behavior...
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should use different TTLs for complete vs partial queries
+✅ TTL configuration verified in implementation
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should maintain item cache independence from query cache
+(1763111382839) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should maintain item cache independence from query cache
+🧪 Testing Item Cache Independence...
+
+stdout | tests/integration/CachePoisoningPrevention.test.ts > Cache Poisoning Prevention > should maintain item cache independence from query cache
+✅ Item cache independence maintained!
+
+ ✓ tests/integration/CachePoisoningPrevention.test.ts (4 tests) 10ms
+stdout | tests/cache/layers/QueryCache.test.ts > QueryCache > Cleanup Operations > should handle cleanup with debug logging enabled
+[QueryCache] Cleaned up 2 expired query results
+
+ ✓ tests/utils/CacheSize.edge-cases.test.ts (30 tests) 8ms
+ ✓ tests/cache/layers/QueryCache.test.ts (36 tests) 664ms
+stderr | tests/ttl/TTLManager.test.ts > TTLManager > error handling and boundary conditions > should handle onItemAdded with missing metadata
+(1763111382878) [WARNING] - [@fjell/cache] [TTLManager] TTL_DEBUG: No metadata found for item when setting TTL [{"key":"nonexistent-key","metadataProviderType":"MockMetadataProvider","metadataProviderMethods":["constructor","getMetadata","setMetadata","deleteMetadata","getAllMetadata","clearMetadata","getCurrentSize","getSizeLimits","setCurrentSize","setSizeLimits"]}]
+
+ ✓ tests/ttl/TTLManager.test.ts (52 tests) 7ms
+stdout | tests/cache/TwoLayerFactory.test.ts > TwoLayerFactory > Auto-Detection > should use provided options in auto-detected cache
+(1763111382916) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"browser/indexedDB","itemTTL":7200,"queryTTL":600,"facetTTL":120}]
+(1763111382917) [INFO] - [@fjell/cache] [TwoLayerFactory] Created two-layer cache from config [{"itemLayerType":"indexedDB","queryTTL":600,"facetTTL":120}]
+
+stdout | tests/cache/TwoLayerFactory.test.ts > TwoLayerFactory > Wrapper Functionality > should wrap different cache implementations correctly
+(1763111382918) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382918) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/enhanced","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+stdout | tests/cache/TwoLayerFactory.test.ts > TwoLayerFactory > Factory Method Options > should handle custom configurations for each method
+(1763111382919) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":1800,"queryTTL":180,"facetTTL":30}]
+(1763111382919) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"browser/indexedDB","itemTTL":1800,"queryTTL":180,"facetTTL":30}]
+
+stdout | tests/cache/TwoLayerFactory.test.ts > TwoLayerFactory > Debug and Logging > should handle debug logging in factory creation
+(1763111382919) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerFactory] Created two-layer cache from config [{"itemLayerType":"memory"}]
+
+stdout | tests/cache/TwoLayerFactory.test.ts > TwoLayerFactory > Debug and Logging > should create caches with debug mode enabled
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"browser/indexedDB","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"browser/localStorage","itemTTL":3600,"queryTTL":180,"facetTTL":30}]
+
+stdout | tests/cache/TwoLayerFactory.test.ts > TwoLayerFactory > Factory Performance > should handle concurrent factory calls
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382920) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382921) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382921) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382921) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382921) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+(1763111382921) [INFO] - [@fjell/cache] [TwoLayerCacheMap] TwoLayerCacheMap initialized [{"underlyingType":"memory/memory","itemTTL":3600,"queryTTL":300,"facetTTL":60}]
+
+ ✓ tests/utils/EvictionStrategies.test.ts (19 tests) 6ms
+ ✓ tests/cache/TwoLayerFactory.test.ts (42 tests) 9ms
+ ✓ tests/examples/aggregator-example.integration.test.ts (1 test) 7ms
+ ✓ tests/Operations.test.ts (11 tests) 7ms
+ ✓ tests/warming/CacheWarmer.test.ts (20 tests) 760ms
+       ✓ should handle operation timeout  500ms
+ ✓ tests/eviction/strategies/FIFOEvictionStrategy.test.ts (26 tests) 6ms
+ ✓ tests/utils/CacheSize.test.ts (18 tests) 6ms
+ ✓ tests/integration/CacheTTLEviction.integration.test.ts (11 tests) 5ms
+ ✓ tests/integration/query-invalidation.test.ts (4 tests) 6ms
+ ✓ tests/examples/cache-configuration-example.test.ts (8 tests) 7ms
+ ✓ tests/Options.test.ts (38 tests) 6ms
+stderr | tests/utils/cacheInvalidation.test.ts > Cache Invalidation Utils > invalidateCachesByKeyTypes > should handle registry.get throwing error
+(1763111383035) [WARNING] - [@fjell/cache] [cache],[utils],[cacheInvalidation] Failed to handle location-based invalidation [{"keyTypes":["order"],"error":"Registry error"}]
+(1763111383035) [WARNING] - [@fjell/cache] [cache],[utils],[cacheInvalidation] Failed to handle location-based invalidation [{"keyTypes":["customer"],"error":"Registry error"}]
+
+ ✓ tests/utils/cacheInvalidation.test.ts (10 tests) 5ms
+ ✓ tests/integration/OptionsIntegration.test.ts (10 tests) 8ms
+ ✓ tests/ops/reset.test.ts (23 tests) 7ms
+ ✓ tests/events/CacheEventFactory.test.ts (21 tests) 6ms
+ ✓ tests/ttl/TTLCalculator.test.ts (28 tests) 6ms
+stderr | tests/eviction/EvictionManager.test.ts > EvictionManager > error handling > should handle strategy errors gracefully
+(1763111383112) [ERROR] - [@fjell/cache] [EvictionManager] Error in eviction strategy onItemAccessed [{"key":"key","error":{}}]
+
+stderr | tests/eviction/EvictionManager.test.ts > EvictionManager > error handling > should handle strategy errors gracefully
+(1763111383113) [ERROR] - [@fjell/cache] [EvictionManager] Error in eviction strategy onItemAdded [{"key":"key","error":{}}]
+
+stderr | tests/eviction/EvictionManager.test.ts > EvictionManager > error handling > should handle strategy errors gracefully
+(1763111383114) [ERROR] - [@fjell/cache] [EvictionManager] Error in eviction strategy onItemRemoved [{"key":"key","error":{}}]
+
+stderr | tests/eviction/EvictionManager.test.ts > EvictionManager > error handling > should handle strategy errors gracefully
+(1763111383114) [ERROR] - [@fjell/cache] [EvictionManager] Error in manual eviction [{"error":{}}]
+
+ ✓ tests/eviction/strategies/TwoQueueEvictionStrategy.test.ts (20 tests) 5ms
+ ✓ tests/eviction/EvictionManager.test.ts (10 tests) 5ms
+ ✓ tests/eviction/strategies/RandomEvictionStrategy.test.ts (10 tests) 5ms
+ ✓ tests/Aggregator.extended.test.ts (9 tests) 5ms
+ ✓ tests/Options.enhanced.test.ts (20 tests) 5ms
+ ✓ tests/CacheStats.test.ts (24 tests) 5ms
+ ✓ tests/eviction/EvictionStrategyConfig.test.ts (17 tests) 4ms
+ ✓ tests/Cache.string-number-keys.test.ts (4 tests) 8ms
+ ✓ tests/eviction/strategies/MRUEvictionStrategy.test.ts (18 tests) 5ms
+ ✓ tests/Instance.integration.test.ts (11 tests) 7ms
+ ✓ tests/examples/cache-size-and-eviction-example.test.ts (16 tests) 5ms
+ ✓ tests/ops/facet.test.ts (5 tests) 4ms
+ ✓ tests/Instance.test.ts (13 tests) 3ms
+ ✓ tests/CacheInfo.test.ts (4 tests) 3ms
+ ✓ tests/Registry.test.ts (7 tests) 3ms
+ ✓ tests/Cache.integration.test.ts (6 tests) 4ms
+ ✓ tests/Cache.test.ts (3 tests) 3ms
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Statistics and Monitoring > should cleanup and log when debug enabled
+[ItemCache] Stored item: debug-key (expires: 2025-11-14T09:09:43.761Z)
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Logging > should log operations when debug enabled
+[ItemCache] Stored item: debug-key (expires: 2025-11-14T10:09:43.715Z)
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Logging > should log operations when debug enabled
+[ItemCache] Cache hit for key: debug-key
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Logging > should log operations when debug enabled
+[ItemCache] Cache hit for key: debug-key
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Logging > should log operations when debug enabled
+[ItemCache] Deleted item: debug-key (existed: true)
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Logging > should log operations when debug enabled
+[ItemCache] Cleared 0 items
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Statistics Accuracy > should accurately count mixed valid and expired items
+[ItemCache] Cleaned up 1 expired items
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Mode Behaviors > should provide detailed logging in debug mode
+[ItemCache] Stored item: debug-operations-key (expires: 2025-11-14T10:09:43.928Z)
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Mode Behaviors > should provide detailed logging in debug mode
+[ItemCache] Cache hit for key: debug-operations-key
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Mode Behaviors > should provide detailed logging in debug mode
+[ItemCache] Deleted item: debug-operations-key (existed: true)
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Mode Behaviors > should provide detailed logging in debug mode
+[ItemCache] Cleared 0 items
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Mode Behaviors > should handle expired item logging in debug mode
+[ItemCache] Stored item: expiring-debug-key (expires: 2025-11-14T09:09:43.979Z)
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Mode Behaviors > should handle expired item logging in debug mode
+[ItemCache] Expired item removed: expiring-debug-key
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Mode Behaviors > should handle cleanup logging in debug mode
+[ItemCache] Stored item: cleanup-debug-1 (expires: 2025-11-14T09:09:44.079Z)
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Mode Behaviors > should handle cleanup logging in debug mode
+[ItemCache] Stored item: cleanup-debug-2 (expires: 2025-11-14T09:09:44.079Z)
+
+stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Mode Behaviors > should handle cleanup logging in debug mode
+[ItemCache] Cleaned up 2 expired items
+
+ ✓ tests/cache/layers/ItemCache.test.ts (37 tests) 1930ms
+       ✓ should use custom TTL when provided  1102ms
+ ✓ tests/integration/TTLPersistence.integration.test.ts (3 tests) 2611ms
+     ✓ should persist TTL metadata and validate expiration across cache lifecycle  2507ms
+ ✓ tests/examples/cache-stats-example.test.ts (9 tests) 10830ms
+     ✓ should calculate hit ratio correctly  5620ms
+     ✓ should handle cache operations that result in errors gracefully  5200ms
+
+ Test Files  74 passed (74)
+      Tests  1746 passed | 12 skipped (1758)
+   Start at  01:09:41
+   Duration  11.61s (transform 2.40s, setup 471ms, collect 4.75s, tests 18.99s, environment 6ms, prepare 834ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   86.75 |     77.3 |    87.8 |   86.75 |                   
+ src               |   67.42 |    61.31 |   67.78 |   66.87 |                   
+  Aggregator.ts    |   94.24 |    88.33 |   88.46 |   94.11 | ...13,387,443-445 
+  Cache.ts         |     100 |    90.32 |     100 |     100 | 150,158,226       
+  CacheContext.ts  |     100 |      100 |     100 |     100 |                   
+  CacheMap.ts      |     100 |      100 |     100 |     100 |                   
+  CacheStats.ts    |     100 |      100 |     100 |     100 |                   
+  Instance.ts      |     100 |      100 |     100 |     100 |                   
+  ...nceFactory.ts |   96.15 |      100 |   85.71 |   96.15 | 101               
+  Operations.ts    |   17.81 |     8.05 |   38.02 |   14.22 | ...76,197,209-793 
+  Options.ts       |   98.19 |    92.45 |     100 |   98.13 | 298,400           
+  Registry.ts      |     100 |      100 |     100 |     100 |                   
+  logger.ts        |     100 |      100 |     100 |     100 |                   
+  normalization.ts |     100 |    91.66 |     100 |     100 | 119-168           
+ src/cache         |     100 |      100 |     100 |     100 |                   
+  ...yerFactory.ts |     100 |      100 |     100 |     100 |                   
+ src/cache/layers  |   93.98 |    88.57 |   98.24 |   93.86 |                   
+  ItemCache.ts     |   97.95 |    96.96 |     100 |   97.95 | 28                
+  QueryCache.ts    |   91.56 |    86.27 |     100 |   91.56 | ...,98-99,140,157 
+  ...erCacheMap.ts |   94.02 |    86.81 |   97.36 |   93.79 | ...45-346,353,410 
+ ...cache/patterns |   78.87 |    66.66 |   77.77 |   78.87 |                   
+  ...idateCache.ts |   78.87 |    66.66 |   77.77 |   78.87 | ...88-289,317-331 
+ src/cache/warming |   80.95 |    59.61 |   83.87 |   80.34 |                   
+  CacheWarmer.ts   |   80.95 |    59.61 |   83.87 |   80.34 | ...53,411,438-447 
+ src/events        |   86.09 |    79.04 |   90.74 |   86.91 |                   
+  ...entEmitter.ts |   84.83 |     74.8 |   88.23 |   85.88 | ...88,402,426-431 
+  ...entFactory.ts |   91.11 |     92.5 |      95 |    90.9 | 47,70-73          
+  ...EventTypes.ts |       0 |        0 |       0 |       0 |                   
+  index.ts         |       0 |        0 |       0 |       0 |                   
+ src/eviction      |   96.72 |     93.8 |      96 |   96.72 |                   
+  ...ionManager.ts |   92.15 |    81.81 |      90 |   92.15 | 169-175           
+  ...onStrategy.ts |     100 |       95 |     100 |     100 | 186               
+  ...tegyConfig.ts |     100 |      100 |     100 |     100 |                   
+  ...egyFactory.ts |     100 |    93.75 |     100 |     100 | 56,68             
+  ...Validation.ts |   97.26 |    95.39 |     100 |   97.26 | 299,308,323-325   
+  index.ts         |       0 |        0 |       0 |       0 |                   
+ ...ion/strategies |    92.9 |    73.86 |     100 |   93.59 |                   
+  ...onStrategy.ts |   90.62 |    75.65 |     100 |    90.9 | ...20,359,385,405 
+  ...onStrategy.ts |   95.65 |    83.33 |     100 |   95.45 | 23                
+  ...onStrategy.ts |   98.29 |    77.33 |     100 |   99.02 | 243               
+  ...onStrategy.ts |   95.65 |    66.66 |     100 |   95.45 | 23                
+  ...onStrategy.ts |    91.3 |       75 |     100 |     100 | 23-35             
+  ...onStrategy.ts |   95.83 |    66.66 |     100 |   95.65 | 23                
+  ...onStrategy.ts |   90.54 |    69.67 |     100 |   91.36 | ...26,267,300-309 
+ src/memory        |   96.86 |       90 |   97.67 |   96.73 |                   
+  ...ryCacheMap.ts |   97.14 |    88.88 |     100 |   97.05 | ...83,416,563,572 
+  ...ryCacheMap.ts |   96.45 |     92.3 |   94.73 |   96.24 | ...90,296,349,355 
+ src/ops           |   92.51 |    82.83 |   94.11 |   92.45 |                   
+  action.ts        |   84.61 |    54.54 |     100 |   84.61 | 61-62,75-82       
+  all.ts           |   96.96 |       90 |     100 |   96.87 | 138-139           
+  allAction.ts     |   89.85 |    71.42 |     100 |    89.7 | 90-96,101-108     
+  allFacet.ts      |     100 |    66.66 |     100 |     100 | 31                
+  create.ts        |   91.66 |      100 |     100 |   91.66 | 66-67             
+  facet.ts         |     100 |    66.66 |     100 |     100 | 32                
+  find.ts          |      96 |    85.71 |     100 |   95.91 | 120-121           
+  findOne.ts       |    90.9 |    77.77 |     100 |    90.9 | 64,100,114-115    
+  get.ts           |   88.54 |    86.66 |    62.5 |   88.42 | 24-35,96-97,180   
+  one.ts           |   92.42 |    89.28 |     100 |   92.42 | 106-113           
+  remove.ts        |     100 |      100 |     100 |     100 |                   
+  reset.ts         |     100 |      100 |     100 |     100 |                   
+  retrieve.ts      |     100 |      100 |     100 |     100 |                   
+  set.ts           |   89.65 |       84 |     100 |   89.65 | ...,81,88,144-145 
+  update.ts        |   94.87 |       75 |     100 |   94.87 | 58-59             
+ src/ttl           |   76.07 |    66.66 |   87.87 |   76.07 |                   
+  TTLCalculator.ts |   85.52 |    75.86 |     100 |   85.52 | ...46,270,275-283 
+  TTLConfig.ts     |    7.89 |        0 |       0 |    7.89 | 178-250           
+  TTLManager.ts    |   95.78 |    94.59 |   88.88 |   95.78 | 315,321,344-349   
+  index.ts         |       0 |        0 |       0 |       0 |                   
+ src/utils         |   93.12 |    88.65 |    92.3 |   92.85 |                   
+  CacheSize.ts     |   92.77 |    94.28 |     100 |    92.4 | ...61,172,192,201 
+  ...validation.ts |   93.75 |    74.07 |   83.33 |   93.61 | 57,93-96          
+-------------------|---------|----------|---------|---------|-------------------
+ERROR: Coverage for branches (77.3%) does not meet global threshold (83%)
