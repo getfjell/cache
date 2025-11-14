@@ -5,6 +5,9 @@ import { EnhancedMemoryCacheMap } from './memory/EnhancedMemoryCacheMap';
 import { LocalStorageCacheMap } from './browser/LocalStorageCacheMap';
 import { SessionStorageCacheMap } from './browser/SessionStorageCacheMap';
 import { IndexDBCacheMap } from './browser/IndexDBCacheMap';
+import { TwoLayerCacheOptions } from './cache/types/TwoLayerTypes';
+import { TwoLayerCacheMap } from './cache/layers/TwoLayerCacheMap';
+import { TTLConfig } from './ttl/TTLConfig';
 
 import { validateSizeConfig } from './utils/CacheSize';
 import { EvictionStrategyConfigs } from './eviction/EvictionStrategyConfig';
@@ -134,6 +137,12 @@ export interface Options<
 
   /** Delay between retry attempts in milliseconds */
   retryDelay?: number;
+
+  /** Two-layer cache configuration for preventing cache poisoning */
+  twoLayer?: TwoLayerCacheOptions;
+
+  /** Enhanced TTL configuration for smart cache expiration */
+  ttlConfig?: TTLConfig;
 }
 
 /**
@@ -238,6 +247,10 @@ export const createCacheMap = <
     kta: [S, ...string[]],
     options: Options<V, S, L1, L2, L3, L4, L5>
   ): CacheMap<V, S, L1, L2, L3, L4, L5> => {
+  
+  // First create the underlying cache implementation
+  let underlyingCache: CacheMap<V, S, L1, L2, L3, L4, L5>;
+  
   switch (options.cacheType) {
     case 'memory':
       // Use enhanced memory cache if size configuration is provided
@@ -248,42 +261,56 @@ export const createCacheMap = <
           maxSizeBytes: options.memoryConfig.size.maxSizeBytes,
           maxItems: options.memoryConfig.size.maxItems
         };
-        return new EnhancedMemoryCacheMap<V, S, L1, L2, L3, L4, L5>(
+        underlyingCache = new EnhancedMemoryCacheMap<V, S, L1, L2, L3, L4, L5>(
           kta as any,
           sizeConfig
         );
+      } else {
+        underlyingCache = new MemoryCacheMap<V, S, L1, L2, L3, L4, L5>(kta as any);
       }
-      return new MemoryCacheMap<V, S, L1, L2, L3, L4, L5>(kta as any);
+      break;
 
     case 'localStorage':
-      return new LocalStorageCacheMap<V, S, L1, L2, L3, L4, L5>(
+      underlyingCache = new LocalStorageCacheMap<V, S, L1, L2, L3, L4, L5>(
         kta as any,
         options.webStorageConfig?.keyPrefix
       );
+      break;
 
     case 'sessionStorage':
-      return new SessionStorageCacheMap<V, S, L1, L2, L3, L4, L5>(
+      underlyingCache = new SessionStorageCacheMap<V, S, L1, L2, L3, L4, L5>(
         kta as any,
         options.webStorageConfig?.keyPrefix
       );
+      break;
 
     case 'indexedDB':
-      return new IndexDBCacheMap<V, S, L1, L2, L3, L4, L5>(
+      underlyingCache = new IndexDBCacheMap<V, S, L1, L2, L3, L4, L5>(
         kta as any,
         options.indexedDBConfig?.dbName,
         options.indexedDBConfig?.storeName,
         options.indexedDBConfig?.version
       );
+      break;
 
     case 'custom':
       if (!options.customCacheMapFactory) {
         throw new Error('Custom cache map factory is required when cacheType is "custom"');
       }
-      return options.customCacheMapFactory(kta);
+      underlyingCache = options.customCacheMapFactory(kta);
+      break;
 
     default:
       throw new Error(`Unsupported cache type: ${options.cacheType}`);
   }
+
+  // Wrap with TwoLayerCacheMap if two-layer caching is enabled
+  if (options.twoLayer && Object.keys(options.twoLayer).length > 0) {
+    return new TwoLayerCacheMap<V, S, L1, L2, L3, L4, L5>(underlyingCache, options.twoLayer);
+  }
+
+  // Return the underlying cache if two-layer is not enabled
+  return underlyingCache;
 };
 
 /**
@@ -314,7 +341,10 @@ export const validateOptions = <
     'webStorageConfig',
     'memoryConfig',
     'customCacheMapFactory',
-    'evictionConfig'
+    'evictionConfig',
+    
+    // Two-layer cache configuration
+    'twoLayer'
   ]);
 
   // Check for unknown properties and suggest corrections
