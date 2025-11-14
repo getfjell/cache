@@ -113,7 +113,7 @@ describe('Options', () => {
 
       expect(() => validateOptions(invalidOptions)).toThrow(
         'Unknown configuration properties detected: byPassCache.\n' +
-        'Valid properties are: cacheType, enableDebugLogging, autoSync, ttl, bypassCache, maxRetries, retryDelay, indexedDBConfig, webStorageConfig, memoryConfig, customCacheMapFactory, evictionConfig.\n' +
+        'Valid properties are: cacheType, enableDebugLogging, autoSync, ttl, bypassCache, maxRetries, retryDelay, indexedDBConfig, webStorageConfig, memoryConfig, customCacheMapFactory, evictionConfig, twoLayer.\n' +
         'Did you mean: "byPassCache" → "bypassCache"?'
       );
     });
@@ -128,7 +128,7 @@ describe('Options', () => {
 
       expect(() => validateOptions(invalidOptions)).toThrow(
         'Unknown configuration properties detected: byPassCache, cachetype.\n' +
-        'Valid properties are: cacheType, enableDebugLogging, autoSync, ttl, bypassCache, maxRetries, retryDelay, indexedDBConfig, webStorageConfig, memoryConfig, customCacheMapFactory, evictionConfig.\n' +
+        'Valid properties are: cacheType, enableDebugLogging, autoSync, ttl, bypassCache, maxRetries, retryDelay, indexedDBConfig, webStorageConfig, memoryConfig, customCacheMapFactory, evictionConfig, twoLayer.\n' +
         'Did you mean: "byPassCache" → "bypassCache", "cachetype" → "cacheType"?'
       );
     });
@@ -225,7 +225,7 @@ describe('Options', () => {
         byPassCache: true // Typo: should be bypassCache
       } as any)).toThrow(
         'Unknown configuration properties detected: byPassCache.\n' +
-        'Valid properties are: cacheType, enableDebugLogging, autoSync, ttl, bypassCache, maxRetries, retryDelay, indexedDBConfig, webStorageConfig, memoryConfig, customCacheMapFactory, evictionConfig.\n' +
+        'Valid properties are: cacheType, enableDebugLogging, autoSync, ttl, bypassCache, maxRetries, retryDelay, indexedDBConfig, webStorageConfig, memoryConfig, customCacheMapFactory, evictionConfig, twoLayer.\n' +
         'Did you mean: "byPassCache" → "bypassCache"?'
       );
     });
