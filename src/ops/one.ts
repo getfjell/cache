@@ -76,51 +76,108 @@ async function executeOneLogic<
 
   // Generate query hash for caching
   const queryHash = createQueryHash(pkType, query, locations);
-  logger.debug('Generated query hash for one', { queryHash });
+  logger.debug('QUERY_CACHE: Generated query hash for one()', {
+    queryHash,
+    query: JSON.stringify(query),
+    locations: JSON.stringify(locations),
+    pkType
+  });
 
   // Check if we have cached query results
+  logger.debug('QUERY_CACHE: Checking query cache for hash', { queryHash });
   const cachedItemKeys = await cacheMap.getQueryResult(queryHash);
   if (cachedItemKeys) {
-    logger.debug('Using cached query results', { cachedKeyCount: cachedItemKeys.length });
+    logger.debug('QUERY_CACHE: Cache HIT - Found cached query result', {
+      queryHash,
+      cachedKeyCount: cachedItemKeys.length,
+      itemKeys: cachedItemKeys.map(k => JSON.stringify(k))
+    });
 
     if (cachedItemKeys.length === 0) {
       // Cached empty result (not found)
+      logger.debug('QUERY_CACHE: Cached empty result (not found)', { queryHash });
       return null;
     }
 
     // Retrieve the first cached item - if missing, invalidate the query cache
-    const item = await cacheMap.get(cachedItemKeys[0]);
+    const itemKey = cachedItemKeys[0];
+    logger.debug('QUERY_CACHE: Retrieving first cached item', {
+      queryHash,
+      itemKey: JSON.stringify(itemKey)
+    });
+    const item = await cacheMap.get(itemKey);
     if (item) {
+      logger.debug('QUERY_CACHE: Retrieved cached item successfully', {
+        queryHash,
+        itemKey: JSON.stringify(itemKey),
+        itemKeyStr: JSON.stringify(item.key)
+      });
       return item;
     } else {
-      logger.debug('Cached item missing, invalidating query cache');
+      logger.debug('QUERY_CACHE: Cached item MISSING from item cache, invalidating query cache', {
+        queryHash,
+        itemKey: JSON.stringify(itemKey)
+      });
       cacheMap.deleteQueryResult(queryHash);
     }
+  } else {
+    logger.debug('QUERY_CACHE: Cache MISS - No cached query result found', { queryHash });
   }
 
   // If no cached query results, try to find item directly in cache using queryIn
   // This handles cases where individual items are cached but query results are not yet cached
+  logger.debug('QUERY_CACHE: Attempting direct cache query using queryIn()', {
+    queryHash,
+    query: JSON.stringify(query),
+    locations: JSON.stringify(locations)
+  });
   try {
     const directCachedItems = await cacheMap.queryIn(query, locations);
     if (directCachedItems && directCachedItems.length > 0) {
-      logger.debug('Found item directly in cache, skipping API call');
+      logger.debug('QUERY_CACHE: Direct cache query SUCCESS - Found item in item cache', {
+        queryHash,
+        itemCount: directCachedItems.length,
+        itemKeys: directCachedItems.map(item => JSON.stringify(item.key))
+      });
       const foundItem = directCachedItems[0]; // Take first match for 'one' operation
 
       // Cache the query result for future use
       await cacheMap.setQueryResult(queryHash, [foundItem.key]);
-      logger.debug('Cached query result from direct cache hit', { queryHash, itemKey: foundItem.key });
+      logger.debug('QUERY_CACHE: Stored query result from direct cache hit', {
+        queryHash,
+        itemKey: JSON.stringify(foundItem.key)
+      });
 
       return foundItem;
+    } else {
+      logger.debug('QUERY_CACHE: Direct cache query returned no items', { queryHash });
     }
   } catch (error) {
-    logger.debug('Error querying cache directly, proceeding to API', { error });
+    logger.debug('QUERY_CACHE: Error querying cache directly, proceeding to API', {
+      queryHash,
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 
+  logger.debug('QUERY_CACHE: Fetching from API (cache miss or invalid)', {
+    queryHash,
+    query: JSON.stringify(query),
+    locations: JSON.stringify(locations)
+  });
   let retItem: V | null = null;
   try {
     retItem = await api.one(query, locations);
     if (retItem) {
+      logger.debug('QUERY_CACHE: API response received', {
+        queryHash,
+        itemKey: JSON.stringify(retItem.key)
+      });
+      
       // Store individual item in cache
+      logger.debug('QUERY_CACHE: Storing item in item cache', {
+        queryHash,
+        itemKey: JSON.stringify(retItem.key)
+      });
       await cacheMap.set(retItem.key, retItem);
 
       // Create base metadata if it doesn't exist (needed for TTL and eviction)
@@ -147,25 +204,42 @@ async function executeOneLogic<
       for (const evictedKey of evictedKeys) {
         const parsedKey = JSON.parse(evictedKey);
         await cacheMap.delete(parsedKey);
+        logger.debug('QUERY_CACHE: Evicted item due to cache limits', {
+          evictedKey,
+          queryHash
+        });
       }
 
       // Store query result (single item key) in query cache
       await cacheMap.setQueryResult(queryHash, [retItem.key]);
-      logger.debug('Cached query result', { queryHash, itemKey: retItem.key });
+      logger.debug('QUERY_CACHE: Stored query result in query cache', {
+        queryHash,
+        itemKey: JSON.stringify(retItem.key)
+      });
     } else {
+      logger.debug('QUERY_CACHE: API returned null, caching empty result', { queryHash });
       // Store empty result in query cache
       await cacheMap.setQueryResult(queryHash, []);
-      logger.debug('Cached empty query result', { queryHash });
+      logger.debug('QUERY_CACHE: Cached empty query result', { queryHash });
     }
   } catch (e: unknown) {
     if (e instanceof NotFoundError) {
       // Handle not found gracefully - cache empty result
-      cacheMap.setQueryResult(queryHash, []);
-      logger.debug('Cached empty query result for not found', { queryHash });
+      logger.debug('QUERY_CACHE: API returned NotFoundError, caching empty result', { queryHash });
+      await cacheMap.setQueryResult(queryHash, []);
+      logger.debug('QUERY_CACHE: Cached empty query result for not found', { queryHash });
     } else {
+      logger.debug('QUERY_CACHE: API error occurred', {
+        queryHash,
+        error: e instanceof Error ? e.message : String(e)
+      });
       throw e;
     }
   }
   
+  logger.debug('QUERY_CACHE: one() operation completed', {
+    queryHash,
+    result: retItem ? JSON.stringify(retItem.key) : null
+  });
   return retItem || null;
 }
