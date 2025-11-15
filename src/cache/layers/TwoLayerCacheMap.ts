@@ -36,7 +36,7 @@ export class TwoLayerCacheMap<
 > extends CacheMap<V, S, L1, L2, L3, L4, L5> {
 
   private options: Required<TwoLayerCacheOptions>;
-  
+
   // Query metadata tracking for enhanced TTL and completeness
   private queryMetadataMap: Map<string, QueryMetadata> = new Map();
 
@@ -45,7 +45,7 @@ export class TwoLayerCacheMap<
     options: TwoLayerCacheOptions = {}
   ) {
     super((underlyingCache as any).types);
-    
+
     this.options = {
       itemTTL: options.itemTTL || 3600,        // 1 hour for items
       queryTTL: options.queryTTL || 300,       // 5 minutes for complete queries
@@ -71,7 +71,7 @@ export class TwoLayerCacheMap<
 
   async set(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>, value: V): Promise<void> {
     await this.underlyingCache.set(key, value);
-    
+
     // Invalidate affected queries when items change
     await this.invalidateQueriesForItem(key);
   }
@@ -82,7 +82,7 @@ export class TwoLayerCacheMap<
 
   async delete(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<void> {
     await this.underlyingCache.delete(key);
-    
+
     // Invalidate affected queries when items are deleted
     await this.invalidateQueriesForItem(key);
   }
@@ -128,12 +128,12 @@ export class TwoLayerCacheMap<
   ): Promise<void> {
     // Store the basic query result in underlying cache
     await this.underlyingCache.setQueryResult(queryHash, itemKeys);
-    
+
     // Store metadata for this query with proper TTL
     const now = new Date();
     const isComplete = this.determineQueryCompleteness(queryHash, itemKeys);
     const ttlSeconds = isComplete ? this.options.queryTTL : this.options.facetTTL;
-    
+
     const metadata: QueryMetadata = {
       queryType: this.extractQueryType(queryHash),
       isComplete,
@@ -142,9 +142,9 @@ export class TwoLayerCacheMap<
       filter: this.extractFilter(queryHash),
       params: this.extractParams(queryHash)
     };
-    
+
     this.queryMetadataMap.set(queryHash, metadata);
-    
+
     if (this.options.debug) {
       logger.debug('Set query result with metadata', {
         queryHash,
@@ -165,17 +165,17 @@ export class TwoLayerCacheMap<
     if (metadata && metadata.expiresAt < new Date()) {
       // Query has expired - clean it up
       await this.deleteQueryResult(queryHash);
-      
+
       if (this.options.debug) {
         logger.debug('Query result expired and removed', { queryHash });
       }
-      
+
       return null;
     }
-    
+
     // Get the actual query result from underlying cache
     const result = await this.underlyingCache.getQueryResult(queryHash);
-    
+
     if (result && this.options.debug) {
       logger.debug('Query result cache hit', {
         queryHash,
@@ -183,7 +183,7 @@ export class TwoLayerCacheMap<
         isComplete: metadata?.isComplete
       });
     }
-    
+
     return result;
   }
 
@@ -201,7 +201,7 @@ export class TwoLayerCacheMap<
   async deleteQueryResult(queryHash: string): Promise<void> {
     await this.underlyingCache.deleteQueryResult(queryHash);
     this.queryMetadataMap.delete(queryHash);
-    
+
     if (this.options.debug) {
       logger.debug('Deleted query result', { queryHash });
     }
@@ -216,11 +216,11 @@ export class TwoLayerCacheMap<
     itemKey: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
   ): Promise<void> {
     const affectedQueries = await this.findQueriesContainingItem(itemKey);
-    
+
     for (const queryHash of affectedQueries) {
       await this.deleteQueryResult(queryHash);
     }
-    
+
     if (this.options.debug && affectedQueries.length > 0) {
       logger.debug('Invalidated queries for item change', {
         itemKey: JSON.stringify(itemKey),
@@ -237,16 +237,16 @@ export class TwoLayerCacheMap<
   ): Promise<string[]> {
     const affectedQueries: string[] = [];
     const itemKeyStr = JSON.stringify(itemKey);
-    
+
     // Scan all cached query results to find ones containing this item
     for (const [queryHash, metadata] of this.queryMetadataMap.entries()) {
       const queryResult = await this.underlyingCache.getQueryResult(queryHash);
-      
+
       if (queryResult && queryResult.some(key => JSON.stringify(key) === itemKeyStr)) {
         affectedQueries.push(queryHash);
       }
     }
-    
+
     return affectedQueries;
   }
 
@@ -259,16 +259,22 @@ export class TwoLayerCacheMap<
     queryHash: string,
     itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]
   ): boolean {
+    // CRITICAL FIX: Empty queries {} should be classified as complete
+    // Empty queries mean "get all items" which is a complete result set
+    if (queryHash.includes('"query":{}') || queryHash.includes('"query": {}')) {
+      return true; // Empty query is complete - requests all data
+    }
+
     // Heuristic: queries with no filters/params are typically complete
     // Queries with specific filters are typically partial
     if (queryHash.includes('facet:') || queryHash.includes('filter:')) {
       return false; // Partial query
     }
-    
+
     if (queryHash.includes('all:') && !queryHash.includes('query:')) {
       return true; // Complete "all" query
     }
-    
+
     // Default to partial for safety (shorter TTL)
     return false;
   }
@@ -429,7 +435,7 @@ export class TwoLayerCacheMap<
     if ('invalidateItemKeys' in this.underlyingCache && typeof this.underlyingCache.invalidateItemKeys === 'function') {
       await (this.underlyingCache as any).invalidateItemKeys(keys);
     }
-    
+
     // Also invalidate queries for each affected item
     for (const key of keys) {
       await this.invalidateQueriesForItem(key);
@@ -441,7 +447,7 @@ export class TwoLayerCacheMap<
     if ('invalidateLocation' in this.underlyingCache && typeof this.underlyingCache.invalidateLocation === 'function') {
       await (this.underlyingCache as any).invalidateLocation(locations);
     }
-    
+
     // Clear all query metadata since location invalidation affects many items
     this.queryMetadataMap.clear();
   }
@@ -451,7 +457,7 @@ export class TwoLayerCacheMap<
     if ('clearQueryResults' in this.underlyingCache && typeof this.underlyingCache.clearQueryResults === 'function') {
       await (this.underlyingCache as any).clearQueryResults();
     }
-    
+
     // Clear our query metadata
     this.queryMetadataMap.clear();
   }
