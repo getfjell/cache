@@ -1,7 +1,7 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.7.43",
+  "version": "4.7.44-dev.0",
   "keywords": [
     "cache",
     "fjell"
