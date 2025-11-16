@@ -131,39 +131,52 @@ async function executeAllLogic<
     logger.debug('QUERY_CACHE: Cache MISS - No cached query result found', { queryHash });
   }
 
-  // If no cached query results, try to find items directly in cache using queryIn
-  // This handles cases where individual items are cached but query results are not yet cached
-  logger.debug('QUERY_CACHE: Attempting direct cache query using queryIn()', {
-    queryHash,
-    query: JSON.stringify(query),
-    locations: JSON.stringify(locations)
-  });
-  try {
-    const directCachedItems = await cacheMap.queryIn(query, locations);
-    if (directCachedItems && directCachedItems.length > 0) {
-      logger.debug('QUERY_CACHE: Direct cache query SUCCESS - Found items in item cache', {
-        queryHash,
-        itemCount: directCachedItems.length,
-        itemKeys: directCachedItems.map(item => JSON.stringify(item.key))
-      });
+  // For empty queries (`.all()` with no filters), skip direct cache query
+  // because we can't trust that cached items represent complete data.
+  // Cached items might be from previous filtered queries.
+  const isEmptyQuery = Object.keys(query).length === 0 ||
+                      (Object.keys(query).length === 1 &&
+                       'limit' in query || 'offset' in query);
 
-      // Cache the query result for future use
-      const itemKeys = directCachedItems.map(item => item.key);
-      await cacheMap.setQueryResult(queryHash, itemKeys);
-      logger.debug('QUERY_CACHE: Stored query result from direct cache hit', {
-        queryHash,
-        itemKeyCount: itemKeys.length,
-        itemKeys: itemKeys.map(k => JSON.stringify(k))
-      });
-
-      return directCachedItems;
-    } else {
-      logger.debug('QUERY_CACHE: Direct cache query returned no items', { queryHash });
-    }
-  } catch (error) {
-    logger.debug('QUERY_CACHE: Error querying cache directly, proceeding to API', {
+  if (!isEmptyQuery) {
+    // Only try direct cache query for filtered queries where we can validate completeness
+    logger.debug('QUERY_CACHE: Attempting direct cache query using queryIn() for filtered query', {
       queryHash,
-      error: error instanceof Error ? error.message : String(error)
+      query: JSON.stringify(query),
+      locations: JSON.stringify(locations)
+    });
+    try {
+      const directCachedItems = await cacheMap.queryIn(query, locations);
+      if (directCachedItems && directCachedItems.length > 0) {
+        logger.debug('QUERY_CACHE: Direct cache query SUCCESS - Found items in item cache', {
+          queryHash,
+          itemCount: directCachedItems.length,
+          itemKeys: directCachedItems.map(item => JSON.stringify(item.key))
+        });
+
+        // Cache the query result for future use
+        const itemKeys = directCachedItems.map(item => item.key);
+        await cacheMap.setQueryResult(queryHash, itemKeys);
+        logger.debug('QUERY_CACHE: Stored query result from direct cache hit', {
+          queryHash,
+          itemKeyCount: itemKeys.length,
+          itemKeys: itemKeys.map(k => JSON.stringify(k))
+        });
+
+        return directCachedItems;
+      } else {
+        logger.debug('QUERY_CACHE: Direct cache query returned no items', { queryHash });
+      }
+    } catch (error) {
+      logger.debug('QUERY_CACHE: Error querying cache directly, proceeding to API', {
+        queryHash,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  } else {
+    logger.debug('QUERY_CACHE: Skipping direct cache query for empty/all query - cannot trust completeness', {
+      queryHash,
+      query: JSON.stringify(query)
     });
   }
 
