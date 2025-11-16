@@ -22,7 +22,7 @@ describe('Cache Poisoning Prevention', () => {
   let mockApi: any;
 
   beforeEach(() => {
-    // Mock API that simulates the Wagner Skis scenario
+    // Mock API that simulates the scenario
     mockApi = {
       // Complete query returns all phases for an order
       all: vi.fn().mockResolvedValue([

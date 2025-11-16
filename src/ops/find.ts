@@ -70,44 +70,94 @@ async function executeFindLogic<
 
   // Generate query hash for caching
   const queryHash = createFinderHash(finder, params, locations);
-  logger.debug('Generated query hash for find', { queryHash, finder, params, locations });
+  logger.debug('QUERY_CACHE: Generated query hash for find()', {
+    queryHash,
+    finder,
+    params: JSON.stringify(params),
+    locations: JSON.stringify(locations)
+  });
 
   // Check if we have cached query results
+  logger.debug('QUERY_CACHE: Checking query cache for hash', { queryHash });
   const cachedItemKeys = await cacheMap.getQueryResult(queryHash);
   if (cachedItemKeys) {
-    logger.debug('Using cached query results', { cachedKeyCount: cachedItemKeys.length, queryHash });
+    logger.debug('QUERY_CACHE: Cache HIT - Found cached query result', {
+      queryHash,
+      cachedKeyCount: cachedItemKeys.length,
+      itemKeys: cachedItemKeys.map(k => JSON.stringify(k))
+    });
 
     // Retrieve all cached items - if any are missing, invalidate the query cache
     const cachedItems: V[] = [];
     let allItemsAvailable = true;
+    const missingKeys: any[] = [];
 
     for (const itemKey of cachedItemKeys) {
       const item = await cacheMap.get(itemKey);
       if (item) {
         cachedItems.push(item);
+        logger.debug('QUERY_CACHE: Retrieved cached item', {
+          itemKey: JSON.stringify(itemKey),
+          itemKeyStr: JSON.stringify(item.key)
+        });
       } else {
         allItemsAvailable = false;
+        missingKeys.push(itemKey);
+        logger.debug('QUERY_CACHE: Cached item MISSING from item cache', {
+          itemKey: JSON.stringify(itemKey),
+          queryHash
+        });
         break;
       }
     }
 
     if (allItemsAvailable) {
+      logger.debug('QUERY_CACHE: All cached items available, returning from cache', {
+        queryHash,
+        itemCount: cachedItems.length
+      });
       return cachedItems;
     } else {
-      logger.debug('Some cached items missing, invalidating query cache');
+      logger.debug('QUERY_CACHE: Some cached items missing, invalidating query cache', {
+        queryHash,
+        missingKeys: missingKeys.map(k => JSON.stringify(k)),
+        foundCount: cachedItems.length,
+        expectedCount: cachedItemKeys.length
+      });
       cacheMap.deleteQueryResult(queryHash);
     }
+  } else {
+    logger.debug('QUERY_CACHE: Cache MISS - No cached query result found', { queryHash });
   }
 
   // Note: We don't try to use queryIn here because finder parameters don't map to ItemQuery objects
   // The queryIn method is designed for ItemQuery objects, not finder parameters
 
   // Fetch from API
+  logger.debug('QUERY_CACHE: Fetching from API (cache miss or invalid)', {
+    queryHash,
+    finder,
+    params: JSON.stringify(params),
+    locations: JSON.stringify(locations)
+  });
   const ret: V[] = await api.find(finder, params, locations);
+  logger.debug('QUERY_CACHE: API response received', {
+    queryHash,
+    itemCount: ret.length,
+    itemKeys: ret.map(item => JSON.stringify(item.key))
+  });
 
   // Store individual items in cache
+  logger.debug('QUERY_CACHE: Storing items in item cache', {
+    queryHash,
+    itemCount: ret.length
+  });
   for (const v of ret) {
     await cacheMap.set(v.key, v);
+    logger.debug('QUERY_CACHE: Stored item in cache', {
+      itemKey: JSON.stringify(v.key),
+      queryHash
+    });
 
     // Set TTL metadata for the newly cached item
     const keyStr = JSON.stringify(v.key);
@@ -119,17 +169,30 @@ async function executeFindLogic<
     for (const evictedKey of evictedKeys) {
       const parsedKey = JSON.parse(evictedKey);
       await cacheMap.delete(parsedKey);
+      logger.debug('QUERY_CACHE: Evicted item due to cache limits', {
+        evictedKey,
+        queryHash
+      });
     }
   }
 
   // Store query result (item keys) in query cache
   const itemKeys = ret.map(item => item.key);
-  cacheMap.setQueryResult(queryHash, itemKeys);
-  logger.debug('Cached query result', { queryHash, itemKeyCount: itemKeys.length });
+  await cacheMap.setQueryResult(queryHash, itemKeys);
+  logger.debug('QUERY_CACHE: Stored query result in query cache', {
+    queryHash,
+    itemKeyCount: itemKeys.length,
+    itemKeys: itemKeys.map(k => JSON.stringify(k))
+  });
 
   // Emit query event
   const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(params, locations, ret);
   eventEmitter.emit(event);
+  logger.debug('QUERY_CACHE: Emitted query event', { queryHash });
 
+  logger.debug('QUERY_CACHE: find() operation completed', {
+    queryHash,
+    resultCount: ret.length
+  });
   return ret;
 }
