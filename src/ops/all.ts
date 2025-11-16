@@ -137,7 +137,7 @@ async function executeAllLogic<
   const isEmptyQuery = Object.keys(query).length === 0 ||
                       (Object.keys(query).length === 1 &&
                        'limit' in query || 'offset' in query);
-  
+
   if (!isEmptyQuery) {
     // Only try direct cache query for filtered queries where we can validate completeness
     logger.debug('QUERY_CACHE: Attempting direct cache query using queryIn() for filtered query', {
