@@ -119,7 +119,7 @@ export class TTLManager {
     });
 
     if (!metadata) {
-      logger.warning('TTL_DEBUG: No metadata found for item when setting TTL', {
+      logger.debug('TTL_DEBUG: No metadata found for item when setting TTL', {
         key,
         metadataProviderType: metadataProvider?.constructor?.name,
         metadataProviderMethods: metadataProvider ? Object.getOwnPropertyNames(Object.getPrototypeOf(metadataProvider)) : null
@@ -165,14 +165,30 @@ export class TTLManager {
   public async isExpired(key: string, metadataProvider: CacheMapMetadataProvider): Promise<boolean> {
     const metadata = await metadataProvider.getMetadata(key) as TTLItemMetadata;
     if (!metadata || !metadata.expiresAt) {
+      logger.debug('TTL_CHECK: No TTL set for item', { key, hasMetadata: !!metadata });
       return false; // No TTL set
     }
 
     const now = Date.now();
     const expired = now >= metadata.expiresAt;
+    const remainingMs = metadata.expiresAt - now;
 
     if (expired) {
-      logger.trace('Item expired', { key, expiresAt: metadata.expiresAt, now });
+      logger.debug('TTL_CHECK: Item EXPIRED', {
+        key,
+        expiresAt: new Date(metadata.expiresAt).toISOString(),
+        now: new Date(now).toISOString(),
+        expiredByMs: now - metadata.expiresAt,
+        ttl: metadata.ttl
+      });
+    } else {
+      logger.debug('TTL_CHECK: Item still valid', {
+        key,
+        expiresAt: new Date(metadata.expiresAt).toISOString(),
+        remainingMs,
+        remainingSec: Math.floor(remainingMs / 1000),
+        ttl: metadata.ttl
+      });
     }
 
     return expired;
@@ -184,10 +200,26 @@ export class TTLManager {
    */
   public async validateItem(key: string, metadataProvider: CacheMapMetadataProvider): Promise<boolean> {
     if (!this.config.validateOnAccess) {
+      logger.debug('TTL_VALIDATE: Validation disabled, skipping check', { key });
       return true; // Skip validation if disabled
     }
 
-    return !(await this.isExpired(key, metadataProvider));
+    logger.debug('TTL_VALIDATE: Validating item', {
+      key,
+      ttlEnabled: this.isTTLEnabled(),
+      defaultTTL: this.config.defaultTTL
+    });
+
+    const isExpired = await this.isExpired(key, metadataProvider);
+    const isValid = !isExpired;
+    
+    logger.debug('TTL_VALIDATE: Validation result', {
+      key,
+      isValid,
+      isExpired
+    });
+    
+    return isValid;
   }
 
   /**
@@ -223,19 +255,48 @@ export class TTLManager {
    * Find all expired items
    */
   public async findExpiredItems(metadataProvider: CacheMapMetadataProvider): Promise<string[]> {
+    const startTime = Date.now();
     const expiredKeys: string[] = [];
     const allMetadata = await metadataProvider.getAllMetadata();
     const now = Date.now();
+    
+    logger.debug('TTL_CLEANUP: Scanning for expired items', {
+      totalItems: allMetadata.size,
+      now: new Date(now).toISOString()
+    });
 
+    let itemsWithTTL = 0;
     for (const [key, metadata] of allMetadata) {
       const ttlMetadata = metadata as TTLItemMetadata;
-      if (ttlMetadata.expiresAt && now >= ttlMetadata.expiresAt) {
-        expiredKeys.push(key);
+      if (ttlMetadata.expiresAt) {
+        itemsWithTTL++;
+        if (now >= ttlMetadata.expiresAt) {
+          expiredKeys.push(key);
+          logger.debug('TTL_CLEANUP: Found expired item', {
+            key,
+            expiresAt: new Date(ttlMetadata.expiresAt).toISOString(),
+            expiredByMs: now - ttlMetadata.expiresAt
+          });
+        }
       }
     }
 
+    const duration = Date.now() - startTime;
+    
     if (expiredKeys.length > 0) {
-      logger.debug('Found expired items', { count: expiredKeys.length, keys: expiredKeys });
+      logger.debug('TTL_CLEANUP: Expired items found', {
+        expiredCount: expiredKeys.length,
+        totalItems: allMetadata.size,
+        itemsWithTTL,
+        keys: expiredKeys,
+        duration
+      });
+    } else {
+      logger.debug('TTL_CLEANUP: No expired items found', {
+        totalItems: allMetadata.size,
+        itemsWithTTL,
+        duration
+      });
     }
 
     return expiredKeys;
