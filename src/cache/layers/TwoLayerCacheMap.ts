@@ -126,62 +126,93 @@ export class TwoLayerCacheMap<
     queryHash: string,
     itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]
   ): Promise<void> {
+    logger.debug('QUERY_CACHE: TwoLayerCacheMap.setQueryResult() called', {
+      queryHash,
+      itemKeyCount: itemKeys.length,
+      itemKeys: itemKeys.map(k => JSON.stringify(k))
+    });
+    
     // Store the basic query result in underlying cache
     await this.underlyingCache.setQueryResult(queryHash, itemKeys);
+    logger.debug('QUERY_CACHE: Stored query result in underlying cache', { queryHash });
 
     // Store metadata for this query with proper TTL
     const now = new Date();
     const isComplete = this.determineQueryCompleteness(queryHash, itemKeys);
     const ttlSeconds = isComplete ? this.options.queryTTL : this.options.facetTTL;
+    const expiresAt = new Date(now.getTime() + ttlSeconds * 1000);
 
     const metadata: QueryMetadata = {
       queryType: this.extractQueryType(queryHash),
       isComplete,
       createdAt: now,
-      expiresAt: new Date(now.getTime() + ttlSeconds * 1000),
+      expiresAt,
       filter: this.extractFilter(queryHash),
       params: this.extractParams(queryHash)
     };
 
     this.queryMetadataMap.set(queryHash, metadata);
 
-    if (this.options.debug) {
-      logger.debug('Set query result with metadata', {
-        queryHash,
-        itemCount: itemKeys.length,
-        isComplete,
-        ttlSeconds,
-        expiresAt: metadata.expiresAt.toISOString()
-      });
-    }
+    logger.debug('QUERY_CACHE: Set query result with metadata', {
+      queryHash,
+      itemCount: itemKeys.length,
+      isComplete,
+      ttlSeconds,
+      queryType: metadata.queryType,
+      createdAt: metadata.createdAt.toISOString(),
+      expiresAt: metadata.expiresAt.toISOString(),
+      filter: metadata.filter,
+      params: metadata.params
+    });
   }
 
   /**
    * Get a query result with expiration checking
    */
   async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
+    logger.debug('QUERY_CACHE: TwoLayerCacheMap.getQueryResult() called', { queryHash });
+    
     // Check if query has expired based on metadata
     const metadata = this.queryMetadataMap.get(queryHash);
-    if (metadata && metadata.expiresAt < new Date()) {
-      // Query has expired - clean it up
-      await this.deleteQueryResult(queryHash);
-
-      if (this.options.debug) {
-        logger.debug('Query result expired and removed', { queryHash });
+    if (metadata) {
+      const now = new Date();
+      const isExpired = metadata.expiresAt < now;
+      logger.debug('QUERY_CACHE: Query metadata found', {
+        queryHash,
+        isExpired,
+        expiresAt: metadata.expiresAt.toISOString(),
+        now: now.toISOString(),
+        isComplete: metadata.isComplete,
+        queryType: metadata.queryType
+      });
+      
+      if (isExpired) {
+        // Query has expired - clean it up
+        logger.debug('QUERY_CACHE: Query result EXPIRED, removing', {
+          queryHash,
+          expiresAt: metadata.expiresAt.toISOString(),
+          now: now.toISOString()
+        });
+        await this.deleteQueryResult(queryHash);
+        return null;
       }
-
-      return null;
+    } else {
+      logger.debug('QUERY_CACHE: No metadata found for query hash', { queryHash });
     }
 
     // Get the actual query result from underlying cache
+    logger.debug('QUERY_CACHE: Fetching query result from underlying cache', { queryHash });
     const result = await this.underlyingCache.getQueryResult(queryHash);
 
-    if (result && this.options.debug) {
-      logger.debug('Query result cache hit', {
+    if (result) {
+      logger.debug('QUERY_CACHE: Query result retrieved from underlying cache', {
         queryHash,
         itemCount: result.length,
-        isComplete: metadata?.isComplete
+        isComplete: metadata?.isComplete,
+        itemKeys: result.map(k => JSON.stringify(k))
       });
+    } else {
+      logger.debug('QUERY_CACHE: No query result found in underlying cache', { queryHash });
     }
 
     return result;
@@ -199,12 +230,20 @@ export class TwoLayerCacheMap<
    * Delete a query result and its metadata
    */
   async deleteQueryResult(queryHash: string): Promise<void> {
+    logger.debug('QUERY_CACHE: TwoLayerCacheMap.deleteQueryResult() called', { queryHash });
+    
+    const hadMetadata = this.queryMetadataMap.has(queryHash);
+    const metadata = this.queryMetadataMap.get(queryHash);
+    
     await this.underlyingCache.deleteQueryResult(queryHash);
     this.queryMetadataMap.delete(queryHash);
 
-    if (this.options.debug) {
-      logger.debug('Deleted query result', { queryHash });
-    }
+    logger.debug('QUERY_CACHE: Deleted query result', {
+      queryHash,
+      hadMetadata,
+      wasComplete: metadata?.isComplete,
+      queryType: metadata?.queryType
+    });
   }
 
   // ===== QUERY INVALIDATION (CRITICAL FOR TWO-LAYER ARCHITECTURE) =====
@@ -215,16 +254,30 @@ export class TwoLayerCacheMap<
   private async invalidateQueriesForItem(
     itemKey: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>
   ): Promise<void> {
+    logger.debug('QUERY_CACHE: Invalidating queries for item change', {
+      itemKey: JSON.stringify(itemKey)
+    });
+    
     const affectedQueries = await this.findQueriesContainingItem(itemKey);
+    logger.debug('QUERY_CACHE: Found queries containing item', {
+      itemKey: JSON.stringify(itemKey),
+      affectedQueryCount: affectedQueries.length,
+      affectedQueries: affectedQueries
+    });
 
     for (const queryHash of affectedQueries) {
       await this.deleteQueryResult(queryHash);
     }
 
-    if (this.options.debug && affectedQueries.length > 0) {
-      logger.debug('Invalidated queries for item change', {
+    if (affectedQueries.length > 0) {
+      logger.debug('QUERY_CACHE: Invalidated queries for item change', {
         itemKey: JSON.stringify(itemKey),
-        queriesInvalidated: affectedQueries.length
+        queriesInvalidated: affectedQueries.length,
+        queryHashes: affectedQueries
+      });
+    } else {
+      logger.debug('QUERY_CACHE: No queries found containing item', {
+        itemKey: JSON.stringify(itemKey)
       });
     }
   }
@@ -399,12 +452,25 @@ export class TwoLayerCacheMap<
    * Clean up expired queries
    */
   async cleanup(): Promise<number> {
+    const startTime = Date.now();
     const now = new Date();
     const expiredQueries: string[] = [];
+
+    logger.debug('TWO_LAYER: Starting query cleanup', {
+      totalQueries: this.queryMetadataMap.size,
+      now: now.toISOString()
+    });
 
     for (const [queryHash, metadata] of this.queryMetadataMap.entries()) {
       if (metadata.expiresAt < now) {
         expiredQueries.push(queryHash);
+        logger.debug('TWO_LAYER: Found expired query', {
+          queryHash,
+          queryType: metadata.queryType,
+          isComplete: metadata.isComplete,
+          expiresAt: metadata.expiresAt.toISOString(),
+          expiredByMs: now.getTime() - metadata.expiresAt.getTime()
+        });
       }
     }
 
@@ -412,8 +478,19 @@ export class TwoLayerCacheMap<
       await this.deleteQueryResult(queryHash);
     }
 
-    if (this.options.debug && expiredQueries.length > 0) {
-      logger.debug('Cleaned up expired queries', { count: expiredQueries.length });
+    const duration = Date.now() - startTime;
+    
+    if (expiredQueries.length > 0) {
+      logger.debug('TWO_LAYER: Query cleanup completed', {
+        expiredCount: expiredQueries.length,
+        totalQueries: this.queryMetadataMap.size,
+        duration
+      });
+    } else {
+      logger.debug('TWO_LAYER: Query cleanup - no expired queries', {
+        totalQueries: this.queryMetadataMap.size,
+        duration
+      });
     }
 
     return expiredQueries.length;
@@ -431,18 +508,53 @@ export class TwoLayerCacheMap<
   // ===== MISSING ABSTRACT METHODS FROM CacheMap =====
 
   async invalidateItemKeys(keys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
+    const startTime = Date.now();
+    
+    logger.debug('TWO_LAYER: Invalidating item keys', {
+      keyCount: keys.length,
+      keys: keys.map(k => JSON.stringify(k))
+    });
+    
     // Use underlying cache implementation
     if ('invalidateItemKeys' in this.underlyingCache && typeof this.underlyingCache.invalidateItemKeys === 'function') {
       await (this.underlyingCache as any).invalidateItemKeys(keys);
     }
 
     // Also invalidate queries for each affected item
+    let totalInvalidatedQueries = 0;
     for (const key of keys) {
+      const beforeCount = this.queryMetadataMap.size;
       await this.invalidateQueriesForItem(key);
+      const afterCount = this.queryMetadataMap.size;
+      const invalidated = beforeCount - afterCount;
+      totalInvalidatedQueries += invalidated;
+      
+      if (invalidated > 0) {
+        logger.debug('TWO_LAYER: Invalidated queries for item', {
+          key: JSON.stringify(key),
+          queriesInvalidated: invalidated
+        });
+      }
     }
+
+    const duration = Date.now() - startTime;
+    
+    logger.debug('TWO_LAYER: Item key invalidation completed', {
+      keyCount: keys.length,
+      totalQueriesInvalidated: totalInvalidatedQueries,
+      duration
+    });
   }
 
   async invalidateLocation(locations: LocKeyArray<L1, L2, L3, L4, L5> | []): Promise<void> {
+    const startTime = Date.now();
+    const queryCountBefore = this.queryMetadataMap.size;
+    
+    logger.debug('TWO_LAYER: Invalidating location', {
+      locations: JSON.stringify(locations),
+      queryCountBefore
+    });
+    
     // Use underlying cache implementation
     if ('invalidateLocation' in this.underlyingCache && typeof this.underlyingCache.invalidateLocation === 'function') {
       await (this.underlyingCache as any).invalidateLocation(locations);
@@ -450,9 +562,24 @@ export class TwoLayerCacheMap<
 
     // Clear all query metadata since location invalidation affects many items
     this.queryMetadataMap.clear();
+
+    const duration = Date.now() - startTime;
+    
+    logger.debug('TWO_LAYER: Location invalidation completed', {
+      locations: JSON.stringify(locations),
+      queriesCleared: queryCountBefore,
+      duration
+    });
   }
 
   async clearQueryResults(): Promise<void> {
+    const startTime = Date.now();
+    const queryCountBefore = this.queryMetadataMap.size;
+    
+    logger.debug('TWO_LAYER: Clearing all query results', {
+      queryCountBefore
+    });
+    
     // Use underlying cache implementation
     if ('clearQueryResults' in this.underlyingCache && typeof this.underlyingCache.clearQueryResults === 'function') {
       await (this.underlyingCache as any).clearQueryResults();
@@ -460,6 +587,13 @@ export class TwoLayerCacheMap<
 
     // Clear our query metadata
     this.queryMetadataMap.clear();
+
+    const duration = Date.now() - startTime;
+    
+    logger.debug('TWO_LAYER: Cleared all query results', {
+      queriesCleared: queryCountBefore,
+      duration
+    });
   }
 
   /**

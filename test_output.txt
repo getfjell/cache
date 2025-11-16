@@ -3,7 +3,7 @@
 > vitest run --coverage
 
 
- RUN  v4.0.1 /Users/tobrien/gitw/getfjell/cache
+ RUN  v4.0.1 ~/gitw/getfjell/cache
       Coverage enabled with v8
 
 stderr | tests/eviction/strategies/LFUEvictionStrategy.test.ts > LFUEvictionStrategy > Configuration Validation and Sanitization Tests > should handle invalid configuration values gracefully
@@ -322,49 +322,49 @@ Key concepts demonstrated:
 
 stderr | tests/ops/get.test.ts > get operation > error handling > should propagate API errors
 (1763111335279) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"test","pk":"1"},"message":"API failure","stack":"Error: API failure
-    at /Users/tobrien/gitw/getfjell/cache/tests/ops/get.test.ts:306:24
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:157:11
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:753:26
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1636:20
+    at ~/gitw/getfjell/cache/tests/ops/get.test.ts:306:24
+    at file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:157:11
+    at file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:753:26
+    at file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1636:20
     at new Promise (<anonymous>)
-    at runWithTimeout (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1602:10)
-    at runTest (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1309:12)
+    at runWithTimeout (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1602:10)
+    at runTest (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1309:12)
     at processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at runSuite (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
-    at runSuite (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
-    at runSuite (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
-    at runFiles (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1526:3)
-    at startTests (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1559:3)
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:76:64
-    at withEnv (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:57:3)
-    at run (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:72:144)
-    at runBaseTests (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:122:2)
-    at executeTests (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init-forks.WglB-sfY.js:24:4)
-    at execute (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:99:3)
-    at process.onMessage (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:164:20)"}]
+    at runSuite (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runSuite (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runSuite (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runFiles (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1526:3)
+    at startTests (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1559:3)
+    at file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:76:64
+    at withEnv (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:57:3)
+    at run (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:72:144)
+    at runBaseTests (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:122:2)
+    at executeTests (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init-forks.WglB-sfY.js:24:4)
+    at execute (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:99:3)
+    at process.onMessage (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:164:20)"}]
 
 stderr | tests/ops/get.test.ts > get operation > error handling > should propagate API errors even with TTL configured
 (1763111335280) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"test","pk":"1"},"message":"Network error","stack":"Error: Network error
-    at /Users/tobrien/gitw/getfjell/cache/tests/ops/get.test.ts:317:24
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:157:11
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:753:26
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1636:20
+    at ~/gitw/getfjell/cache/tests/ops/get.test.ts:317:24
+    at file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:157:11
+    at file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:753:26
+    at file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1636:20
     at new Promise (<anonymous>)
-    at runWithTimeout (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1602:10)
-    at runTest (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1309:12)
+    at runWithTimeout (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1602:10)
+    at runTest (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1309:12)
     at processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at runSuite (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
-    at runSuite (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
-    at runSuite (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
-    at runFiles (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1526:3)
-    at startTests (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1559:3)
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:76:64
-    at withEnv (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:57:3)
-    at run (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:72:144)
-    at runBaseTests (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:122:2)
-    at executeTests (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init-forks.WglB-sfY.js:24:4)
-    at execute (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:99:3)
-    at process.onMessage (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:164:20)"}]
+    at runSuite (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runSuite (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runSuite (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runFiles (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1526:3)
+    at startTests (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1559:3)
+    at file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:76:64
+    at withEnv (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:57:3)
+    at run (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:72:144)
+    at runBaseTests (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:122:2)
+    at executeTests (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init-forks.WglB-sfY.js:24:4)
+    at execute (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:99:3)
+    at process.onMessage (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:164:20)"}]
 
 stderr | tests/ops/get.test.ts > get operation > error handling > should handle API errors with stack trace
 (1763111335280) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"test","pk":"1"},"message":"Detailed API error","stack":"Error stack trace"}]
@@ -374,12 +374,12 @@ stderr | tests/memory/EnhancedMemoryCacheMap.test.ts > EnhancedMemoryCacheMap > 
 
 stderr | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should verify cache operations with empty data scenarios
 (1763111335285) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"test","pk":"missing"},"message":"Not found: missing","stack":"Error: Not found: missing
-    at Object.get (/Users/tobrien/gitw/getfjell/cache/tests/examples/basic-cache-example.integration.test.ts:98:37)
-    at executeGetLogic (/Users/tobrien/gitw/getfjell/cache/src/ops/get.ts:166:24)
+    at Object.get (~/gitw/getfjell/cache/tests/examples/basic-cache-example.integration.test.ts:98:37)
+    at executeGetLogic (~/gitw/getfjell/cache/src/ops/get.ts:166:24)
     at processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at /Users/tobrien/gitw/getfjell/cache/src/ops/get.ts:70:14
-    at /Users/tobrien/gitw/getfjell/cache/node_modules/@fjell/core/dist/index.js:1872:22
-    at get (/Users/tobrien/gitw/getfjell/cache/src/ops/get.ts:74:18)"}]
+    at ~/gitw/getfjell/cache/src/ops/get.ts:70:14
+    at ~/gitw/getfjell/cache/node_modules/@fjell/core/dist/index.js:1872:22
+    at get (~/gitw/getfjell/cache/src/ops/get.ts:74:18)"}]
 
 stdout | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should test cache memory behavior and performance characteristics
 First call: 1.23ms, Cache hit: 0.34ms
@@ -463,38 +463,38 @@ stdout | tests/cache/layers/QueryCache.test.ts > QueryCache > Debug Logging > sh
 
 stderr | tests/events/CacheEventEmitter.test.ts > CacheEventEmitter > event emission > should handle listener errors gracefully
 Error in cache event listener: Error: Test error
-    at /Users/tobrien/gitw/getfjell/cache/tests/events/CacheEventEmitter.test.ts:125:15
-    at Mock (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/spy/dist/index.js:266:34)
-    at CacheEventEmitter.emitToSubscription (/Users/tobrien/gitw/getfjell/cache/src/events/CacheEventEmitter.ts:328:9)
-    at CacheEventEmitter.emit (/Users/tobrien/gitw/getfjell/cache/src/events/CacheEventEmitter.ts:182:14)
-    at /Users/tobrien/gitw/getfjell/cache/tests/events/CacheEventEmitter.test.ts:136:28
-    at Proxy.assertThrows (file:///Users/tobrien/gitw/getfjell/cache/node_modules/chai/index.js:2800:5)
-    at Proxy.methodWrapper (file:///Users/tobrien/gitw/getfjell/cache/node_modules/chai/index.js:1701:25)
-    at Proxy.<anonymous> (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/expect/dist/index.js:1145:12)
-    at Proxy.overwritingMethodWrapper (file:///Users/tobrien/gitw/getfjell/cache/node_modules/chai/index.js:1751:33)
-    at Proxy.<anonymous> (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/expect/dist/index.js:1481:16)
-    at Proxy.<anonymous> (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/expect/dist/index.js:1086:14)
-    at Proxy.methodWrapper (file:///Users/tobrien/gitw/getfjell/cache/node_modules/chai/index.js:1701:25)
-    at /Users/tobrien/gitw/getfjell/cache/tests/events/CacheEventEmitter.test.ts:136:45
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:157:11
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:753:26
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1636:20
+    at ~/gitw/getfjell/cache/tests/events/CacheEventEmitter.test.ts:125:15
+    at Mock (file://~/gitw/getfjell/cache/node_modules/@vitest/spy/dist/index.js:266:34)
+    at CacheEventEmitter.emitToSubscription (~/gitw/getfjell/cache/src/events/CacheEventEmitter.ts:328:9)
+    at CacheEventEmitter.emit (~/gitw/getfjell/cache/src/events/CacheEventEmitter.ts:182:14)
+    at ~/gitw/getfjell/cache/tests/events/CacheEventEmitter.test.ts:136:28
+    at Proxy.assertThrows (file://~/gitw/getfjell/cache/node_modules/chai/index.js:2800:5)
+    at Proxy.methodWrapper (file://~/gitw/getfjell/cache/node_modules/chai/index.js:1701:25)
+    at Proxy.<anonymous> (file://~/gitw/getfjell/cache/node_modules/@vitest/expect/dist/index.js:1145:12)
+    at Proxy.overwritingMethodWrapper (file://~/gitw/getfjell/cache/node_modules/chai/index.js:1751:33)
+    at Proxy.<anonymous> (file://~/gitw/getfjell/cache/node_modules/@vitest/expect/dist/index.js:1481:16)
+    at Proxy.<anonymous> (file://~/gitw/getfjell/cache/node_modules/@vitest/expect/dist/index.js:1086:14)
+    at Proxy.methodWrapper (file://~/gitw/getfjell/cache/node_modules/chai/index.js:1701:25)
+    at ~/gitw/getfjell/cache/tests/events/CacheEventEmitter.test.ts:136:45
+    at file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:157:11
+    at file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:753:26
+    at file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1636:20
     at new Promise (<anonymous>)
-    at runWithTimeout (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1602:10)
-    at runTest (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1309:12)
+    at runWithTimeout (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1602:10)
+    at runTest (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1309:12)
     at processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at runSuite (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
-    at runSuite (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
-    at runSuite (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
-    at runFiles (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1526:3)
-    at startTests (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1559:3)
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:76:64
-    at withEnv (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:57:3)
-    at run (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:72:144)
-    at runBaseTests (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:122:2)
-    at executeTests (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init-forks.WglB-sfY.js:24:4)
-    at execute (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:99:3)
-    at process.onMessage (file:///Users/tobrien/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:164:20)
+    at runSuite (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runSuite (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runSuite (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1468:8)
+    at runFiles (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1526:3)
+    at startTests (file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:1559:3)
+    at file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:76:64
+    at withEnv (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:57:3)
+    at run (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:72:144)
+    at runBaseTests (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/base.BYPMk0VN.js:122:2)
+    at executeTests (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init-forks.WglB-sfY.js:24:4)
+    at execute (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:99:3)
+    at process.onMessage (file://~/gitw/getfjell/cache/node_modules/vitest/dist/chunks/init.94FWN9pW.js:164:20)
 
  ✓ tests/events/CacheEventEmitter.test.ts (41 tests) 14ms
 stderr | tests/ops/one.test.ts > one operation > when bypassCache is enabled > should handle API errors properly
@@ -584,30 +584,30 @@ stdout | tests/cache/layers/TwoLayerCacheMap.test.ts > TwoLayerCacheMap > Comple
 
 stderr | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should handle various API response scenarios and edge cases
 (1763111335454) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"edge","pk":"null-error"},"message":"Null error test","stack":"Error: Null error test
-    at Object.get (/Users/tobrien/gitw/getfjell/cache/tests/examples/basic-cache-example.integration.test.ts:373:35)
-    at executeGetLogic (/Users/tobrien/gitw/getfjell/cache/src/ops/get.ts:166:24)
+    at Object.get (~/gitw/getfjell/cache/tests/examples/basic-cache-example.integration.test.ts:373:35)
+    at executeGetLogic (~/gitw/getfjell/cache/src/ops/get.ts:166:24)
     at processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at /Users/tobrien/gitw/getfjell/cache/src/ops/get.ts:70:14
-    at /Users/tobrien/gitw/getfjell/cache/node_modules/@fjell/core/dist/index.js:1872:22
-    at get (/Users/tobrien/gitw/getfjell/cache/src/ops/get.ts:74:18)"}]
+    at ~/gitw/getfjell/cache/src/ops/get.ts:70:14
+    at ~/gitw/getfjell/cache/node_modules/@fjell/core/dist/index.js:1872:22
+    at get (~/gitw/getfjell/cache/src/ops/get.ts:74:18)"}]
 
 stderr | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should handle various API response scenarios and edge cases
 (1763111335455) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"edge","pk":"undefined-error"},"message":"Undefined error test","stack":"Error: Undefined error test
-    at Object.get (/Users/tobrien/gitw/getfjell/cache/tests/examples/basic-cache-example.integration.test.ts:376:35)
-    at executeGetLogic (/Users/tobrien/gitw/getfjell/cache/src/ops/get.ts:166:24)
+    at Object.get (~/gitw/getfjell/cache/tests/examples/basic-cache-example.integration.test.ts:376:35)
+    at executeGetLogic (~/gitw/getfjell/cache/src/ops/get.ts:166:24)
     at processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at /Users/tobrien/gitw/getfjell/cache/src/ops/get.ts:70:14
-    at /Users/tobrien/gitw/getfjell/cache/node_modules/@fjell/core/dist/index.js:1872:22
-    at get (/Users/tobrien/gitw/getfjell/cache/src/ops/get.ts:74:18)"}]
+    at ~/gitw/getfjell/cache/src/ops/get.ts:70:14
+    at ~/gitw/getfjell/cache/node_modules/@fjell/core/dist/index.js:1872:22
+    at get (~/gitw/getfjell/cache/src/ops/get.ts:74:18)"}]
 
 stderr | tests/examples/basic-cache-example.integration.test.ts > Basic Cache Example Integration Tests > Basic Cache Operations Example > should handle various API response scenarios and edge cases
 (1763111335455) [ERROR] - [@fjell/cache] [get] Error getting item for key [{"key":{"kt":"edge","pk":"missing"},"message":"Edge case item not found: missing","stack":"Error: Edge case item not found: missing
-    at Object.get (/Users/tobrien/gitw/getfjell/cache/tests/examples/basic-cache-example.integration.test.ts:378:33)
-    at executeGetLogic (/Users/tobrien/gitw/getfjell/cache/src/ops/get.ts:166:24)
+    at Object.get (~/gitw/getfjell/cache/tests/examples/basic-cache-example.integration.test.ts:378:33)
+    at executeGetLogic (~/gitw/getfjell/cache/src/ops/get.ts:166:24)
     at processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at /Users/tobrien/gitw/getfjell/cache/src/ops/get.ts:70:14
-    at /Users/tobrien/gitw/getfjell/cache/node_modules/@fjell/core/dist/index.js:1872:22
-    at get (/Users/tobrien/gitw/getfjell/cache/src/ops/get.ts:74:18)"}]
+    at ~/gitw/getfjell/cache/src/ops/get.ts:70:14
+    at ~/gitw/getfjell/cache/node_modules/@fjell/core/dist/index.js:1872:22
+    at get (~/gitw/getfjell/cache/src/ops/get.ts:74:18)"}]
 
  ✓ tests/utils/EvictionStrategies.edge-cases.test.ts (32 tests) 14ms
  ✓ tests/ops/one.test.ts (20 tests) 15ms
@@ -744,14 +744,14 @@ Automatically select optimal cache based on environment
 
 stderr | tests/events/CacheEventIntegration.test.ts > Cache Event Integration > error handling > should continue emitting events even if a listener throws
 Error in cache event listener: Error: Test listener error
-    at /Users/tobrien/gitw/getfjell/cache/tests/events/CacheEventIntegration.test.ts:403:15
-    at Mock (file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/spy/dist/index.js:266:34)
-    at CacheEventEmitter.emitToSubscription (/Users/tobrien/gitw/getfjell/cache/src/events/CacheEventEmitter.ts:328:9)
-    at CacheEventEmitter.emit (/Users/tobrien/gitw/getfjell/cache/src/events/CacheEventEmitter.ts:182:14)
-    at set (/Users/tobrien/gitw/getfjell/cache/src/ops/set.ts:150:16)
+    at ~/gitw/getfjell/cache/tests/events/CacheEventIntegration.test.ts:403:15
+    at Mock (file://~/gitw/getfjell/cache/node_modules/@vitest/spy/dist/index.js:266:34)
+    at CacheEventEmitter.emitToSubscription (~/gitw/getfjell/cache/src/events/CacheEventEmitter.ts:328:9)
+    at CacheEventEmitter.emit (~/gitw/getfjell/cache/src/events/CacheEventEmitter.ts:182:14)
+    at set (~/gitw/getfjell/cache/src/ops/set.ts:150:16)
     at processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at /Users/tobrien/gitw/getfjell/cache/tests/events/CacheEventIntegration.test.ts:413:7
-    at file:///Users/tobrien/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:753:20
+    at ~/gitw/getfjell/cache/tests/events/CacheEventIntegration.test.ts:413:7
+    at file://~/gitw/getfjell/cache/node_modules/@vitest/runner/dist/index.js:753:20
 
  ✓ tests/CacheMap.test.ts (40 tests) 10ms
  ✓ tests/events/CacheEventIntegration.test.ts (15 tests) 13ms
@@ -954,12 +954,12 @@ stdout | tests/cache/layers/ItemCache.test.ts > ItemCache > Debug Mode Behaviors
      ✓ should handle cache operations that result in errors gracefully  4966ms
 
 ⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
-Error: ENOENT: no such file or directory, open '/Users/tobrien/gitw/getfjell/cache/coverage/.tmp/coverage-73.json'
+Error: ENOENT: no such file or directory, open '~/gitw/getfjell/cache/coverage/.tmp/coverage-73.json'
  ❯ open node:internal/fs/promises:642:25
  ❯ Object.writeFile node:internal/fs/promises:1249:14
 
 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
-Serialized Error: { errno: -2, code: 'ENOENT', syscall: 'open', path: '/Users/tobrien/gitw/getfjell/cache/coverage/.tmp/coverage-73.json' }
+Serialized Error: { errno: -2, code: 'ENOENT', syscall: 'open', path: '~/gitw/getfjell/cache/coverage/.tmp/coverage-73.json' }
 
 
 
