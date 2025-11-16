@@ -13,20 +13,25 @@ describe('Query Invalidation Events', () => {
   let cache: any;
   let mockApi: any;
   let emittedEvents: any[] = [];
+  let mockData: Map<string, TestItem>;
 
   beforeEach(() => {
     emittedEvents = [];
+    
+    // Initialize mock data store
+    mockData = new Map([
+      ['test:1', { key: { pk: 'test:1', kt: 'test' }, name: 'Item 1', value: 1 }],
+      ['test:2', { key: { pk: 'test:2', kt: 'test' }, name: 'Item 2', value: 2 }]
+    ]);
 
     mockApi = {
-      all: vi.fn(async () => [
-        { key: { pk: 'test:1', kt: 'test' }, name: 'Item 1', value: 1 },
-        { key: { pk: 'test:2', kt: 'test' }, name: 'Item 2', value: 2 }
-      ]),
-      update: vi.fn(async (key: PriKey<'test'>) => ({
-        key,
-        name: 'Updated',
-        value: 99
-      })),
+      all: vi.fn(async () => Array.from(mockData.values())),
+      update: vi.fn(async (key: PriKey<'test'>, updates: Partial<TestItem>) => {
+        const existing = mockData.get(key.pk) || { key, name: 'Updated', value: 0 };
+        const updated = { ...existing, ...updates, key };
+        mockData.set(key.pk, updated);
+        return updated;
+      }),
       create: vi.fn(async () => ({
         key: { pk: 'test:3', kt: 'test' },
         name: 'New Item',
@@ -127,9 +132,9 @@ describe('Query Invalidation Events', () => {
     const secondResults = await cache.operations.all(query);
     expect(secondResults).toHaveLength(2);
 
-    // Find the updated item
+    // Find the updated item - should have the updated value
     const updatedItem = secondResults.find(item => item.key.pk === 'test:1');
-    expect(updatedItem?.value).toBe(99);
+    expect(updatedItem?.value).toBe(999);
 
     // The API should have been called for the update
     expect(mockApi.update).toHaveBeenCalledTimes(1);
