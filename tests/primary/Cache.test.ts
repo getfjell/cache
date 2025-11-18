@@ -46,16 +46,16 @@ describe('PItemCache', () => {
     vi.resetAllMocks();
 
     apiMock = {
-      all: vi.fn().mockReturnValue(items),
-      one: vi.fn().mockReturnValue(items[0]),
-      action: vi.fn().mockReturnValue([items[0], []]),
-      create: vi.fn().mockReturnValue([key1, items[0]]),
-      remove: vi.fn().mockReturnValue(items[0]),
-      update: vi.fn().mockReturnValue(items[0]),
-      allAction: vi.fn().mockReturnValue([[], []]),
-      allFacet: vi.fn().mockReturnValue({ facetData: "test" }),
-      get: vi.fn().mockReturnValue(items[0]),
-      find: vi.fn().mockReturnValue(items),
+      all: vi.fn().mockResolvedValue(items),
+      one: vi.fn().mockResolvedValue(items[0]),
+      action: vi.fn().mockResolvedValue([items[0], []]),
+      create: vi.fn().mockResolvedValue([key1, items[0]]),
+      remove: vi.fn().mockResolvedValue(items[0]),
+      update: vi.fn().mockResolvedValue(items[0]),
+      allAction: vi.fn().mockResolvedValue([[], []]),
+      allFacet: vi.fn().mockResolvedValue({ facetData: "test" }),
+      get: vi.fn().mockResolvedValue(items[0]),
+      find: vi.fn().mockResolvedValue(items),
     } as unknown as Mocked<PItemApi<TestItem, 'test'>>;
 
     const registry = createRegistry('test');
