@@ -12,6 +12,28 @@ import LibLogger from "../logger";
 
 const logger = LibLogger.get('all');
 
+// Track in-flight API requests to prevent duplicate calls for the same query
+const inFlightRequests = new Map<string, { promise: Promise<any>; timestamp: number }>();
+
+// Periodic cleanup of stale in-flight requests (cleanup after 30 seconds)
+const CLEANUP_INTERVAL = 30000;
+const REQUEST_TIMEOUT = 25000;
+
+setInterval(() => {
+  const now = Date.now();
+  inFlightRequests.forEach((request, key) => {
+    if (now - request.timestamp > REQUEST_TIMEOUT) {
+      logger.debug('Cleaning up stale in-flight all() request', { key });
+      inFlightRequests.delete(key);
+    }
+  });
+}, CLEANUP_INTERVAL);
+
+// Function to clear all in-flight requests (useful for testing)
+export const clearInFlightRequests = () => {
+  inFlightRequests.clear();
+};
+
 export const all = async <
   V extends Item<S, L1, L2, L3, L4, L5>,
   S extends string,
@@ -180,15 +202,36 @@ async function executeAllLogic<
     });
   }
 
-  // Fetch from API
+  // Fetch from API with request deduplication
   logger.debug('QUERY_CACHE: Fetching from API (cache miss or invalid)', {
     queryHash,
     query: JSON.stringify(query),
     locations: JSON.stringify(locations)
   });
+
+  // Check if there's already an in-flight request for this query
+  const timestamp = Date.now();
+  const existingRequest = inFlightRequests.get(queryHash);
+
+  if (existingRequest && (timestamp - existingRequest.timestamp < REQUEST_TIMEOUT)) {
+    logger.debug('QUERY_CACHE: Using existing in-flight all() request', {
+      queryHash,
+      age: timestamp - existingRequest.timestamp
+    });
+    return await existingRequest.promise;
+  }
+
   let ret: V[] = [];
   try {
-    ret = await api.all(query, locations);
+    // Create new API request and store it for deduplication
+    const apiRequest = api.all(query, locations);
+    inFlightRequests.set(queryHash, { promise: apiRequest, timestamp });
+
+    // Clean up after completion
+    const cleanup = () => inFlightRequests.delete(queryHash);
+    apiRequest.then(cleanup, cleanup);
+
+    ret = await apiRequest;
     logger.debug('QUERY_CACHE: API response received', {
       queryHash,
       itemCount: ret.length,
@@ -239,6 +282,9 @@ async function executeAllLogic<
     logger.debug('QUERY_CACHE: Emitted query event', { queryHash });
 
   } catch (e: unknown) {
+    // Ensure we clean up the in-flight request on error
+    inFlightRequests.delete(queryHash);
+
     if (e instanceof NotFoundError) {
       // Handle not found gracefully - cache empty result
       logger.debug('QUERY_CACHE: API returned NotFoundError, caching empty result', { queryHash });
