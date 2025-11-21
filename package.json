@@ -38,7 +38,7 @@
   },
   "dependencies": {
     "@fjell/client-api": "^4.4.56",
-    "@fjell/core": "^4.4.62",
+    "@fjell/core": "^4.4.63",
     "@fjell/http-api": "^4.4.52",
     "@fjell/logging": "^4.4.58",
     "@fjell/registry": "^4.4.68",
