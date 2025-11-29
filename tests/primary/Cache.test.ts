@@ -59,7 +59,10 @@ describe('PItemCache', () => {
       allAction: vi.fn().mockResolvedValue([[], []]),
       allFacet: vi.fn().mockResolvedValue({ facetData: "test" }),
       get: vi.fn().mockResolvedValue(items[0]),
-      find: vi.fn().mockResolvedValue(items),
+      find: vi.fn().mockResolvedValue({
+        items,
+        metadata: { total: items.length, returned: items.length, offset: 0, hasMore: false }
+      }),
     } as unknown as Mocked<PItemApi<TestItem, 'test'>>;
 
     const registry = createRegistry('test');
@@ -152,7 +155,7 @@ describe('PItemCache', () => {
   it('find should call find method', async () => {
     const result = await cache.operations.find('someFinder', {});
 
-    expect(apiMock.find).toHaveBeenCalledWith('someFinder', {}, []);
+    expect(apiMock.find).toHaveBeenCalledWith('someFinder', {}, [], undefined);
     expect(result).toEqual(expect.any(Object));
   });
 

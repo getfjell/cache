@@ -11,6 +11,8 @@ import {
   CreateOptions,
   createRemoveWrapper,
   createUpdateWrapper,
+  FindOperationResult,
+  FindOptions,
   isOperationComKey as isComKey,
   isOperationPriKey as isPriKey,
   OperationParams
@@ -203,8 +205,8 @@ export class CacheMapOperations<
     return allFacet(facetName, params, locations, this.context);
   }
 
-  async find(finder: string, params: Record<string, any>, locations?: LocKeyArray<L1, L2, L3, L4, L5>): Promise<V[]> {
-    return find(finder, params, locations, this.context).then(([ctx, result]) => result);
+  async find(finder: string, params?: OperationParams, locations?: LocKeyArray<L1, L2, L3, L4, L5> | [], findOptions?: FindOptions): Promise<FindOperationResult<V>> {
+    return find(finder, params || {}, locations || [], this.context, findOptions).then(([ctx, result]) => result);
   }
 
   async findOne(finder: string, params: Record<string, any>, locations?: LocKeyArray<L1, L2, L3, L4, L5>): Promise<V | null> {
@@ -787,16 +789,16 @@ export class TwoLayerOperations<
     return await this.api.facet(key, facetName, params);
   }
 
-  async find(finder: string, params: Record<string, any> = {}, locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []): Promise<V[]> {
-    const items = await this.api.find(finder, params, locations);
+  async find(finder: string, params?: OperationParams, locations?: LocKeyArray<L1, L2, L3, L4, L5> | [], findOptions?: FindOptions): Promise<FindOperationResult<V>> {
+    const result = await (this.api.find as any)(finder, params || {}, locations || [], findOptions) as FindOperationResult<V>;
     
     // Store found items in cache
-    for (const item of items) {
+    for (const item of result.items) {
       const itemKey = this.buildItemKey(item);
       await this.itemCache.set(itemKey, item, this.options.itemTTL!);
     }
     
-    return items;
+    return result;
   }
 
   async findOne(finder: string, params: Record<string, any> = {}, locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []): Promise<V | null> {
@@ -847,7 +849,7 @@ export const createOperations = <
     evictionManager,
     statsManager,
     registry
-  );
+  ) as any as Operations<V, S, L1, L2, L3, L4, L5>;
   
   // Note: TwoLayerOperations is kept for reference but no longer used by default
   // The TwoLayerCacheMap + CacheMapOperations approach provides better integration
