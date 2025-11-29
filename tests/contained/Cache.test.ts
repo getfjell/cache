@@ -1,6 +1,6 @@
 import { Cache, createCache } from '../../src/Cache';
 import { CItemApi } from "@fjell/client-api";
-import { ComKey, Item, ItemQuery, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/core";
+import { AllOperationResult, ComKey, Item, ItemQuery, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/core";
 import { createCoordinate } from "@fjell/core";
 import { createRegistry } from "@fjell/registry";
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
@@ -97,11 +97,11 @@ describe("Combined Item Cache Tests", () => {
 
   it("should call the all method with correct parameters", async () => {
     // @ts-ignore
-    mockApi.all.mockResolvedValue(items);
+    mockApi.all.mockResolvedValue({ items, metadata: { total: items.length, hasMore: false } } as AllOperationResult<TestItem>);
     const query: ItemQuery = {};
     const locations: LocKeyArray<"container"> = loc1;
     await itemCache.operations.all(query, locations);
-    expect(mockApi.all).toHaveBeenCalledWith(query, locations);
+    expect(mockApi.all).toHaveBeenCalledWith(query, locations, undefined);
   });
 
   it("should call the one method with correct parameters", async () => {

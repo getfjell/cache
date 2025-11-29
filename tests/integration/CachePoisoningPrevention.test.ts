@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCache } from '../../src/Cache';
 import { createOptions } from '../../src/Options';
-import { PriKey } from '@fjell/core';
+import { AllOperationResult, PriKey } from '@fjell/core';
 
 interface TestOrderPhase {
   key: PriKey<'orderPhase'>;
@@ -23,15 +23,20 @@ describe('Cache Poisoning Prevention', () => {
 
   beforeEach(() => {
     // Mock API that simulates the scenario
+    const allPhases = [
+      { key: { kt: 'orderPhase', pk: 'phase-1' }, orderPhaseId: 'phase-1', orderId: '26537', phaseCode: 'GPH', phaseName: 'Graphics' },
+      { key: { kt: 'orderPhase', pk: 'phase-2' }, orderPhaseId: 'phase-2', orderId: '26537', phaseCode: 'CUT', phaseName: 'Cutting' },
+      { key: { kt: 'orderPhase', pk: 'phase-3' }, orderPhaseId: 'phase-3', orderId: '26537', phaseCode: 'FIN', phaseName: 'Finishing' },
+      { key: { kt: 'orderPhase', pk: 'phase-4' }, orderPhaseId: 'phase-4', orderId: '26537', phaseCode: 'QC', phaseName: 'Quality Control' },
+      { key: { kt: 'orderPhase', pk: 'phase-5' }, orderPhaseId: 'phase-5', orderId: '26537', phaseCode: 'SHP', phaseName: 'Shipping' }
+    ];
+    const allPhasesResult: AllOperationResult<any> = {
+      items: allPhases,
+      metadata: { total: allPhases.length, returned: allPhases.length, offset: 0, hasMore: false }
+    };
     mockApi = {
       // Complete query returns all phases for an order
-      all: vi.fn().mockResolvedValue([
-        { key: { kt: 'orderPhase', pk: 'phase-1' }, orderPhaseId: 'phase-1', orderId: '26537', phaseCode: 'GPH', phaseName: 'Graphics' },
-        { key: { kt: 'orderPhase', pk: 'phase-2' }, orderPhaseId: 'phase-2', orderId: '26537', phaseCode: 'CUT', phaseName: 'Cutting' },
-        { key: { kt: 'orderPhase', pk: 'phase-3' }, orderPhaseId: 'phase-3', orderId: '26537', phaseCode: 'FIN', phaseName: 'Finishing' },
-        { key: { kt: 'orderPhase', pk: 'phase-4' }, orderPhaseId: 'phase-4', orderId: '26537', phaseCode: 'QC', phaseName: 'Quality Control' },
-        { key: { kt: 'orderPhase', pk: 'phase-5' }, orderPhaseId: 'phase-5', orderId: '26537', phaseCode: 'SHP', phaseName: 'Shipping' }
-      ]),
+      all: vi.fn().mockResolvedValue(allPhasesResult),
       
       // Faceted query returns only graphics phases
       allFacet: vi.fn().mockResolvedValue([
@@ -93,17 +98,17 @@ describe('Cache Poisoning Prevention', () => {
     console.log('📊 Step 2: Running complete query for all phases...');
     const completeResults = await cache.operations.all({ orderId: '26537' });
     
-    console.log(`📝 Complete query returned ${completeResults.length} items:`);
-    completeResults.forEach((item: any) => {
+    console.log(`📝 Complete query returned ${completeResults.items.length} items:`);
+    completeResults.items.forEach((item: any) => {
       console.log(`   - ${item.phaseCode}: ${item.phaseName}`);
     });
 
     // 🚫 CRITICAL ASSERTION: Complete query should return ALL phases, not just graphics
-    expect(completeResults).toHaveLength(5); // All 5 phases
-    expect(completeResults.map((item: any) => item.phaseCode).sort()).toEqual(['CUT', 'FIN', 'GPH', 'QC', 'SHP']);
+    expect(completeResults.items).toHaveLength(5); // All 5 phases
+    expect(completeResults.items.map((item: any) => item.phaseCode).sort()).toEqual(['CUT', 'FIN', 'GPH', 'QC', 'SHP']);
     
     // Verify that the API was actually called for the complete query (cache miss)
-    expect(mockApi.all).toHaveBeenCalledWith({ orderId: '26537' }, []);
+    expect(mockApi.all).toHaveBeenCalledWith({ orderId: '26537' }, [], undefined);
 
     console.log('✅ Cache poisoning prevention successful!');
     console.log('   Faceted query (1 item) did NOT poison complete query (5 items)');
@@ -115,13 +120,13 @@ describe('Cache Poisoning Prevention', () => {
     // Step 1: Run complete query first
     console.log('📊 Step 1: Running complete query first...');
     const completeResults = await cache.operations.all({ orderId: '26537' });
-    expect(completeResults).toHaveLength(5);
+    expect(completeResults.items).toHaveLength(5);
     expect(mockApi.all).toHaveBeenCalledTimes(1);
 
     // Step 2: Run complete query again (should hit cache)
     console.log('📊 Step 2: Running complete query again (should be cached)...');
     const cachedCompleteResults = await cache.operations.all({ orderId: '26537' });
-    expect(cachedCompleteResults).toHaveLength(5);
+    expect(cachedCompleteResults.items).toHaveLength(5);
     expect(mockApi.all).toHaveBeenCalledTimes(1); // No additional API call
 
     // Step 3: Run faceted query (should still call API, not use complete cache)

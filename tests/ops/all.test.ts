@@ -3,7 +3,7 @@ import { all } from '../../src/ops/all';
 import { CacheContext } from '../../src/CacheContext';
 import { CacheMap } from '../../src/CacheMap';
 import { ClientApi } from '@fjell/client-api';
-import { ComKey, Item, LocKeyArray, PriKey, UUID } from '@fjell/core';
+import { AllOperationResult, ComKey, Item, LocKeyArray, PriKey, UUID } from '@fjell/core';
 import { NotFoundError } from '@fjell/http-api';
 import { createQueryHash } from '../../src/normalization';
 import { createCoordinate } from '@fjell/core';
@@ -117,19 +117,26 @@ describe('all operation', () => {
     };
   });
 
+  // Helper to create AllOperationResult
+  const createResult = (items: TestItem[]): AllOperationResult<TestItem> => ({
+    items,
+    metadata: { total: items.length, returned: items.length, offset: 0, hasMore: false }
+  });
+
   describe('basic functionality', () => {
     it('should fetch items from API when no cached query result exists', async () => {
       const query = { limit: 10 };
       const items = [testItem1, testItem2];
+      const mockResult = createResult(items);
 
-      vi.mocked(mockApi.all).mockResolvedValue(items);
+      vi.mocked(mockApi.all).mockResolvedValue(mockResult);
       vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       const [resultContext, result] = await all(query, testLocations, context);
 
       expect(resultContext).toBe(context);
-      expect(result).toEqual(items);
-      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations);
+      expect(result.items).toEqual(items);
+      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations, undefined);
       expect(mockCacheMap.set).toHaveBeenCalledWith(testItem1.key, testItem1);
       expect(mockCacheMap.set).toHaveBeenCalledWith(testItem2.key, testItem2);
     });
@@ -146,7 +153,7 @@ describe('all operation', () => {
       const [resultContext, result] = await all(query, testLocations, context);
 
       expect(resultContext).toBe(context);
-      expect(result).toEqual([testItem1, testItem2]);
+      expect(result.items).toEqual([testItem1, testItem2]);
       expect(mockApi.all).not.toHaveBeenCalled();
       expect(mockCacheMap.get).toHaveBeenCalledWith(testItem1.key);
       expect(mockCacheMap.get).toHaveBeenCalledWith(testItem2.key);
@@ -161,21 +168,21 @@ describe('all operation', () => {
         .mockResolvedValueOnce(testItem1)
         .mockResolvedValueOnce(null); // Second item missing
 
-      vi.mocked(mockApi.all).mockResolvedValue([testItem1, testItem2]);
+      vi.mocked(mockApi.all).mockResolvedValue(createResult([testItem1, testItem2]));
 
       const [resultContext, result] = await all(query, testLocations, context);
 
       expect(resultContext).toBe(context);
-      expect(result).toEqual([testItem1, testItem2]);
+      expect(result.items).toEqual([testItem1, testItem2]);
       expect(mockCacheMap.deleteQueryResult).toHaveBeenCalled();
-      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations);
+      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations, undefined);
     });
 
     it('should cache query results after successful API call', async () => {
       const query = { limit: 10 };
       const items = [testItem1, testItem2];
 
-      vi.mocked(mockApi.all).mockResolvedValue(items);
+      vi.mocked(mockApi.all).mockResolvedValue(createResult(items));
       vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       await all(query, testLocations, context);
@@ -193,7 +200,7 @@ describe('all operation', () => {
       const query = { limit: 10 };
       const items = [testItem1, testItem2];
 
-      vi.mocked(mockApi.all).mockResolvedValue(items);
+      vi.mocked(mockApi.all).mockResolvedValue(createResult(items));
       vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       await all(query, testLocations, context);
@@ -222,16 +229,16 @@ describe('all operation', () => {
       const query = { limit: 10 };
       const items = [testItem1, testItem2];
 
-      vi.mocked(mockApi.all).mockResolvedValue(items);
+      vi.mocked(mockApi.all).mockResolvedValue(createResult(items));
 
       const [resultContext, result] = await all(query, testLocations, context);
 
       expect(mockCacheMap.getQueryResult).not.toHaveBeenCalled();
       expect(mockCacheMap.get).not.toHaveBeenCalled();
-      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations);
+      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations, undefined);
       expect(mockCacheMap.set).not.toHaveBeenCalled();
       expect(mockCacheMap.setQueryResult).not.toHaveBeenCalled();
-      expect(result).toEqual(items);
+      expect(result.items).toEqual(items);
       expect(resultContext).toBe(context);
     });
 
@@ -239,16 +246,16 @@ describe('all operation', () => {
       const query = { limit: 10 };
       const items: TestItem[] = [];
 
-      vi.mocked(mockApi.all).mockResolvedValue(items);
+      vi.mocked(mockApi.all).mockResolvedValue(createResult(items));
 
       const [resultContext, result] = await all(query, testLocations, context);
 
       expect(mockCacheMap.getQueryResult).not.toHaveBeenCalled();
       expect(mockCacheMap.get).not.toHaveBeenCalled();
-      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations);
+      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations, undefined);
       expect(mockCacheMap.set).not.toHaveBeenCalled();
       expect(mockCacheMap.setQueryResult).not.toHaveBeenCalled();
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
       expect(resultContext).toBe(context);
     });
 
@@ -262,7 +269,7 @@ describe('all operation', () => {
 
       expect(mockCacheMap.getQueryResult).not.toHaveBeenCalled();
       expect(mockCacheMap.get).not.toHaveBeenCalled();
-      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations);
+      expect(mockApi.all).toHaveBeenCalledWith(query, testLocations, undefined);
       expect(mockCacheMap.set).not.toHaveBeenCalled();
       expect(mockCacheMap.setQueryResult).not.toHaveBeenCalled();
     });
@@ -279,7 +286,7 @@ describe('all operation', () => {
       const [resultContext, result] = await all(query, testLocations, context);
 
       expect(resultContext).toBe(context);
-      expect(result).toEqual([]);
+      expect(result.items).toEqual([]);
 
       const expectedQueryHash = createQueryHash('test', query, testLocations);
       expect(mockCacheMap.setQueryResult).toHaveBeenCalledWith(
@@ -305,7 +312,7 @@ describe('all operation', () => {
       const query2 = { limit: 20 };
       const items = [testItem1];
 
-      vi.mocked(mockApi.all).mockResolvedValue(items);
+      vi.mocked(mockApi.all).mockResolvedValue(createResult(items));
       vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       await all(query1, testLocations, context);
@@ -325,7 +332,7 @@ describe('all operation', () => {
       const locations2: LocKeyArray<'container'> = [{ kt: 'container', lk: 'container2' as UUID }];
       const items = [testItem1];
 
-      vi.mocked(mockApi.all).mockResolvedValue(items);
+      vi.mocked(mockApi.all).mockResolvedValue(createResult(items));
       vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       await all(query, locations1, context);
@@ -342,28 +349,28 @@ describe('all operation', () => {
     it('should work with default empty query', async () => {
       const items = [testItem1, testItem2];
 
-      vi.mocked(mockApi.all).mockResolvedValue(items);
+      vi.mocked(mockApi.all).mockResolvedValue(createResult(items));
       vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       const [resultContext, result] = await all(undefined, undefined, context);
 
       expect(resultContext).toBe(context);
-      expect(result).toEqual(items);
-      expect(mockApi.all).toHaveBeenCalledWith({}, []);
+      expect(result.items).toEqual(items);
+      expect(mockApi.all).toHaveBeenCalledWith({}, [], undefined);
     });
 
     it('should work with empty locations array', async () => {
       const query = { limit: 10 };
       const items = [testItem1];
 
-      vi.mocked(mockApi.all).mockResolvedValue(items);
+      vi.mocked(mockApi.all).mockResolvedValue(createResult(items));
       vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       const [resultContext, result] = await all(query, [], context);
 
       expect(resultContext).toBe(context);
-      expect(result).toEqual(items);
-      expect(mockApi.all).toHaveBeenCalledWith(query, []);
+      expect(result.items).toEqual(items);
+      expect(mockApi.all).toHaveBeenCalledWith(query, [], undefined);
     });
   });
 
@@ -375,7 +382,7 @@ describe('all operation', () => {
       vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(cachedItemKeys);
       vi.mocked(mockCacheMap.get).mockResolvedValue(null); // First item missing
 
-      vi.mocked(mockApi.all).mockResolvedValue([testItem1, testItem2]);
+      vi.mocked(mockApi.all).mockResolvedValue(createResult([testItem1, testItem2]));
 
       await all(query, testLocations, context);
 
@@ -394,7 +401,7 @@ describe('all operation', () => {
         .mockResolvedValueOnce(testItem2)
         .mockResolvedValueOnce(null); // Third item missing
 
-      vi.mocked(mockApi.all).mockResolvedValue([testItem1, testItem2, testItem4]);
+      vi.mocked(mockApi.all).mockResolvedValue(createResult([testItem1, testItem2, testItem4]));
 
       await all(query, testLocations, context);
 
@@ -408,7 +415,7 @@ describe('all operation', () => {
       const query = { limit: 10 };
       const items = [testItem1];
 
-      vi.mocked(mockApi.all).mockResolvedValue(items);
+      vi.mocked(mockApi.all).mockResolvedValue(createResult(items));
       vi.mocked(mockCacheMap.getQueryResult).mockResolvedValue(null);
 
       await all(query, testLocations, context);

@@ -67,11 +67,12 @@ const createMockApi = <T extends Item<any>>(storage: Map<string, T>) => {
   return {
     async all(_query = {}) {
       console.log(`📦 Fetching all items from ${storage.constructor.name}...`);
-      return Array.from(storage.values());
+      const items = Array.from(storage.values());
+      return { items, metadata: { total: items.length, returned: items.length, offset: 0, hasMore: false } };
     },
     async one(query = {}) {
-      const items = await this.all!(query);
-      return items[0] || null;
+      const result = await this.all!(query);
+      return result.items[0] || null;
     },
     async get(key: PriKey<any>) {
       const item = storage.get(String(key.pk));
@@ -81,7 +82,8 @@ const createMockApi = <T extends Item<any>>(storage: Map<string, T>) => {
       return item;
     },
     async find(_finder = 'all') {
-      return await this.all!({});
+      const result = await this.all!({});
+      return result.items;
     }
   } as Partial<ClientApi<T, any>>;
 };

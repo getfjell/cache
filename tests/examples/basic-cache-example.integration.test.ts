@@ -10,7 +10,7 @@ import {
 import { runBasicCacheExample } from '../../examples/basic-cache-example';
 import { createCache } from '../../src/Cache';
 import { createRegistry } from '../../src/Registry';
-import { createCoordinate } from '@fjell/core';
+import { AllOperationResult, createCoordinate } from '@fjell/core';
 import { ClientApi } from '@fjell/client-api';
 import { Item, PriKey } from '@fjell/core';
 
@@ -49,19 +49,19 @@ describe('Basic Cache Example Integration Tests', () => {
 
       // Pattern 1: API find method that calls all() (line 63)
       const findPattern = {
-        async all() { return []; },
+        async all() { return { items: [], metadata: { total: 0, hasMore: false } }; },
         async find() { return await this.all(); }
       };
 
       const findResult = await findPattern.find();
-      expect(findResult).toEqual([]);
+      expect(findResult.items).toEqual([]);
 
       // Pattern 2: API one method returning null when empty (lines 74-76)
       const onePattern = {
-        async all() { return []; },
+        async all() { return { items: [], metadata: { total: 0, hasMore: false } }; },
         async one() {
-          const items = await this.all();
-          return items[0] || null;
+          const result = await this.all();
+          return result.items[0] || null;
         }
       };
 
@@ -93,7 +93,7 @@ describe('Basic Cache Example Integration Tests', () => {
       const { createCoordinate } = await import('@fjell/core');
 
       const emptyApi = {
-        async all() { return []; },
+        async all() { return { items: [], metadata: { total: 0, hasMore: false } }; },
         async one() { return null; },
         async get(key: any) { throw new Error(`Not found: ${key.pk}`); },
         async find() { return []; }
@@ -108,7 +108,7 @@ describe('Basic Cache Example Integration Tests', () => {
 
       // Test operations with empty results
       const allItems = await cache.operations.all({});
-      expect(allItems).toEqual([]);
+      expect(allItems.items).toEqual([]);
 
       const oneItem = await cache.operations.one({});
       expect(oneItem).toBeNull();
@@ -137,7 +137,8 @@ describe('Basic Cache Example Integration Tests', () => {
       const testApi: Partial<ClientApi<TestItem, 'test'>> = {
         async all() {
           apiCallCount.count++;
-          return Array.from(storage.values());
+          const items = Array.from(storage.values());
+          return { items, metadata: { total: items.length, hasMore: false } };
         },
         async get(key: PriKey<'test'>) {
           apiCallCount.count++;
@@ -172,7 +173,7 @@ describe('Basic Cache Example Integration Tests', () => {
       const allItems = await cache.operations.all({});
       const firstCallTime = process.hrtime.bigint() - startTime;
 
-      expect(allItems).toHaveLength(100);
+      expect(allItems.items).toHaveLength(100);
       expect(apiCallCount.count).toBe(1);
 
       // Test cache hit - second call should be faster
@@ -180,7 +181,7 @@ describe('Basic Cache Example Integration Tests', () => {
       const cachedItems = await cache.operations.all();
       const cacheHitTime = process.hrtime.bigint() - hitStartTime;
 
-      expect(cachedItems).toHaveLength(100);
+      expect(cachedItems.items).toHaveLength(100);
       expect(apiCallCount.count).toBe(1); // No additional API calls
 
       // Cache hit should be significantly faster than first call in most cases
@@ -223,7 +224,8 @@ describe('Basic Cache Example Integration Tests', () => {
         async all() {
           operationCount++;
           await new Promise(resolve => setTimeout(resolve, 10));
-          return Array.from(storage.values());
+          const items = Array.from(storage.values());
+          return { items, metadata: { total: items.length, hasMore: false } };
         }
       };
 
@@ -283,7 +285,8 @@ describe('Basic Cache Example Integration Tests', () => {
           return item;
         },
         async all() {
-          return Array.from(storage.values());
+          const items = Array.from(storage.values());
+          return { items, metadata: { total: items.length, hasMore: false } };
         }
       };
 
@@ -359,7 +362,7 @@ describe('Basic Cache Example Integration Tests', () => {
       // Test with API that returns empty arrays and null values
       const edgeCaseApi: Partial<ClientApi<EdgeCaseItem, 'edge'>> = {
         async all() {
-          return []; // Empty array
+          return { items: [], metadata: { total: 0, hasMore: false } }; // Empty array
         },
         async one() {
           return null; // Null result
@@ -384,7 +387,7 @@ describe('Basic Cache Example Integration Tests', () => {
 
       // Test empty results
       const emptyAll = await cache.operations.all();
-      expect(emptyAll).toEqual([]);
+      expect(emptyAll.items).toEqual([]);
 
       const nullOne = await cache.operations.one();
       expect(nullOne).toBeNull();
@@ -460,11 +463,11 @@ describe('Basic Cache Example Integration Tests', () => {
             items = items.filter(item => item.status === query.status);
           }
 
-          return items;
+          return { items, metadata: { total: items.length, hasMore: false } };
         },
         async one(query?: any) {
-          const items = await this.all!(query);
-          return items[0] || null;
+          const result = await this.all!(query);
+          return result.items[0] || null;
         },
         async find(finder?: any) {
           if (finder === 'electronics') {
@@ -486,15 +489,15 @@ describe('Basic Cache Example Integration Tests', () => {
 
       // Test various query patterns
       const allItems = await cache.operations.all({});
-      expect(allItems).toHaveLength(3);
+      expect(allItems.items).toHaveLength(3);
 
       // Test that the cache returns the same results for the same query
       // since it's caching the results from the first call
       const electronicsItems = await cache.operations.all({});
-      expect(electronicsItems).toHaveLength(3); // Cache returns cached result of the same query
+      expect(electronicsItems.items).toHaveLength(3); // Cache returns cached result of the same query
 
       const activeItems = await cache.operations.all({});
-      expect(activeItems).toHaveLength(3); // Cache returns cached result of the same query
+      expect(activeItems.items).toHaveLength(3); // Cache returns cached result of the same query
 
       const firstElectronics = await cache.operations.one({});
       expect(firstElectronics?.category).toBe('electronics');

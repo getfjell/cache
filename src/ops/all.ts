@@ -1,4 +1,6 @@
 import {
+  AllOperationResult,
+  AllOptions,
   createAllWrapper,
   Item,
   ItemQuery,
@@ -45,20 +47,21 @@ export const all = async <
 >(
   query: ItemQuery = {},
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
-  context: CacheContext<V, S, L1, L2, L3, L4, L5>
-): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[]]> => {
-  const { api, cacheMap, pkType, ttlManager, coordinate } = context;
-  logger.default('all', { query, locations });
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>,
+  allOptions?: AllOptions
+): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, AllOperationResult<V>]> => {
+  const { coordinate } = context;
+  logger.default('all', { query, locations, allOptions });
 
   // Use wrapper for validation
   const wrappedAll = createAllWrapper(
     coordinate,
-    async (q, locs) => {
-      return await executeAllLogic(q ?? {}, locs ?? [], context);
+    async (q, locs, opts) => {
+      return await executeAllLogic(q ?? {}, locs ?? [], context, opts);
     }
   );
 
-  const result = await wrappedAll(query, locations);
+  const result = await wrappedAll(query, locations, allOptions);
   return [context, result];
 };
 
@@ -73,17 +76,30 @@ async function executeAllLogic<
 >(
   query: ItemQuery,
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [],
-  context: CacheContext<V, S, L1, L2, L3, L4, L5>
-): Promise<V[]> {
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>,
+  allOptions?: AllOptions
+): Promise<AllOperationResult<V>> {
   const { api, cacheMap, pkType, ttlManager } = context;
+
+  // Helper to create AllOperationResult from cached items
+  const createCachedResult = (items: V[]): AllOperationResult<V> => ({
+    items,
+    metadata: {
+      total: items.length,
+      returned: items.length,
+      limit: allOptions?.limit ?? query?.limit,
+      offset: allOptions?.offset ?? query?.offset ?? 0,
+      hasMore: false  // When serving from cache, we assume we have all matching items
+    }
+  });
 
   // Check if cache bypass is enabled
   if (context.options?.bypassCache) {
     logger.debug('Cache bypass enabled, fetching directly from API', { query, locations });
 
     try {
-      const ret = await api.all(query, locations);
-      logger.debug('API response received (not cached due to bypass)', { query, locations, itemCount: ret.length });
+      const ret = await api.all(query, locations, allOptions);
+      logger.debug('API response received (not cached due to bypass)', { query, locations, itemCount: ret.items.length });
       return ret;
     } catch (error) {
       logger.error('API request failed', { query, locations, error });
@@ -139,7 +155,7 @@ async function executeAllLogic<
         queryHash,
         itemCount: cachedItems.length
       });
-      return cachedItems;
+      return createCachedResult(cachedItems);
     } else {
       logger.debug('QUERY_CACHE: Some cached items missing, invalidating query cache', {
         queryHash,
@@ -185,7 +201,7 @@ async function executeAllLogic<
           itemKeys: itemKeys.map(k => JSON.stringify(k))
         });
 
-        return directCachedItems;
+        return createCachedResult(directCachedItems);
       } else {
         logger.debug('QUERY_CACHE: Direct cache query returned no items', { queryHash });
       }
@@ -221,29 +237,30 @@ async function executeAllLogic<
     return await existingRequest.promise;
   }
 
-  let ret: V[] = [];
+  let apiResult: AllOperationResult<V> = { items: [], metadata: { total: 0, returned: 0, offset: 0, hasMore: false } };
   try {
     // Create new API request and store it for deduplication
-    const apiRequest = api.all(query, locations);
+    const apiRequest = api.all(query, locations, allOptions);
     inFlightRequests.set(queryHash, { promise: apiRequest, timestamp });
 
     // Clean up after completion
     const cleanup = () => inFlightRequests.delete(queryHash);
     apiRequest.then(cleanup, cleanup);
 
-    ret = await apiRequest;
+    apiResult = await apiRequest;
     logger.debug('QUERY_CACHE: API response received', {
       queryHash,
-      itemCount: ret.length,
-      itemKeys: ret.map(item => JSON.stringify(item.key))
+      itemCount: apiResult.items.length,
+      total: apiResult.metadata?.total,
+      itemKeys: apiResult.items.map(item => JSON.stringify(item.key))
     });
 
     // Store individual items in cache
     logger.debug('QUERY_CACHE: Storing items in item cache', {
       queryHash,
-      itemCount: ret.length
+      itemCount: apiResult.items.length
     });
-    for (const v of ret) {
+    for (const v of apiResult.items) {
       await cacheMap.set(v.key, v);
       logger.debug('QUERY_CACHE: Stored item in cache', {
         itemKey: JSON.stringify(v.key),
@@ -268,7 +285,7 @@ async function executeAllLogic<
     }
 
     // Store query result (item keys) in query cache
-    const itemKeys = ret.map(item => item.key);
+    const itemKeys = apiResult.items.map(item => item.key);
     await cacheMap.setQueryResult(queryHash, itemKeys);
     logger.debug('QUERY_CACHE: Stored query result in query cache', {
       queryHash,
@@ -277,7 +294,7 @@ async function executeAllLogic<
     });
 
     // Emit query event
-    const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(query, locations, ret);
+    const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(query, locations, apiResult.items);
     context.eventEmitter.emit(event);
     logger.debug('QUERY_CACHE: Emitted query event', { queryHash });
 
@@ -300,7 +317,8 @@ async function executeAllLogic<
   }
   logger.debug('QUERY_CACHE: all() operation completed', {
     queryHash,
-    resultCount: ret.length
+    resultCount: apiResult.items.length,
+    total: apiResult.metadata?.total
   });
-  return ret;
+  return apiResult;
 };

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type AffectedKeys, createOperations, isComKey, isPriKey, type OperationParams, Operations, TwoLayerOperations } from '../src/Operations';
 import type { Operations as CoreOperations } from '@fjell/core';
-import { ComKey, createCoordinate, Item, PriKey } from '@fjell/core';
+import { AllOperationResult, ComKey, createCoordinate, Item, PriKey } from '@fjell/core';
 import type { ClientApi } from '@fjell/client-api';
 import { CacheMap } from '../src/CacheMap';
 import { CacheEventEmitter } from '../src/events/CacheEventEmitter';
@@ -121,7 +121,7 @@ describe('Cache Operations', () => {
       };
 
       mockApi = {
-        all: vi.fn().mockResolvedValue([]),
+        all: vi.fn().mockResolvedValue({ items: [], metadata: { total: 0, returned: 0, offset: 0, hasMore: false } } as AllOperationResult<TestItem>),
         one: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockResolvedValue(testItem),
         get: vi.fn().mockResolvedValue(null),
@@ -310,8 +310,13 @@ describe('Cache Operations', () => {
     beforeEach(() => {
       registry = createRegistry('test-cache');
       
+      const allItems = [testItem, testItem2];
+      const allResult: AllOperationResult<TestItem> = {
+        items: allItems,
+        metadata: { total: allItems.length, returned: allItems.length, offset: 0, hasMore: false }
+      };
       mockApi = {
-        all: vi.fn().mockResolvedValue([testItem, testItem2]),
+        all: vi.fn().mockResolvedValue(allResult),
         one: vi.fn().mockResolvedValue(testItem),
         create: vi.fn().mockResolvedValue(testItem),
         get: vi.fn().mockResolvedValue(testItem),
@@ -459,8 +464,8 @@ describe('Cache Operations', () => {
       it('should fetch fresh data on cache miss', async () => {
         const result = await twoLayerOps.all({ name: 'test' }, []);
         
-        expect(result).toEqual([testItem, testItem2]);
-        expect(mockApi.all).toHaveBeenCalledWith({ name: 'test' }, []);
+        expect(result.items).toEqual([testItem, testItem2]);
+        expect(mockApi.all).toHaveBeenCalledWith({ name: 'test' }, [], undefined);
       });
 
       it('should return cached data on cache hit', async () => {
@@ -473,7 +478,7 @@ describe('Cache Operations', () => {
         // Second call should hit cache
         const result = await twoLayerOps.all({ name: 'test' }, []);
         
-        expect(result).toEqual([testItem, testItem2]);
+        expect(result.items).toEqual([testItem, testItem2]);
         expect(mockApi.all).not.toHaveBeenCalled();
       });
 
@@ -487,7 +492,7 @@ describe('Cache Operations', () => {
         
         const result = await twoLayerOps.all({ name: 'test' }, []);
         
-        expect(result).toEqual([testItem, testItem2]);
+        expect(result.items).toEqual([testItem, testItem2]);
         expect(mockApi.all).toHaveBeenCalled();
         
         vi.useRealTimers();
@@ -496,8 +501,8 @@ describe('Cache Operations', () => {
       it('should handle empty query and locations', async () => {
         const result = await twoLayerOps.all();
         
-        expect(result).toEqual([testItem, testItem2]);
-        expect(mockApi.all).toHaveBeenCalledWith({}, []);
+        expect(result.items).toEqual([testItem, testItem2]);
+        expect(mockApi.all).toHaveBeenCalledWith({}, [], undefined);
       });
     });
 
@@ -1004,7 +1009,7 @@ describe('Cache Operations', () => {
         // Test through all() to exercise normalizeParams
         await twoLayerOps.all(complexQuery, []);
         
-        expect(mockApi.all).toHaveBeenCalledWith(complexQuery, []);
+        expect(mockApi.all).toHaveBeenCalledWith(complexQuery, [], undefined);
       });
     });
   });

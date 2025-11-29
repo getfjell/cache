@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCache } from '../../src/Cache';
-import { Item, ItemQuery, PriKey } from '@fjell/core';
+import { AllOperationResult, Item, ItemQuery, PriKey } from '@fjell/core';
 import { CacheEventFactory } from '../../src/events/CacheEventFactory';
 
 interface TestItem extends Item<'test'> {
@@ -25,7 +25,13 @@ describe('Query Invalidation Events', () => {
     ]);
 
     mockApi = {
-      all: vi.fn(async () => Array.from(mockData.values())),
+      all: vi.fn(async (): Promise<AllOperationResult<TestItem>> => {
+        const items = Array.from(mockData.values());
+        return {
+          items,
+          metadata: { total: items.length, returned: items.length, offset: 0, hasMore: false }
+        };
+      }),
       update: vi.fn(async (key: PriKey<'test'>, updates: Partial<TestItem>) => {
         const existing = mockData.get(key.pk) || { key, name: 'Updated', value: 0 };
         const updated = { ...existing, ...updates, key };
@@ -117,8 +123,8 @@ describe('Query Invalidation Events', () => {
     // First, do a query to populate the cache
     const query: ItemQuery = {}; // Empty query to get all items
     const initialResults = await cache.operations.all(query);
-    expect(initialResults).toHaveLength(2);
-    expect(initialResults[0].value).toBe(1);
+    expect(initialResults.items).toHaveLength(2);
+    expect(initialResults.items[0].value).toBe(1);
     expect(mockApi.all).toHaveBeenCalledTimes(1);
 
     // Update an item
@@ -130,10 +136,10 @@ describe('Query Invalidation Events', () => {
     // The next query should return the updated item from cache
     // It uses the individual item cache, not the query cache
     const secondResults = await cache.operations.all(query);
-    expect(secondResults).toHaveLength(2);
+    expect(secondResults.items).toHaveLength(2);
 
     // Find the updated item - should have the updated value
-    const updatedItem = secondResults.find(item => item.key.pk === 'test:1');
+    const updatedItem = secondResults.items.find(item => item.key.pk === 'test:1');
     expect(updatedItem?.value).toBe(999);
 
     // The API should have been called for the update

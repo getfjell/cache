@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Item, ItemQuery, PriKey } from '@fjell/core';
+import { AllOperationResult, Item, ItemQuery, PriKey } from '@fjell/core';
 import { Cache, createCache } from '../../src/Cache';
 import { AnyCacheEvent, CacheEventListener, CacheSubscription } from '../../src/events/CacheEventTypes';
 import { createCoordinate } from '@fjell/core';
@@ -33,14 +33,17 @@ const createMockApi = () => {
   return {
     async all(query: ItemQuery = {}) {
       // Return mock data based on query
+      let items: TestItem[];
       if (query.compoundCondition?.conditions.some(c => 'column' in c && c.column === 'name')) {
         const nameCondition = query.compoundCondition.conditions.find(c => 'column' in c && c.column === 'name') as any;
-        return [createTestItem('1', nameCondition.value as string, 42)];
+        items = [createTestItem('1', nameCondition.value as string, 42)];
+      } else {
+        items = [
+          createTestItem('1', 'Item 1', 42),
+          createTestItem('2', 'Item 2', 84)
+        ];
       }
-      return [
-        createTestItem('1', 'Item 1', 42),
-        createTestItem('2', 'Item 2', 84)
-      ];
+      return { items, metadata: { total: items.length, hasMore: false } };
     },
 
     async one() {

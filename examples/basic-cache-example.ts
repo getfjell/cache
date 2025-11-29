@@ -41,12 +41,13 @@ const mockTaskStorage = new Map<string, Task>();
 const createUserApi = (): Partial<ClientApi<User, 'user'>> => ({
   async all(query = {}) {
     console.log('📦 Fetching all users from storage...');
-    return Array.from(mockUserStorage.values());
+    const items = Array.from(mockUserStorage.values());
+    return { items, metadata: { total: items.length, returned: items.length, offset: 0, hasMore: false } };
   },
 
   async one(query = {}) {
-    const users = await this.all!(query);
-    return users[0] || null;
+    const result = await this.all!(query);
+    return result.items[0] || null;
   },
 
   async get(key: PriKey<'user'>) {
@@ -59,7 +60,8 @@ const createUserApi = (): Partial<ClientApi<User, 'user'>> => ({
   },
 
   async find(finder = 'all') {
-    return await this.all!({});
+    const result = await this.all!({});
+    return result.items;
   }
 });
 
@@ -67,12 +69,13 @@ const createUserApi = (): Partial<ClientApi<User, 'user'>> => ({
 const createTaskApi = (): Partial<ClientApi<Task, 'task'>> => ({
   async all(query = {}) {
     console.log('📦 Fetching all tasks from storage...');
-    return Array.from(mockTaskStorage.values());
+    const items = Array.from(mockTaskStorage.values());
+    return { items, metadata: { total: items.length, returned: items.length, offset: 0, hasMore: false } };
   },
 
   async one(query = {}) {
-    const tasks = await this.all!(query);
-    return tasks[0] || null;
+    const result = await this.all!(query);
+    return result.items[0] || null;
   },
 
   async get(key: PriKey<'task'>) {
@@ -85,7 +88,8 @@ const createTaskApi = (): Partial<ClientApi<Task, 'task'>> => ({
   },
 
   async find(finder = 'all') {
-    return await this.all!({});
+    const result = await this.all!({});
+    return result.items;
   }
 });
 
@@ -168,10 +172,10 @@ export const runBasicCacheExample = async (): Promise<void> => {
   console.log('----------------------------------------------');
 
   const allUsers = await userCache.operations.all();
-  console.log(`📋 Cached ${allUsers.length} users:`, allUsers.map((u: User) => u.name));
+  console.log(`📋 Cached ${allUsers.items.length} users:`, allUsers.items.map((u: User) => u.name));
 
   const allTasks = await taskCache.operations.all();
-  console.log(`📋 Cached ${allTasks.length} tasks:`, allTasks.map((t: Task) => t.title));
+  console.log(`📋 Cached ${allTasks.items.length} tasks:`, allTasks.items.map((t: Task) => t.title));
   console.log('');
 
   // Step 4: Individual item retrieval from cache
@@ -230,8 +234,8 @@ export const runBasicCacheExample = async (): Promise<void> => {
   console.log('-----------------------');
 
   console.log('📊 Cache Statistics:');
-  console.log(`   👥 Users in cache: ${allUsers.length}`);
-  console.log(`   📝 Tasks in cache: ${allTasks.length}`);
+  console.log(`   👥 Users in cache: ${allUsers.items.length}`);
+  console.log(`   📝 Tasks in cache: ${allTasks.items.length}`);
   console.log(`   🎯 User cache coordinate: ${userCache.coordinate.kta[0]}`);
   console.log(`   🎯 Task cache coordinate: ${taskCache.coordinate.kta[0]}`);
   console.log('');
@@ -249,7 +253,7 @@ export const runBasicCacheExample = async (): Promise<void> => {
 
   // Fresh fetch will update cache
   const freshAllUsers = await userCache.operations.all();
-  console.log(`📋 Fresh fetch shows ${freshAllUsers.length} users (cache updated)`);
+  console.log(`📋 Fresh fetch shows ${freshAllUsers.items.length} users (cache updated)`);
   console.log('');
 
   console.log('🎉 Basic Cache Example Complete!');
@@ -265,6 +269,7 @@ export const runBasicCacheExample = async (): Promise<void> => {
 };
 
 // Run the example if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run the example if this file is executed directly
+if (typeof import.meta !== 'undefined' && import.meta.url) {
   runBasicCacheExample().catch(console.error);
 }
