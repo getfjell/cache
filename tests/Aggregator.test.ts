@@ -423,7 +423,11 @@ describe('Aggregator', () => {
     ];
 
     it('all', async () => {
-      (itemCacheMock.operations.all as any).mockResolvedValue(items);
+      const mockResult = {
+        items,
+        metadata: { total: items.length, returned: items.length, offset: 0, hasMore: false }
+      };
+      (itemCacheMock.operations.all as any).mockResolvedValue(mockResult);
       (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
       const aggregatedItems = await aggregator.all();

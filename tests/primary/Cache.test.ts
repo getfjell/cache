@@ -1,7 +1,7 @@
 import { CacheMap } from '../../src/CacheMap';
 import { Cache, createCache } from '../../src/Cache';
 import { PItemApi } from '@fjell/client-api';
-import { Item, PriKey } from '@fjell/core';
+import { AllOperationResult, Item, PriKey } from '@fjell/core';
 import { createCoordinate } from '@fjell/core';
 import { createRegistry } from '@fjell/registry';
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
@@ -45,8 +45,12 @@ describe('PItemCache', () => {
   beforeEach(async () => {
     vi.resetAllMocks();
 
+    const mockAllResult: AllOperationResult<TestItem> = {
+      items,
+      metadata: { total: items.length, returned: items.length, offset: 0, hasMore: false }
+    };
     apiMock = {
-      all: vi.fn().mockResolvedValue(items),
+      all: vi.fn().mockResolvedValue(mockAllResult),
       one: vi.fn().mockResolvedValue(items[0]),
       action: vi.fn().mockResolvedValue([items[0], []]),
       create: vi.fn().mockResolvedValue([key1, items[0]]),
@@ -65,8 +69,9 @@ describe('PItemCache', () => {
   it('should call all method', async () => {
     const result = await cache.operations.all();
 
-    expect(apiMock.all).toHaveBeenCalledWith({}, []);
-    expect(result).toEqual(items);
+    expect(apiMock.all).toHaveBeenCalledWith({}, [], undefined);
+    expect(result.items).toEqual(items);
+    expect(result.metadata.total).toBe(items.length);
   });
 
   it('should call one method', async () => {

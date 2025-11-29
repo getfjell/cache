@@ -1,5 +1,7 @@
 import {
   AffectedKeys,
+  AllOperationResult,
+  AllOptions,
   Operations as CoreOperations,
   createAllFacetWrapper,
   createAllWrapper,
@@ -137,8 +139,8 @@ export class CacheMapOperations<
     );
   }
 
-  async all(query: ItemQuery = {}, locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []): Promise<V[]> {
-    return all(query, locations, this.context).then(([ctx, result]) => result);
+  async all(query: ItemQuery = {}, locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [], allOptions?: AllOptions): Promise<AllOperationResult<V>> {
+    return all(query, locations, this.context, allOptions).then(([ctx, result]) => result);
   }
 
   async one(query: ItemQuery = {}, locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []): Promise<V | null> {
@@ -299,7 +301,10 @@ export class TwoLayerOperations<
       // Add warming operations from configuration
       this.cacheWarmer.addOperationsFromConfig(
         ttlConfig.warming.queries,
-        (params: any) => () => this.api.all(params.query || {}, params.locations || [])
+        (params: any) => async () => {
+          const result = await this.api.all(params.query || {}, params.locations || []);
+          return result.items;
+        }
       );
 
       // Start periodic warming
@@ -320,8 +325,20 @@ export class TwoLayerOperations<
 
   // ===== CORE QUERY OPERATIONS (THE CRITICAL PART) =====
 
-  async all(query: ItemQuery = {}, locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []): Promise<V[]> {
-    const queryKey = this.buildQueryKey('all', { query, locations });
+  async all(query: ItemQuery = {}, locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [], allOptions?: AllOptions): Promise<AllOperationResult<V>> {
+    const queryKey = this.buildQueryKey('all', { query, locations, allOptions });
+
+    // Helper to create AllOperationResult from cached items
+    const createCachedResult = (items: V[]): AllOperationResult<V> => ({
+      items,
+      metadata: {
+        total: items.length,
+        returned: items.length,
+        limit: allOptions?.limit ?? query?.limit,
+        offset: allOptions?.offset ?? query?.offset ?? 0,
+        hasMore: false  // When serving from cache, we assume we have all matching items
+      }
+    });
 
     // Check query cache first
     const cachedQuery = await this.queryCache.getResult(queryKey);
@@ -339,7 +356,7 @@ export class TwoLayerOperations<
         if (this.options.debug) {
           logger.info('all() cache hit', { queryKey, itemCount: validItems.length });
         }
-        return validItems;
+        return createCachedResult(validItems);
       }
       
       // Some items expired, invalidate the query
@@ -354,19 +371,19 @@ export class TwoLayerOperations<
     // Fetch fresh data from API
     const wrappedAll = createAllWrapper(
       this.coordinate,
-      async (q, locs) => await this.api.all(q ?? {}, locs ?? [])
+      async (q, locs, opts) => await this.api.all(q ?? {}, locs ?? [], opts)
     );
     
-    const freshItems = await wrappedAll(query, locations);
+    const freshResult = await wrappedAll(query, locations, allOptions);
 
     // Store in both layers - MARK AS COMPLETE
-    await this.storeTwoLayer(freshItems, queryKey, true, 'all');
+    await this.storeTwoLayer(freshResult.items, queryKey, true, 'all');
 
     if (this.options.debug) {
-      logger.info('all() fetched fresh', { queryKey, itemCount: freshItems.length });
+      logger.info('all() fetched fresh', { queryKey, itemCount: freshResult.items.length, total: freshResult.metadata?.total });
     }
 
-    return freshItems;
+    return freshResult;
   }
 
   async allFacet(facet: string, params: Record<string, any> = {}, locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []): Promise<any> {
