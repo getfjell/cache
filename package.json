@@ -1,7 +1,7 @@
 {
   "name": "@fjell/cache",
   "description": "Cache for Fjell",
-  "version": "4.7.48",
+  "version": "4.7.49",
   "keywords": [
     "cache",
     "fjell"
@@ -37,11 +37,11 @@
     "docs:test": "cd docs && npm run test"
   },
   "dependencies": {
-    "@fjell/client-api": "^4.4.57",
-    "@fjell/core": "^4.4.63",
-    "@fjell/http-api": "^4.4.53",
-    "@fjell/logging": "^4.4.58",
-    "@fjell/registry": "^4.4.69",
+    "@fjell/client-api": "^4.4.58",
+    "@fjell/core": "^4.4.64",
+    "@fjell/http-api": "^4.4.54",
+    "@fjell/logging": "^4.4.59",
+    "@fjell/registry": "^4.4.70",
     "fast-safe-stringify": "^2.1.1",
     "flatted": "^3.3.3",
     "yocto-queue": "^1.2.1"
@@ -49,7 +49,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.38.0",
-    "@fjell/common-config": "^1.1.30",
+    "@fjell/common-config": "^1.1.31",
     "@swc/core": "^1.13.5",
     "@tsconfig/recommended": "^1.0.10",
     "@types/multer": "^2.0.0",

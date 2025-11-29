@@ -250,8 +250,8 @@ export const createAggregator = async <
   ):
     Promise<V[]> => {
     logger.default('all', { query, locations });
-    const items = await cache.operations.all(query, locations);
-    const populatedItems = await Promise.all(items.map(async (item) => populate(item)));
+    const result = await cache.operations.all(query, locations);
+    const populatedItems = await Promise.all(result.items.map(async (item) => populate(item)));
     return populatedItems;
   }
 
