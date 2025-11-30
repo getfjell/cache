@@ -508,10 +508,15 @@ describe('Aggregator', () => {
     });
 
     it('find', async () => {
-      (itemCacheMock.operations.find as any).mockResolvedValue(items);
+      (itemCacheMock.operations.find as any).mockResolvedValue({
+        items,
+        metadata: { total: items.length, returned: items.length, offset: 0, hasMore: false }
+      });
       (otherCacheMock.operations.retrieve as any).mockResolvedValue(otherItems[0]);
 
-      const aggregatedItems = await aggregator.find('findAll');
+      const aggregatedResult = await aggregator.find('findAll');
+      // find() now returns FindOperationResult
+      const aggregatedItems = aggregatedResult.items;
 
       expect(aggregatedItems[0]?.aggs?.other[0].item).toEqual(otherItems[0]);
     });
