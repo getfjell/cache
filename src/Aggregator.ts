@@ -25,10 +25,8 @@ export interface Aggregator<
   L5 extends string = never
 > extends Cache<V, S, L1, L2, L3, L4, L5> {
   // Cache operations exposed directly for aggregator
-  all: (
-    query?: ItemQuery,
-    locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ) => Promise<V[]>;
+  // Note: all() returns AllOperationResult<V>, find() returns FindOperationResult<V> (inherited from Cache/Operations)
+  // Explicit overrides removed to inherit correct types from Operations interface
 
   one: (
     query?: ItemQuery,
@@ -81,11 +79,8 @@ export interface Aggregator<
     params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>
   ) => Promise<any>;
 
-  find: (
-    finder: string,
-    params?: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
-    locations?: LocKeyArray<L1, L2, L3, L4, L5> | []
-  ) => Promise<V[]>;
+  // find() now returns FindOperationResult<V> (inherited from Cache/Operations)
+  // Explicit override removed to inherit correct type from Operations interface
 
   findOne: (
     finder: string,
@@ -368,12 +363,16 @@ export const createAggregator = async <
   const find = async (
     finder: string,
     finderParams: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
-    locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = []
-  ): Promise<V[]> => {
-    logger.default('find', { finder, finderParams, locations });
-    const items = await cache.operations.find(finder, finderParams, locations);
-    const populatedItems = await Promise.all(items.map(async (item: V) => populate(item)));
-    return populatedItems;
+    locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
+    findOptions?: any
+  ) => {
+    logger.default('find', { finder, finderParams, locations, findOptions });
+    const result = await (cache.operations.find as any)(finder, finderParams, locations, findOptions);
+    const populatedItems = await Promise.all(result.items.map(async (item: V) => populate(item)));
+    return {
+      items: populatedItems,
+      metadata: result.metadata
+    };
   }
 
   const findOne = async (

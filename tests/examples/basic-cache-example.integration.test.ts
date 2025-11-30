@@ -93,10 +93,10 @@ describe('Basic Cache Example Integration Tests', () => {
       const { createCoordinate } = await import('@fjell/core');
 
       const emptyApi = {
-        async all() { return { items: [], metadata: { total: 0, hasMore: false } }; },
+        async all() { return { items: [], metadata: { total: 0, returned: 0, offset: 0, hasMore: false } }; },
         async one() { return null; },
         async get(key: any) { throw new Error(`Not found: ${key.pk}`); },
-        async find() { return []; }
+        async find() { return { items: [], metadata: { total: 0, returned: 0, offset: 0, hasMore: false } }; }
       };
 
       const registry = createRegistry();
@@ -113,8 +113,10 @@ describe('Basic Cache Example Integration Tests', () => {
       const oneItem = await cache.operations.one({});
       expect(oneItem).toBeNull();
 
-      const foundItems = await cache.operations.find('all');
-      expect(foundItems).toEqual([]);
+      const foundItemsResult = await cache.operations.find('all');
+      // find() now returns FindOperationResult
+      expect(foundItemsResult.items).toEqual([]);
+      expect(foundItemsResult.metadata.total).toBe(0);
 
       // Test error handling
       await expect(cache.operations.get({ kt: 'test', pk: 'missing' }))
@@ -368,7 +370,7 @@ describe('Basic Cache Example Integration Tests', () => {
           return null; // Null result
         },
         async find() {
-          return []; // Empty find result
+          return { items: [], metadata: { total: 0, returned: 0, offset: 0, hasMore: false } }; // Empty find result
         },
         async get(key: PriKey<'edge'>) {
           // Test different error scenarios
@@ -392,8 +394,10 @@ describe('Basic Cache Example Integration Tests', () => {
       const nullOne = await cache.operations.one();
       expect(nullOne).toBeNull();
 
-      const emptyFind = await cache.operations.find('test');
-      expect(emptyFind).toEqual([]);
+      const emptyFindResult = await cache.operations.find('test');
+      // find() now returns FindOperationResult
+      expect(emptyFindResult.items).toEqual([]);
+      expect(emptyFindResult.metadata.total).toBe(0);
 
       // Test error scenarios
       await expect(cache.operations.get({ kt: 'edge', pk: 'null-error' }))
@@ -471,7 +475,11 @@ describe('Basic Cache Example Integration Tests', () => {
         },
         async find(finder?: any) {
           if (finder === 'electronics') {
-            return storage.get('item-1') ? [storage.get('item-1')!, storage.get('item-3')!] : [];
+            const items = storage.get('item-1') ? [storage.get('item-1')!, storage.get('item-3')!] : [];
+            return {
+              items,
+              metadata: { total: items.length, returned: items.length, offset: 0, hasMore: false }
+            };
           }
           return await this.all!({});
         },
@@ -502,8 +510,10 @@ describe('Basic Cache Example Integration Tests', () => {
       const firstElectronics = await cache.operations.one({});
       expect(firstElectronics?.category).toBe('electronics');
 
-      const foundElectronics = await cache.operations.find('electronics');
-      expect(foundElectronics).toHaveLength(2); // Cache returns the cached result of the specific query
+      const foundElectronicsResult = await cache.operations.find('electronics');
+      // find() now returns FindOperationResult
+      expect(foundElectronicsResult.items).toHaveLength(2); // Cache returns the cached result of the specific query
+      expect(foundElectronicsResult.metadata.total).toBe(2);
 
       // Test individual retrieval
       const specificItem = await cache.operations.get({ kt: 'query', pk: 'item-2' });

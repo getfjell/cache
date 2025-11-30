@@ -199,22 +199,28 @@ describe("Combined Item Cache Tests", () => {
     const finder = "testFinder";
     const locations: LocKeyArray<"container"> = loc1;
     // @ts-ignore
-    mockApi.find.mockResolvedValue(items);
+    mockApi.find.mockResolvedValue({
+      items,
+      metadata: { total: items.length, returned: items.length, offset: 0, hasMore: false }
+    });
 
     await itemCache.operations.find(finder, {}, locations);
 
-    expect(mockApi.find).toHaveBeenCalledWith(finder, {}, locations);
+    expect(mockApi.find).toHaveBeenCalledWith(finder, {}, locations, undefined);
   });
 
   // TODO: There's something weird here that we need a unified approach to locations is optional?
   it("should call the find method with correct parameters and no locations", async () => {
     const finder = "testFinder";
     // @ts-ignore
-    mockApi.find.mockResolvedValue(items);
+    mockApi.find.mockResolvedValue({
+      items,
+      metadata: { total: items.length, returned: items.length, offset: 0, hasMore: false }
+    });
 
     await itemCache.operations.find(finder, {});
 
-    expect(mockApi.find).toHaveBeenCalledWith(finder, {}, []);
+    expect(mockApi.find).toHaveBeenCalledWith(finder, {}, [], undefined);
   });
 
   it("should call the set method with correct parameters", async () => {

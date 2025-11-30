@@ -61,7 +61,11 @@ const createUserApi = (): Partial<ClientApi<User, 'user'>> => ({
 
   async find(finder = 'all') {
     const result = await this.all!({});
-    return result.items;
+    // find() now returns FindOperationResult, not array
+    return {
+      items: result.items,
+      metadata: result.metadata
+    };
   }
 });
 
@@ -89,7 +93,11 @@ const createTaskApi = (): Partial<ClientApi<Task, 'task'>> => ({
 
   async find(finder = 'all') {
     const result = await this.all!({});
-    return result.items;
+    // find() now returns FindOperationResult, not array
+    return {
+      items: result.items,
+      metadata: result.metadata
+    };
   }
 });
 
@@ -222,8 +230,9 @@ export const runBasicCacheExample = async (): Promise<void> => {
   console.log('Step 7: Query operations');
   console.log('-----------------------');
 
-  const foundTasks = await taskCache.operations.find('all');
-  console.log(`🔍 Found ${foundTasks.length} tasks through cache query`);
+  const foundTasksResult = await taskCache.operations.find('all');
+  // find() now returns FindOperationResult
+  console.log(`🔍 Found ${foundTasksResult.items.length} tasks through cache query`);
 
   const oneTask = await taskCache.operations.one();
   console.log(`📝 Retrieved one task: ${oneTask?.title}`);

@@ -1,5 +1,7 @@
 import {
   createFindWrapper,
+  FindOperationResult,
+  FindOptions,
   Item,
   LocKeyArray
 } from "@fjell/core";
@@ -22,19 +24,20 @@ export const find = async <
   finder: string,
   params: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>> = {},
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [] = [],
-  context: CacheContext<V, S, L1, L2, L3, L4, L5>
-): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V[]]> => {
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>,
+  findOptions?: FindOptions
+): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, FindOperationResult<V>]> => {
   const { coordinate } = context;
-  logger.default('find', { finder, params, locations });
+  logger.default('find', { finder, params, locations, findOptions });
 
-  const wrappedFind = createFindWrapper(
+  const wrappedFind = (createFindWrapper as any)(
     coordinate,
-    async (f, p, locs) => {
-      return await executeFindLogic(f, p ?? {}, locs ?? [], context);
+    async (f: string, p: any, locs: any, opts: any) => {
+      return await executeFindLogic(f, p ?? {}, locs ?? [], context, opts);
     }
   );
 
-  const result = await wrappedFind(finder, params, locations);
+  const result = await (wrappedFind as any)(finder, params, locations, findOptions) as FindOperationResult<V>;
   return [context, result];
 };
 
@@ -50,25 +53,40 @@ async function executeFindLogic<
   finder: string,
   params: Record<string, string | number | boolean | Date | Array<string | number | boolean | Date>>,
   locations: LocKeyArray<L1, L2, L3, L4, L5> | [],
-  context: CacheContext<V, S, L1, L2, L3, L4, L5>
-): Promise<V[]> {
+  context: CacheContext<V, S, L1, L2, L3, L4, L5>,
+  findOptions?: FindOptions
+): Promise<FindOperationResult<V>> {
   const { api, cacheMap, pkType, ttlManager, eventEmitter } = context;
+
+  // Helper to create FindOperationResult from cached items
+  const createCachedResult = (items: V[]): FindOperationResult<V> => ({
+    items,
+    metadata: {
+      total: items.length,
+      returned: items.length,
+      limit: findOptions?.limit,
+      offset: findOptions?.offset ?? 0,
+      hasMore: false  // When serving from cache, we assume we have all matching items
+    }
+  });
 
   // Check if cache bypass is enabled
   if (context.options?.bypassCache) {
-    logger.debug('Cache bypass enabled, fetching directly from API', { finder, params, locations });
+    logger.debug('Cache bypass enabled, fetching directly from API', { finder, params, locations, findOptions });
 
     try {
-      const ret = await api.find(finder, params, locations);
-      logger.debug('API response received (not cached due to bypass)', { finder, params, locations, itemCount: ret.length });
+      const ret = await (api.find as any)(finder, params, locations, findOptions) as FindOperationResult<V>;
+      logger.debug('API response received (not cached due to bypass)', { finder, params, locations, itemCount: ret.items.length, total: ret.metadata.total });
       return ret;
     } catch (error) {
-      logger.error('API request failed', { finder, params, locations, error });
+      logger.error('API request failed', { finder, params, locations, findOptions, error });
       throw error;
     }
   }
 
-  // Generate query hash for caching
+  // Generate query hash for caching (include pagination options in hash for proper cache key)
+  // Note: For now, we don't include pagination in hash - cache stores all results, pagination applied after
+  // This matches the behavior of all() operation
   const queryHash = createFinderHash(finder, params, locations);
   logger.debug('QUERY_CACHE: Generated query hash for find()', {
     queryHash,
@@ -116,7 +134,29 @@ async function executeFindLogic<
         queryHash,
         itemCount: cachedItems.length
       });
-      return cachedItems;
+      
+      // Apply pagination to cached results
+      let paginatedItems = cachedItems;
+      const offset = findOptions?.offset ?? 0;
+      const limit = findOptions?.limit;
+      
+      if (offset > 0) {
+        paginatedItems = paginatedItems.slice(offset);
+      }
+      if (limit != null && limit >= 0) {
+        paginatedItems = paginatedItems.slice(0, limit);
+      }
+      
+      return {
+        items: paginatedItems,
+        metadata: {
+          total: cachedItems.length, // Total before pagination
+          returned: paginatedItems.length,
+          offset,
+          limit,
+          hasMore: limit != null && (offset + paginatedItems.length < cachedItems.length)
+        }
+      };
     } else {
       logger.debug('QUERY_CACHE: Some cached items missing, invalidating query cache', {
         queryHash,
@@ -138,21 +178,25 @@ async function executeFindLogic<
     queryHash,
     finder,
     params: JSON.stringify(params),
-    locations: JSON.stringify(locations)
+    locations: JSON.stringify(locations),
+    findOptions
   });
-  const ret: V[] = await api.find(finder, params, locations);
+  const ret = await (api.find as any)(finder, params, locations, findOptions) as FindOperationResult<V>;
   logger.debug('QUERY_CACHE: API response received', {
     queryHash,
-    itemCount: ret.length,
-    itemKeys: ret.map(item => JSON.stringify(item.key))
+    itemCount: ret.items.length,
+    total: ret.metadata.total,
+    itemKeys: ret.items.map(item => JSON.stringify(item.key))
   });
 
-  // Store individual items in cache
+  // Store individual items in cache (store all items, not just paginated subset)
+  // Note: We store all items from the API response, but the API may have already applied pagination
+  // For optimal caching, we'd want to cache the full result set, but that requires the finder to opt-in
   logger.debug('QUERY_CACHE: Storing items in item cache', {
     queryHash,
-    itemCount: ret.length
+    itemCount: ret.items.length
   });
-  for (const v of ret) {
+  for (const v of ret.items) {
     await cacheMap.set(v.key, v);
     logger.debug('QUERY_CACHE: Stored item in cache', {
       itemKey: JSON.stringify(v.key),
@@ -177,7 +221,7 @@ async function executeFindLogic<
   }
 
   // Store query result (item keys) in query cache
-  const itemKeys = ret.map(item => item.key);
+  const itemKeys = ret.items.map(item => item.key);
   await cacheMap.setQueryResult(queryHash, itemKeys);
   logger.debug('QUERY_CACHE: Stored query result in query cache', {
     queryHash,
@@ -186,13 +230,14 @@ async function executeFindLogic<
   });
 
   // Emit query event
-  const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(params, locations, ret);
+  const event = CacheEventFactory.createQueryEvent<V, S, L1, L2, L3, L4, L5>(params, locations, ret.items);
   eventEmitter.emit(event);
   logger.debug('QUERY_CACHE: Emitted query event', { queryHash });
 
   logger.debug('QUERY_CACHE: find() operation completed', {
     queryHash,
-    resultCount: ret.length
+    resultCount: ret.items.length,
+    total: ret.metadata.total
   });
   return ret;
 }
