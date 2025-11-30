@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { find } from '../../src/ops/find';
 import { findOne } from '../../src/ops/findOne';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
-import { ComKey, Item, PriKey, UUID } from '@fjell/core';
+import { AllOperationResult, ComKey, FindOperationResult, Item, PriKey, UUID } from '@fjell/core';
 import { CacheContext, createCacheContext } from '../../src/CacheContext';
 import { Options } from '../../src/Options';
 import { createFinderHash } from '../../src/normalization';
@@ -93,7 +93,10 @@ describe('Find Operations', () => {
       const params = { value: 100 };
       const locations: [] = [];
 
-      mockApi.find.mockResolvedValue([testItems[0]]);
+      mockApi.find.mockResolvedValue({
+        items: [testItems[0]],
+        metadata: { total: 1, returned: 1, offset: 0, hasMore: false }
+      });
 
       const [updatedContext, results] = await find(
         finder,
@@ -102,8 +105,9 @@ describe('Find Operations', () => {
         context
       );
 
-      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
-      expect(results).toEqual([testItems[0]]);
+      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations, undefined);
+      expect(results.items).toEqual([testItems[0]]);
+      expect(results.metadata.total).toBe(1);
       expect(await updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
 
       // Query result should be cached
@@ -131,7 +135,8 @@ describe('Find Operations', () => {
       );
 
       expect(mockApi.find).not.toHaveBeenCalled();
-      expect(results).toEqual([testItems[0], testItems[1]]);
+      expect(results.items).toEqual([testItems[0], testItems[1]]);
+      expect(results.metadata.total).toBe(2);
       expect(updatedContext.cacheMap).toBe(cacheMap);
     });
 
@@ -147,7 +152,10 @@ describe('Find Operations', () => {
       const queryHash = createFinderHash(finder, params, locations);
       cacheMap.setQueryResult(queryHash, [priKey1, priKey2]);
 
-      mockApi.find.mockResolvedValue([testItems[0], testItems[1]]);
+      mockApi.find.mockResolvedValue({
+        items: [testItems[0], testItems[1]],
+        metadata: { total: 2, returned: 2, offset: 0, hasMore: false }
+      });
 
       const [updatedContext, results] = await find(
         finder,
@@ -156,8 +164,9 @@ describe('Find Operations', () => {
         context
       );
 
-      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
-      expect(results).toEqual([testItems[0], testItems[1]]);
+      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations, undefined);
+      expect(results.items).toEqual([testItems[0], testItems[1]]);
+      expect(results.metadata.total).toBe(2);
       expect(await updatedContext.cacheMap.get(priKey1)).toEqual(testItems[0]);
       expect(await updatedContext.cacheMap.get(priKey2)).toEqual(testItems[1]);
     });
@@ -167,7 +176,10 @@ describe('Find Operations', () => {
       const params = { value: 999 };
       const locations: [] = [];
 
-      mockApi.find.mockResolvedValue([]);
+      mockApi.find.mockResolvedValue({
+        items: [],
+        metadata: { total: 0, returned: 0, offset: 0, hasMore: false }
+      });
 
       const [updatedContext, results] = await find(
         finder,
@@ -176,8 +188,9 @@ describe('Find Operations', () => {
         context
       );
 
-      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
-      expect(results).toEqual([]);
+      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations, undefined);
+      expect(results.items).toEqual([]);
+      expect(results.metadata.total).toBe(0);
       expect(updatedContext.cacheMap).toBe(cacheMap);
     });
 
@@ -192,7 +205,10 @@ describe('Find Operations', () => {
       };
       const locations: [] = [];
 
-      mockApi.find.mockResolvedValue([testItems[0]]);
+      mockApi.find.mockResolvedValue({
+        items: [testItems[0]],
+        metadata: { total: 1, returned: 1, offset: 0, hasMore: false }
+      });
 
       const [, results] = await find(
         finder,
@@ -201,8 +217,9 @@ describe('Find Operations', () => {
         context
       );
 
-      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
-      expect(results).toEqual([testItems[0]]);
+      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations, undefined);
+      expect(results.items).toEqual([testItems[0]]);
+      expect(results.metadata.total).toBe(1);
     });
 
     it('should handle find operations with locations', async () => {
@@ -210,7 +227,10 @@ describe('Find Operations', () => {
       const params = { value: 300 };
       const locations = [{ kt: 'container', lk: 'container1' as UUID }];
 
-      mockApi.find.mockResolvedValue([testItems[2]]);
+      mockApi.find.mockResolvedValue({
+        items: [testItems[2]],
+        metadata: { total: 1, returned: 1, offset: 0, hasMore: false }
+      });
 
       const [updatedContext, results] = await find(
         finder,
@@ -219,8 +239,9 @@ describe('Find Operations', () => {
         context
       );
 
-      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
-      expect(results).toEqual([testItems[2]]);
+      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations, undefined);
+      expect(results.items).toEqual([testItems[2]]);
+      expect(results.metadata.total).toBe(1);
       expect(await updatedContext.cacheMap.get(comKey1)).toEqual(testItems[2]);
     });
 
@@ -242,7 +263,10 @@ describe('Find Operations', () => {
     it('should use default parameters when not provided', async () => {
       const finder = 'simple-find';
 
-      mockApi.find.mockResolvedValue([testItems[0]]);
+      mockApi.find.mockResolvedValue({
+        items: [testItems[0]],
+        metadata: { total: 1, returned: 1, offset: 0, hasMore: false }
+      });
 
       const [, results] = await find(
         finder,
@@ -251,8 +275,9 @@ describe('Find Operations', () => {
         context
       );
 
-      expect(mockApi.find).toHaveBeenCalledWith(finder, {}, []);
-      expect(results).toEqual([testItems[0]]);
+      expect(mockApi.find).toHaveBeenCalledWith(finder, {}, [], undefined);
+      expect(results.items).toEqual([testItems[0]]);
+      expect(results.metadata.total).toBe(1);
     });
 
     it('should handle query cache that returns null', async () => {
@@ -263,7 +288,10 @@ describe('Find Operations', () => {
       const originalGetQueryResult = cacheMap.getQueryResult;
       cacheMap.getQueryResult = vi.fn().mockReturnValue(null);
 
-      mockApi.find.mockResolvedValue([testItems[0]]);
+      mockApi.find.mockResolvedValue({
+        items: [testItems[0]],
+        metadata: { total: 1, returned: 1, offset: 0, hasMore: false }
+      });
 
       const [, results] = await find(
         finder,
@@ -273,7 +301,8 @@ describe('Find Operations', () => {
       );
 
       expect(mockApi.find).toHaveBeenCalled();
-      expect(results).toEqual([testItems[0]]);
+      expect(results.items).toEqual([testItems[0]]);
+      expect(results.metadata.total).toBe(1);
 
       // Restore original method
       cacheMap.getQueryResult = originalGetQueryResult;
@@ -287,7 +316,10 @@ describe('Find Operations', () => {
       const queryHash = createFinderHash(finder, params, []);
       cacheMap.setQueryResult(queryHash, []);
 
-      mockApi.find.mockResolvedValue([testItems[0]]);
+      mockApi.find.mockResolvedValue({
+        items: [testItems[0]],
+        metadata: { total: 1, returned: 1, offset: 0, hasMore: false }
+      });
 
       const [, results] = await find(
         finder,
@@ -298,7 +330,8 @@ describe('Find Operations', () => {
 
       // Should use empty cached results
       expect(mockApi.find).not.toHaveBeenCalled();
-      expect(results).toEqual([]);
+      expect(results.items).toEqual([]);
+      expect(results.metadata.total).toBe(0);
     });
   });
 
@@ -312,7 +345,10 @@ describe('Find Operations', () => {
       const params = { value: 100 };
       const locations: [] = [];
 
-      mockApi.find.mockResolvedValue([testItems[0]]);
+      mockApi.find.mockResolvedValue({
+        items: [testItems[0]],
+        metadata: { total: 1, returned: 1, offset: 0, hasMore: false }
+      });
 
       const [updatedContext, results] = await find(
         finder,
@@ -321,8 +357,9 @@ describe('Find Operations', () => {
         context
       );
 
-      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
-      expect(results).toEqual([testItems[0]]);
+      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations, undefined);
+      expect(results.items).toEqual([testItems[0]]);
+      expect(results.metadata.total).toBe(1);
       expect(updatedContext.cacheMap).toBe(cacheMap);
 
       // Should not cache the result
@@ -334,7 +371,10 @@ describe('Find Operations', () => {
       const params = { value: 999 };
       const locations: [] = [];
 
-      mockApi.find.mockResolvedValue([]);
+      mockApi.find.mockResolvedValue({
+        items: [],
+        metadata: { total: 0, returned: 0, offset: 0, hasMore: false }
+      });
 
       const [updatedContext, results] = await find(
         finder,
@@ -343,8 +383,9 @@ describe('Find Operations', () => {
         context
       );
 
-      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations);
-      expect(results).toEqual([]);
+      expect(mockApi.find).toHaveBeenCalledWith(finder, params, locations, undefined);
+      expect(results.items).toEqual([]);
+      expect(results.metadata.total).toBe(0);
       expect(updatedContext.cacheMap).toBe(cacheMap);
     });
 
@@ -639,7 +680,10 @@ describe('Find Operations', () => {
       const finder = 'concurrent-test';
       const params = { value: 100 };
 
-      mockApi.find.mockResolvedValue([testItems[0]]);
+      mockApi.find.mockResolvedValue({
+        items: [testItems[0]],
+        metadata: { total: 1, returned: 1, offset: 0, hasMore: false }
+      });
 
       // Execute multiple find operations concurrently
       const promises = Array(5).fill(0).map(() =>
@@ -649,8 +693,10 @@ describe('Find Operations', () => {
       const results = await Promise.all(promises);
 
       // All should return the same result
-      results.forEach(([, items]) => {
-        expect(items).toEqual([testItems[0]]);
+      // find() now returns [context, FindOperationResult]
+      results.forEach(([, result]) => {
+        expect(result.items).toEqual([testItems[0]]);
+        expect(result.metadata.total).toBe(1);
       });
 
       // API should be called (exact number depends on timing/caching behavior)

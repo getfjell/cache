@@ -127,7 +127,10 @@ describe('Cache Operations', () => {
         get: vi.fn().mockResolvedValue(null),
         update: vi.fn().mockResolvedValue(updatedItem),
         remove: vi.fn().mockResolvedValue(undefined),
-        find: vi.fn().mockResolvedValue([]),
+        find: vi.fn().mockResolvedValue({
+          items: [],
+          metadata: { total: 0, returned: 0, offset: 0, hasMore: false }
+        }),
         findOne: vi.fn().mockResolvedValue(null),
         action: vi.fn().mockResolvedValue([testItem, []]),
         allAction: vi.fn().mockResolvedValue([[], []]),
@@ -322,7 +325,10 @@ describe('Cache Operations', () => {
         get: vi.fn().mockResolvedValue(testItem),
         update: vi.fn().mockResolvedValue(testItem),
         remove: vi.fn().mockResolvedValue(undefined),
-        find: vi.fn().mockResolvedValue([testItem]),
+        find: vi.fn().mockResolvedValue({
+          items: [testItem],
+          metadata: { total: 1, returned: 1, offset: 0, hasMore: false }
+        }),
         findOne: vi.fn().mockResolvedValue(testItem),
         action: vi.fn().mockResolvedValue([{ result: 'success' }, [testItem]]),
         allAction: vi.fn().mockResolvedValue([{ result: 'success' }, [testItem]]),
@@ -845,15 +851,19 @@ describe('Cache Operations', () => {
       it('should handle find() method', async () => {
         const result = await twoLayerOps.find('testFinder', { param: 'value' }, []);
         
-        expect(result).toEqual([testItem]);
-        expect(mockApi.find).toHaveBeenCalledWith('testFinder', { param: 'value' }, []);
+        // find() now returns FindOperationResult
+        expect(result.items).toEqual([testItem]);
+        expect(result.metadata.total).toBe(1);
+        expect(mockApi.find).toHaveBeenCalledWith('testFinder', { param: 'value' }, [], undefined);
       });
 
       it('should handle find() method with defaults', async () => {
         const result = await twoLayerOps.find('testFinder');
         
-        expect(result).toEqual([testItem]);
-        expect(mockApi.find).toHaveBeenCalledWith('testFinder', {}, []);
+        // find() now returns FindOperationResult
+        expect(result.items).toEqual([testItem]);
+        expect(result.metadata.total).toBe(1);
+        expect(mockApi.find).toHaveBeenCalledWith('testFinder', {}, [], undefined);
       });
 
       it('should handle findOne() method', async () => {
