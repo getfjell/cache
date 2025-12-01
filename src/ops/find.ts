@@ -34,6 +34,11 @@ export const find = async <
     coordinate,
     async (f: string, p: any, locs: any, opts: any) => {
       return await executeFindLogic(f, p ?? {}, locs ?? [], context, opts);
+    },
+    {
+      operationName: 'find',
+      skipValidation: false, // Keep validation enabled, but ensure proper error handling
+      debug: context.options?.enableDebugLogging
     }
   );
 
@@ -134,19 +139,19 @@ async function executeFindLogic<
         queryHash,
         itemCount: cachedItems.length
       });
-      
+
       // Apply pagination to cached results
       let paginatedItems = cachedItems;
       const offset = findOptions?.offset ?? 0;
       const limit = findOptions?.limit;
-      
+
       if (offset > 0) {
         paginatedItems = paginatedItems.slice(offset);
       }
       if (limit != null && limit >= 0) {
         paginatedItems = paginatedItems.slice(0, limit);
       }
-      
+
       return {
         items: paginatedItems,
         metadata: {
