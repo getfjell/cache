@@ -13,8 +13,8 @@
   },
   "dependencies": {
     "@fjell/docs-template": "^1.0.24",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react": "^19.1.2",
+    "react-dom": "^19.1.2"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
