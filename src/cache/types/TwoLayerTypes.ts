@@ -61,9 +61,6 @@ export interface TwoLayerCacheOptions {
   // Query layer settings
   queryTTL?: number;          // TTL for complete queries in seconds (default: 300)
   facetTTL?: number;          // TTL for faceted/partial queries in seconds (default: 60)
-  
-  // Debug settings
-  debug?: boolean;            // Enable debug logging
 }
 
 // ===== CACHE KEY BUILDERS =====

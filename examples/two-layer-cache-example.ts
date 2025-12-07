@@ -1,12 +1,14 @@
 /**
- * Two-Layer Cache Demo - Shows the implementation working
+ * Two-Layer Cache Example
  *
- * This file demonstrates that the two-layer cache implementation
- * is fully functional and ready for use.
+ * This example demonstrates the two-layer cache implementation, showing how to use
+ * the TwoLayerFactory to create caches with separate item and query layers.
+ *
+ * Perfect for understanding advanced caching patterns with automatic query invalidation.
  */
 
-import { TwoLayerFactory } from './TwoLayerFactory';
-import { TwoLayerCacheOptions } from './types/TwoLayerTypes';
+import { TwoLayerFactory } from '../src/cache/TwoLayerFactory';
+import { TwoLayerCacheOptions } from '../src/cache/types/TwoLayerTypes';
 import { PriKey } from '@fjell/core';
 
 // Demo function showing two-layer cache usage
@@ -26,8 +28,7 @@ export function demonstrateTwoLayerCache() {
   const memoryCache = TwoLayerFactory.createMemoryTwoLayer(['user'], {
     itemTTL: 1800,
     queryTTL: 240,
-    facetTTL: 30,
-    debug: true
+    facetTTL: 30
   });
 
   console.log('Memory cache type:', memoryCache.implementationType);
@@ -48,8 +49,7 @@ export function demonstrateTwoLayerCache() {
     options: {
       itemTTL: 7200,
       queryTTL: 300,
-      facetTTL: 60,
-      debug: false
+      facetTTL: 60
     }
   });
 
@@ -69,14 +69,13 @@ export function demonstrateTwoLayerCache() {
   };
 }
 
-// Example of the cache in action (pseudo-code)
+// Example of the cache in action
 export async function exampleCacheUsage() {
   
   const cache = TwoLayerFactory.createMemoryTwoLayer(['user'], {
     itemTTL: 3600,
     queryTTL: 300,
-    facetTTL: 60,
-    debug: true
+    facetTTL: 60
   });
 
   // Simulate storing an item
@@ -130,3 +129,4 @@ export async function exampleCacheUsage() {
 // Export interfaces for use in other files
 export type { TwoLayerCacheOptions };
 export { TwoLayerFactory };
+

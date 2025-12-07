@@ -251,7 +251,6 @@ export class TwoLayerOperations<
       itemTTL: 3600,        // 1 hour for items (fallback if no TTL config)
       queryTTL: 300,        // 5 minutes for complete queries (fallback)
       facetTTL: 60,         // 1 minute for partial queries (fallback)
-      debug: false,
       ...options.twoLayer
     };
 
@@ -261,14 +260,12 @@ export class TwoLayerOperations<
 
     // Initialize the two cache layers
     this.itemCache = new ItemCache<V>({
-      defaultTTL: this.options.itemTTL,
-      debug: this.options.debug
+      defaultTTL: this.options.itemTTL
     });
 
     this.queryCache = new QueryCache({
       queryTTL: this.options.queryTTL,
-      facetTTL: this.options.facetTTL,
-      debug: this.options.debug
+      facetTTL: this.options.facetTTL
     });
 
     // Initialize stale-while-revalidate cache if enabled
@@ -296,8 +293,7 @@ export class TwoLayerOperations<
         interval: ttlConfig.warming.interval,
         maxConcurrency: 5,
         operationTimeout: 30000,
-        continueOnError: true,
-        debug: this.options.debug
+        continueOnError: true
       });
 
       // Add warming operations from configuration
@@ -311,17 +307,6 @@ export class TwoLayerOperations<
 
       // Start periodic warming
       this.cacheWarmer.startPeriodicWarming();
-    }
-
-    if (this.options.debug) {
-      logger.info('Enhanced TwoLayerOperations initialized', {
-        itemTTL: this.options.itemTTL,
-        queryTTL: this.options.queryTTL,
-        facetTTL: this.options.facetTTL,
-        staleWhileRevalidate: ttlConfig.adjustments?.staleWhileRevalidate,
-        cacheWarmingEnabled: ttlConfig.warming?.enabled,
-        peakHoursEnabled: !!ttlConfig.adjustments?.peakHours
-      });
     }
   }
 
@@ -355,18 +340,7 @@ export class TwoLayerOperations<
       
       // If all items are still valid, return them (cache hit!)
       if (validItems.length === cachedQuery.itemKeys.length) {
-        if (this.options.debug) {
-          logger.info('all() cache hit', { queryKey, itemCount: validItems.length });
-        }
         return createCachedResult(validItems);
-      }
-      
-      // Some items expired, invalidate the query
-      if (this.options.debug) {
-        logger.info('all() partial cache miss - items expired', {
-          expected: cachedQuery.itemKeys.length,
-          got: validItems.length
-        });
       }
     }
 
@@ -380,10 +354,6 @@ export class TwoLayerOperations<
 
     // Store in both layers - MARK AS COMPLETE
     await this.storeTwoLayer(freshResult.items, queryKey, true, 'all');
-
-    if (this.options.debug) {
-      logger.info('all() fetched fresh', { queryKey, itemCount: freshResult.items.length, total: freshResult.metadata?.total });
-    }
 
     return freshResult;
   }
@@ -402,14 +372,6 @@ export class TwoLayerOperations<
       
       // For faceted queries, we're more tolerant of missing items since they're partial anyway
       if (validItems.length > 0) {
-        if (this.options.debug) {
-          logger.info('allFacet() cache hit', {
-            facet,
-            queryKey,
-            cachedCount: validItems.length,
-            expectedCount: cachedQuery.itemKeys.length
-          });
-        }
         return validItems;
       }
     }
@@ -427,10 +389,6 @@ export class TwoLayerOperations<
     
     // CRITICAL: Store items in item cache AND mark query as INCOMPLETE
     await this.storeTwoLayer(itemArray as V[], queryKey, false, `facet:${facet}`);
-    
-    if (this.options.debug) {
-      logger.info('allFacet() fetched fresh', { facet, queryKey, itemCount: itemArray.length });
-    }
     
     return freshItems;
   }
@@ -454,10 +412,6 @@ export class TwoLayerOperations<
         
         const item = await wrappedGet(key);
         
-        if (this.options.debug) {
-          logger.info('get() fetched fresh', { itemKey, found: !!item });
-        }
-        
         return item;
       },
       ttlResult.ttl,
@@ -480,10 +434,6 @@ export class TwoLayerOperations<
 
     // Invalidate any queries that might contain this item
     await this.queryCache.invalidateQueriesContainingItem(itemKey);
-
-    if (this.options.debug) {
-      logger.info('update() completed with cache invalidation', { itemKey });
-    }
 
     return updatedItem;
   }
@@ -562,10 +512,6 @@ export class TwoLayerOperations<
     if (this.staleWhileRevalidateCache?.clearPendingRefreshes) {
       this.staleWhileRevalidateCache.clearPendingRefreshes();
     }
-    
-    if (this.options.debug) {
-      logger.info('Enhanced Cache reset completed');
-    }
   }
 
   /**
@@ -580,10 +526,6 @@ export class TwoLayerOperations<
     // Clear pending refreshes
     if (this.staleWhileRevalidateCache?.clearPendingRefreshes) {
       this.staleWhileRevalidateCache.clearPendingRefreshes();
-    }
-
-    if (this.options.debug) {
-      logger.info('Enhanced TwoLayerOperations cleanup completed');
     }
   }
 
@@ -651,9 +593,6 @@ export class TwoLayerOperations<
   ): Promise<void> {
     // Ensure items is an array
     if (!Array.isArray(items)) {
-      if (this.options.debug) {
-        logger.info('storeTwoLayer received non-array items, converting to array', { items, queryType });
-      }
       items = items ? [items] as V[] : [];
     }
 
@@ -688,17 +627,6 @@ export class TwoLayerOperations<
         adjustments: queryTTLResult.adjustments
       }
     });
-
-    if (this.options.debug) {
-      logger.info('storeTwoLayer completed with smart TTL', {
-        queryType,
-        isComplete,
-        itemCount: items.length,
-        itemTTL: itemTTLResult.ttl,
-        queryTTL: queryTTLResult.ttl,
-        peakHoursApplied: queryTTLResult.adjustments.peakHours?.applied
-      });
-    }
   }
 
   private buildItemKey(item: V | ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): string {
