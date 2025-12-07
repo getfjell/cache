@@ -49,18 +49,15 @@ export class TwoLayerCacheMap<
     this.options = {
       itemTTL: options.itemTTL || 3600,        // 1 hour for items
       queryTTL: options.queryTTL || 300,       // 5 minutes for complete queries
-      facetTTL: options.facetTTL || 60,        // 1 minute for partial queries
-      debug: options.debug || false
+      facetTTL: options.facetTTL || 60        // 1 minute for partial queries
     };
 
-    if (this.options.debug) {
-      logger.info('TwoLayerCacheMap initialized', {
-        underlyingType: this.underlyingCache.implementationType,
-        itemTTL: this.options.itemTTL,
-        queryTTL: this.options.queryTTL,
-        facetTTL: this.options.facetTTL
-      });
-    }
+    logger.debug('TwoLayerCacheMap initialized', {
+      underlyingType: this.underlyingCache.implementationType,
+      itemTTL: this.options.itemTTL,
+      queryTTL: this.options.queryTTL,
+      facetTTL: this.options.facetTTL
+    });
   }
 
   // ===== PASS-THROUGH METHODS TO UNDERLYING CACHE (ITEM LAYER) =====
@@ -132,11 +129,7 @@ export class TwoLayerCacheMap<
       itemKeys: itemKeys.map(k => JSON.stringify(k))
     });
     
-    // Store the basic query result in underlying cache
-    await this.underlyingCache.setQueryResult(queryHash, itemKeys);
-    logger.debug('QUERY_CACHE: Stored query result in underlying cache', { queryHash });
-
-    // Store metadata for this query with proper TTL
+    // Create metadata for this query with proper TTL
     const now = new Date();
     const isComplete = this.determineQueryCompleteness(queryHash, itemKeys);
     const ttlSeconds = isComplete ? this.options.queryTTL : this.options.facetTTL;
@@ -151,7 +144,23 @@ export class TwoLayerCacheMap<
       params: this.extractParams(queryHash)
     };
 
+    // Store metadata in memory
     this.queryMetadataMap.set(queryHash, metadata);
+
+    // Store the query result WITH metadata in underlying cache (if supported)
+    if ('setQueryResult' in this.underlyingCache) {
+      // Check if underlying cache supports metadata (3 parameters)
+      const setQueryResultFn = (this.underlyingCache as any).setQueryResult;
+      if (setQueryResultFn.length >= 3) {
+        // Underlying cache supports metadata - pass it along
+        await (this.underlyingCache as any).setQueryResult(queryHash, itemKeys, metadata);
+        logger.debug('QUERY_CACHE: Stored query result with metadata in underlying cache', { queryHash });
+      } else {
+        // Underlying cache doesn't support metadata - store without it
+        await this.underlyingCache.setQueryResult(queryHash, itemKeys);
+        logger.debug('QUERY_CACHE: Stored query result without metadata in underlying cache (not supported)', { queryHash });
+      }
+    }
 
     logger.debug('QUERY_CACHE: Set query result with metadata', {
       queryHash,
@@ -172,8 +181,29 @@ export class TwoLayerCacheMap<
   async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
     logger.debug('QUERY_CACHE: TwoLayerCacheMap.getQueryResult() called', { queryHash });
     
-    // Check if query has expired based on metadata
-    const metadata = this.queryMetadataMap.get(queryHash);
+    // Check if metadata is in memory
+    let metadata = this.queryMetadataMap.get(queryHash);
+    
+    // If not in memory, try to load from underlying cache (if supported)
+    if (!metadata && 'getQueryResultWithMetadata' in this.underlyingCache) {
+      logger.debug('QUERY_CACHE: Metadata not in memory, loading from underlying cache', { queryHash });
+      const resultWithMetadata = await (this.underlyingCache as any).getQueryResultWithMetadata(queryHash);
+      
+      if (resultWithMetadata?.metadata) {
+        // Restore metadata from persistent storage
+        const restoredMetadata = resultWithMetadata.metadata as QueryMetadata;
+        metadata = restoredMetadata;
+        this.queryMetadataMap.set(queryHash, restoredMetadata);
+        logger.debug('QUERY_CACHE: Loaded metadata from underlying cache', {
+          queryHash,
+          expiresAt: restoredMetadata.expiresAt.toISOString(),
+          isComplete: restoredMetadata.isComplete,
+          queryType: restoredMetadata.queryType
+        });
+      }
+    }
+    
+    // Check expiration if we have metadata
     if (metadata) {
       const now = new Date();
       const isExpired = metadata.expiresAt < now;
@@ -197,7 +227,7 @@ export class TwoLayerCacheMap<
         return null;
       }
     } else {
-      logger.debug('QUERY_CACHE: No metadata found for query hash', { queryHash });
+      logger.debug('QUERY_CACHE: No metadata found for query hash (neither in memory nor persistent)', { queryHash });
     }
 
     // Get the actual query result from underlying cache
@@ -312,19 +342,21 @@ export class TwoLayerCacheMap<
     queryHash: string,
     itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]
   ): boolean {
-    // CRITICAL FIX: Empty queries {} should be classified as complete
-    // Empty queries mean "get all items" which is a complete result set
-    if (queryHash.includes('"query":{}') || queryHash.includes('"query": {}')) {
-      return true; // Empty query is complete - requests all data
-    }
-
     // Heuristic: queries with no filters/params are typically complete
     // Queries with specific filters are typically partial
+    
+    // Partial queries: faceted queries or filtered queries
     if (queryHash.includes('facet:') || queryHash.includes('filter:')) {
       return false; // Partial query
     }
 
-    if (queryHash.includes('all:') && !queryHash.includes('query:')) {
+    // Complete queries: "all" operations with empty query
+    if (queryHash.startsWith('all:') && (queryHash.includes('query:{}') || queryHash.includes('"query":{}') || queryHash.includes('"query": {}'))) {
+      return true; // Complete "all" query with no filters
+    }
+
+    // Complete queries: "all" operations without query parameter
+    if (queryHash.startsWith('all:') && !queryHash.includes('query:')) {
       return true; // Complete "all" query
     }
 

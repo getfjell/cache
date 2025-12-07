@@ -68,8 +68,7 @@ describe('Cache Poisoning Prevention', () => {
       twoLayer: {
         itemTTL: 3600,     // 1 hour for items
         queryTTL: 300,     // 5 minutes for complete queries
-        facetTTL: 60,      // 1 minute for faceted queries (shorter!)
-        debug: true
+        facetTTL: 60      // 1 minute for faceted queries (shorter!)
       }
     });
 

@@ -389,12 +389,13 @@ export class LocalStorageCacheMap<
 
   // Query result caching methods implementation
 
-  public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
-    logger.trace('setQueryResult', { queryHash, itemKeys });
+  public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], metadata?: any): Promise<void> {
+    logger.trace('setQueryResult', { queryHash, itemKeys, hasMetadata: !!metadata });
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
 
     const entry: any = {
-      itemKeys
+      itemKeys,
+      metadata
     };
 
     try {
@@ -421,10 +422,47 @@ export class LocalStorageCacheMap<
         return entry;
       }
 
-      // New format
+      // New format - return itemKeys only
       return entry.itemKeys || null;
     } catch (error) {
       logger.error('Failed to retrieve query result from localStorage', { queryHash, error });
+      return null;
+    }
+  }
+
+  public async getQueryResultWithMetadata(queryHash: string): Promise<{ itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]; metadata?: any } | null> {
+    logger.trace('getQueryResultWithMetadata', { queryHash });
+    const queryKey = `${this.keyPrefix}:query:${queryHash}`;
+    try {
+      const data = localStorage.getItem(queryKey);
+      if (!data) {
+        return null;
+      }
+
+      const entry = JSON.parse(data);
+
+      // Handle both old format (just array) and new format (object with itemKeys and metadata)
+      if (Array.isArray(entry)) {
+        // Old format - return without metadata
+        return { itemKeys: entry, metadata: undefined };
+      }
+
+      // New format - deserialize Date objects if present
+      if (entry.metadata) {
+        if (entry.metadata.createdAt) {
+          entry.metadata.createdAt = new Date(entry.metadata.createdAt);
+        }
+        if (entry.metadata.expiresAt) {
+          entry.metadata.expiresAt = new Date(entry.metadata.expiresAt);
+        }
+      }
+
+      return {
+        itemKeys: entry.itemKeys || [],
+        metadata: entry.metadata
+      };
+    } catch (error) {
+      logger.error('Failed to retrieve query result with metadata from localStorage', { queryHash, error });
       return null;
     }
   }

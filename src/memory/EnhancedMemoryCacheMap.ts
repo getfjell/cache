@@ -316,8 +316,8 @@ export class EnhancedMemoryCacheMap<
   }
 
   // Query result caching methods
-  public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
-    logger.trace('setQueryResult', { queryHash, itemKeys });
+  public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], metadata?: any): Promise<void> {
+    logger.trace('setQueryResult', { queryHash, itemKeys, hasMetadata: !!metadata });
 
     // Remove existing entry to get accurate size tracking
     if (queryHash in this.queryResultCache) {
@@ -325,7 +325,8 @@ export class EnhancedMemoryCacheMap<
     }
 
     const entry: QueryCacheEntry = {
-      itemKeys: [...itemKeys] // Create a copy to avoid external mutations
+      itemKeys: [...itemKeys], // Create a copy to avoid external mutations
+      metadata
     };
 
     this.queryResultCache[queryHash] = entry;
@@ -342,6 +343,21 @@ export class EnhancedMemoryCacheMap<
     }
 
     return [...entry.itemKeys]; // Return a copy to avoid external mutations
+  }
+
+  public async getQueryResultWithMetadata(queryHash: string): Promise<{ itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]; metadata?: any } | null> {
+    logger.trace('getQueryResultWithMetadata', { queryHash });
+
+    const entry = this.queryResultCache[queryHash];
+
+    if (!entry) {
+      return null;
+    }
+
+    return {
+      itemKeys: [...entry.itemKeys], // Return a copy to avoid external mutations
+      metadata: entry.metadata
+    };
   }
 
   public async hasQueryResult(queryHash: string): Promise<boolean> {

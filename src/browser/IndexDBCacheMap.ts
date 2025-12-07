@@ -270,15 +270,45 @@ export class IndexDBCacheMap<
 
   // Query result caching methods
 
-  public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
+  public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], metadata?: any): Promise<void> {
     this.queryResultCache[queryHash] = {
-      itemKeys
+      itemKeys,
+      metadata
     };
+    
+    // Also persist to IndexedDB
+    await this.asyncCache.setQueryResult(queryHash, itemKeys, metadata);
   }
 
   public async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
     const entry = this.queryResultCache[queryHash];
     return entry ? entry.itemKeys : null;
+  }
+
+  public async getQueryResultWithMetadata(queryHash: string): Promise<{ itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]; metadata?: any } | null> {
+    let entry = this.queryResultCache[queryHash];
+    
+    // If not in memory, try to load from IndexedDB
+    if (!entry) {
+      const persistedResult = await this.asyncCache.getQueryResultWithMetadata(queryHash);
+      if (persistedResult) {
+        // Cache it in memory
+        this.queryResultCache[queryHash] = {
+          itemKeys: persistedResult.itemKeys,
+          metadata: persistedResult.metadata
+        };
+        entry = this.queryResultCache[queryHash];
+      }
+    }
+    
+    if (!entry) {
+      return null;
+    }
+    
+    return {
+      itemKeys: entry.itemKeys,
+      metadata: entry.metadata
+    };
   }
 
   public async hasQueryResult(queryHash: string): Promise<boolean> {

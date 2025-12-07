@@ -6,6 +6,9 @@
  */
 
 import { WarmingQuery } from '../../ttl/TTLConfig.js';
+import LibLogger from '../../logger';
+
+const logger = LibLogger.get('CacheWarmer');
 
 export interface CacheWarmerOptions {
   /** Interval between warming cycles (milliseconds) */
@@ -16,8 +19,6 @@ export interface CacheWarmerOptions {
   operationTimeout?: number;
   /** Whether to continue warming on individual failures */
   continueOnError?: boolean;
-  /** Debug logging */
-  debug?: boolean;
 }
 
 export interface WarmingOperation<T> {
@@ -82,7 +83,6 @@ export class CacheWarmer<T> {
       maxConcurrency: 5,
       operationTimeout: 30000, // 30 seconds
       continueOnError: true,
-      debug: false,
       ...options
     };
 
@@ -130,9 +130,7 @@ export class CacheWarmer<T> {
     // Sort by priority (highest first)
     this.operations.sort((a, b) => b.priority - a.priority);
 
-    if (this.options.debug) {
-      console.log(`[CacheWarmer] Added operation: ${operation.id} (priority: ${operation.priority})`);
-    }
+    logger.debug('Added operation', { operationId: operation.id, priority: operation.priority });
   }
 
   /**
@@ -143,8 +141,8 @@ export class CacheWarmer<T> {
     this.operations = this.operations.filter(op => op.id !== operationId);
     
     const removed = this.operations.length < initialLength;
-    if (removed && this.options.debug) {
-      console.log(`[CacheWarmer] Removed operation: ${operationId}`);
+    if (removed) {
+      logger.debug('Removed operation', { operationId });
     }
     
     return removed;
@@ -160,19 +158,17 @@ export class CacheWarmer<T> {
 
     this.intervalId = setInterval(() => {
       this.performWarmingCycle().catch(error => {
-        console.error('[CacheWarmer] Warming cycle failed:', error);
+        logger.error('Warming cycle failed', { error });
       });
     }, this.options.interval);
 
     this.stats.nextWarmingAt = new Date(Date.now() + this.options.interval);
 
-    if (this.options.debug) {
-      console.log(`[CacheWarmer] Started periodic warming (interval: ${this.options.interval}ms)`);
-    }
+    logger.debug('Started periodic warming', { interval: this.options.interval });
 
     // Perform initial warming
     this.performWarmingCycle().catch(error => {
-      console.error('[CacheWarmer] Initial warming cycle failed:', error);
+      logger.error('Initial warming cycle failed', { error });
     });
   }
 
@@ -185,9 +181,7 @@ export class CacheWarmer<T> {
       this.intervalId = undefined;
       this.stats.nextWarmingAt = undefined;
       
-      if (this.options.debug) {
-        console.log('[CacheWarmer] Stopped periodic warming');
-      }
+      logger.debug('Stopped periodic warming');
     }
   }
 
@@ -196,9 +190,7 @@ export class CacheWarmer<T> {
    */
   async performWarmingCycle(): Promise<WarmingResult[]> {
     if (this.operations.length === 0) {
-      if (this.options.debug) {
-        console.log('[CacheWarmer] No operations to warm');
-      }
+      logger.debug('No operations to warm');
       return [];
     }
 
@@ -206,9 +198,10 @@ export class CacheWarmer<T> {
     this.stats.lastWarmingAt = new Date();
     this.stats.nextWarmingAt = new Date(Date.now() + this.options.interval);
 
-    if (this.options.debug) {
-      console.log(`[CacheWarmer] Starting warming cycle ${this.stats.totalCycles} with ${this.operations.length} operations`);
-    }
+    logger.debug('Starting warming cycle', {
+      cycleNumber: this.stats.totalCycles,
+      operationCount: this.operations.length
+    });
 
     const results: WarmingResult[] = [];
     const operationsToRun = [...this.operations]; // Copy to avoid modification during iteration
@@ -224,7 +217,7 @@ export class CacheWarmer<T> {
         if (result.status === 'fulfilled') {
           results.push(result.value);
         } else if (result.status === 'rejected') {
-          console.error('[CacheWarmer] Batch operation failed:', result.reason);
+          logger.error('Batch operation failed', { reason: result.reason });
           if (!this.options.continueOnError) {
             throw result.reason;
           }
@@ -234,9 +227,10 @@ export class CacheWarmer<T> {
 
     this.updateStats(results);
 
-    if (this.options.debug) {
-      console.log(`[CacheWarmer] Completed warming cycle: ${results.length} operations, ${results.filter(r => r.success).length} successful`);
-    }
+    logger.debug('Completed warming cycle', {
+      totalOperations: results.length,
+      successfulOperations: results.filter(r => r.success).length
+    });
 
     return results;
   }
@@ -292,9 +286,11 @@ export class CacheWarmer<T> {
 
       const duration = Date.now() - startTime;
 
-      if (this.options.debug) {
-        console.log(`[CacheWarmer] Operation ${operation.id} completed: ${items.length} items in ${duration}ms`);
-      }
+      logger.debug('Operation completed', {
+        operationId: operation.id,
+        itemCount: items.length,
+        duration
+      });
 
       this.stats.successfulOperations++;
       this.stats.totalItemsWarmed += items.length;
@@ -310,9 +306,11 @@ export class CacheWarmer<T> {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
 
-      if (this.options.debug) {
-        console.error(`[CacheWarmer] Operation ${operation.id} failed after ${duration}ms:`, errorMessage);
-      }
+      logger.error('Operation failed', {
+        operationId: operation.id,
+        duration,
+        error: errorMessage
+      });
 
       return {
         operationId: operation.id,
@@ -331,15 +329,11 @@ export class CacheWarmer<T> {
     const operationsToWarm = this.operations.filter(op => operationIds.includes(op.id));
     
     if (operationsToWarm.length === 0) {
-      if (this.options.debug) {
-        console.log('[CacheWarmer] No matching operations to warm');
-      }
+      logger.debug('No matching operations to warm');
       return [];
     }
 
-    if (this.options.debug) {
-      console.log(`[CacheWarmer] Warming ${operationsToWarm.length} specific operations`);
-    }
+    logger.debug('Warming specific operations', { count: operationsToWarm.length });
 
     const results = await Promise.allSettled(
       operationsToWarm.map(operation => this.performWarmingOperation(operation))
@@ -350,7 +344,7 @@ export class CacheWarmer<T> {
       if (result.status === 'fulfilled') {
         warmingResults.push(result.value);
       } else {
-        console.error('[CacheWarmer] Specific warming operation failed:', result.reason);
+        logger.error('Specific warming operation failed', { reason: result.reason });
       }
     }
 
@@ -407,9 +401,7 @@ export class CacheWarmer<T> {
       nextWarmingAt: this.stats.nextWarmingAt
     };
 
-    if (this.options.debug) {
-      console.log('[CacheWarmer] Statistics reset');
-    }
+    logger.debug('Statistics reset');
   }
 
   /**
@@ -434,9 +426,7 @@ export class CacheWarmer<T> {
     this.operations = [];
     this.activeOperations.clear();
     
-    if (this.options.debug) {
-      console.log('[CacheWarmer] Cleaned up');
-    }
+    logger.debug('Cleaned up');
   }
 }
 

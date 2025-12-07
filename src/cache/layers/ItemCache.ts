@@ -1,4 +1,7 @@
 import { CachedItem, ItemCacheLayer } from '../types/TwoLayerTypes';
+import LibLogger from '../../logger';
+
+const logger = LibLogger.get('ItemCache');
 
 /**
  * Item Cache Layer - Stores individual entities by their composite keys
@@ -12,36 +15,28 @@ import { CachedItem, ItemCacheLayer } from '../types/TwoLayerTypes';
 export class ItemCache<T> implements ItemCacheLayer<T> {
   private storage: Map<string, CachedItem<T>>;
   private defaultTTL: number;
-  private debug: boolean;
 
-  constructor(options: { defaultTTL?: number; debug?: boolean } = {}) {
+  constructor(options: { defaultTTL?: number } = {}) {
     this.storage = new Map();
     this.defaultTTL = options.defaultTTL || 3600; // 1 hour default
-    this.debug = options.debug || false;
   }
 
   async get(key: string): Promise<T | null> {
     const cached = this.storage.get(key);
 
     if (!cached) {
-      if (this.debug) {
-        console.log(`[ItemCache] Cache miss for key: ${key}`);
-      }
+      logger.debug('Cache miss for key', { key });
       return null;
     }
 
     // Check expiration
     if (cached.expiresAt < new Date()) {
-      if (this.debug) {
-        console.log(`[ItemCache] Expired item removed: ${key}`);
-      }
+      logger.debug('Expired item removed', { key });
       this.storage.delete(key);
       return null;
     }
 
-    if (this.debug) {
-      console.log(`[ItemCache] Cache hit for key: ${key}`);
-    }
+    logger.debug('Cache hit for key', { key });
     return cached.data;
   }
 
@@ -63,16 +58,12 @@ export class ItemCache<T> implements ItemCacheLayer<T> {
       expiresAt: expiresAt
     });
 
-    if (this.debug) {
-      console.log(`[ItemCache] Stored item: ${key} (expires: ${expiresAt.toISOString()})`);
-    }
+    logger.debug('Stored item', { key, expiresAt: expiresAt.toISOString() });
   }
 
   async delete(key: string): Promise<void> {
     const existed = this.storage.delete(key);
-    if (this.debug) {
-      console.log(`[ItemCache] Deleted item: ${key} (existed: ${existed})`);
-    }
+    logger.debug('Deleted item', { key, existed });
   }
 
   async has(key: string): Promise<boolean> {
@@ -83,9 +74,7 @@ export class ItemCache<T> implements ItemCacheLayer<T> {
   async clear(): Promise<void> {
     const count = this.storage.size;
     this.storage.clear();
-    if (this.debug) {
-      console.log(`[ItemCache] Cleared ${count} items`);
-    }
+    logger.debug('Cleared items', { count });
   }
 
   // ===== UTILITY METHODS =====
@@ -127,8 +116,8 @@ export class ItemCache<T> implements ItemCacheLayer<T> {
       }
     }
 
-    if (this.debug && removedCount > 0) {
-      console.log(`[ItemCache] Cleaned up ${removedCount} expired items`);
+    if (removedCount > 0) {
+      logger.debug('Cleaned up expired items', { removedCount });
     }
 
     return removedCount;
