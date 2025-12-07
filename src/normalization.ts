@@ -98,6 +98,7 @@ export const normalizeLocKeyItem = (item: any): any => {
  */
 export interface QueryCacheEntry {
   itemKeys: (any)[];
+  metadata?: any; // Optional metadata for query expiration and completeness tracking
 }
 
 /**

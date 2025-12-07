@@ -83,13 +83,11 @@ export class TwoLayerFactory {
     // Wrap it with two-layer functionality
     const twoLayerCache = new TwoLayerCacheMap(underlyingCache, config.options);
 
-    if (config.options?.debug) {
-      logger.info('Created two-layer cache from config', {
-        itemLayerType: config.itemLayer.type,
-        queryTTL: config.options.queryTTL,
-        facetTTL: config.options.facetTTL
-      });
-    }
+    logger.debug('Created two-layer cache from config', {
+      itemLayerType: config.itemLayer.type,
+      queryTTL: config.options?.queryTTL,
+      facetTTL: config.options?.facetTTL
+    });
 
     return twoLayerCache;
   }

@@ -1,4 +1,7 @@
 import { QueryCacheLayer, QueryMetadata, QueryResult } from '../types/TwoLayerTypes';
+import LibLogger from '../../logger';
+
+const logger = LibLogger.get('QueryCache');
 
 /**
  * Query Cache Layer - Stores query results as arrays of item keys + metadata
@@ -13,41 +16,36 @@ export class QueryCache implements QueryCacheLayer {
   private storage: Map<string, QueryResult>;
   private queryTTL: number;      // TTL for complete queries
   private facetTTL: number;      // TTL for faceted/partial queries
-  private debug: boolean;
 
   constructor(options: {
     queryTTL?: number;
     facetTTL?: number;
-    debug?: boolean;
   } = {}) {
     this.storage = new Map();
     this.queryTTL = options.queryTTL || 300;  // 5 minutes for complete queries
     this.facetTTL = options.facetTTL || 60;   // 1 minute for faceted queries
-    this.debug = options.debug || false;
   }
 
   async getResult(queryKey: string): Promise<QueryResult | null> {
     const result = this.storage.get(queryKey);
 
     if (!result) {
-      if (this.debug) {
-        console.log(`[QueryCache] Cache miss for query: ${queryKey}`);
-      }
+      logger.debug('Cache miss for query', { queryKey });
       return null;
     }
 
     // Check expiration
     if (result.metadata.expiresAt < new Date()) {
-      if (this.debug) {
-        console.log(`[QueryCache] Expired query removed: ${queryKey}`);
-      }
+      logger.debug('Expired query removed', { queryKey });
       this.storage.delete(queryKey);
       return null;
     }
 
-    if (this.debug) {
-      console.log(`[QueryCache] Cache hit for query: ${queryKey} (${result.itemKeys.length} items, complete: ${result.metadata.isComplete})`);
-    }
+    logger.debug('Cache hit for query', {
+      queryKey,
+      itemCount: result.itemKeys.length,
+      isComplete: result.metadata.isComplete
+    });
     return result;
   }
 
@@ -66,13 +64,13 @@ export class QueryCache implements QueryCacheLayer {
 
     this.storage.set(queryKey, result);
 
-    if (this.debug) {
-      console.log(`[QueryCache] Stored query result: ${queryKey}`);
-      console.log(`  - Items: ${result.itemKeys.length}`);
-      console.log(`  - Complete: ${result.metadata.isComplete}`);
-      console.log(`  - TTL: ${ttlSeconds}s`);
-      console.log(`  - Expires: ${result.metadata.expiresAt.toISOString()}`);
-    }
+    logger.debug('Stored query result', {
+      queryKey,
+      itemCount: result.itemKeys.length,
+      isComplete: result.metadata.isComplete,
+      ttlSeconds,
+      expiresAt: result.metadata.expiresAt.toISOString()
+    });
   }
 
   async invalidatePattern(pattern: string): Promise<void> {
@@ -89,9 +87,7 @@ export class QueryCache implements QueryCacheLayer {
       }
     } catch (error) {
       // If regex is invalid, fall back to simple string matching
-      if (this.debug) {
-        console.warn(`[QueryCache] Invalid regex pattern: ${pattern}, using string matching`);
-      }
+      logger.warning('Invalid regex pattern, using string matching', { pattern });
       
       for (const [key] of this.storage) {
         if (key.includes(pattern)) {
@@ -101,17 +97,13 @@ export class QueryCache implements QueryCacheLayer {
       }
     }
 
-    if (this.debug) {
-      console.log(`[QueryCache] Invalidated ${invalidatedCount} queries matching pattern: ${pattern}`);
-    }
+    logger.debug('Invalidated queries matching pattern', { pattern, invalidatedCount });
   }
 
   async clear(): Promise<void> {
     const count = this.storage.size;
     this.storage.clear();
-    if (this.debug) {
-      console.log(`[QueryCache] Cleared ${count} query results`);
-    }
+    logger.debug('Cleared query results', { count });
   }
 
   // ===== UTILITY METHODS =====
@@ -136,8 +128,8 @@ export class QueryCache implements QueryCacheLayer {
       }
     }
 
-    if (this.debug && matchingQueries.length > 0) {
-      console.log(`[QueryCache] Found ${matchingQueries.length} queries containing item: ${itemKey}`);
+    if (matchingQueries.length > 0) {
+      logger.debug('Found queries containing item', { itemKey, count: matchingQueries.length });
     }
 
     return matchingQueries;
@@ -153,9 +145,7 @@ export class QueryCache implements QueryCacheLayer {
       this.storage.delete(queryKey);
     }
 
-    if (this.debug) {
-      console.log(`[QueryCache] Invalidated ${affectedQueries.length} queries containing item: ${itemKey}`);
-    }
+    logger.debug('Invalidated queries containing item', { itemKey, count: affectedQueries.length });
   }
 
   /**
@@ -204,8 +194,8 @@ export class QueryCache implements QueryCacheLayer {
       }
     }
 
-    if (this.debug && removedCount > 0) {
-      console.log(`[QueryCache] Cleaned up ${removedCount} expired query results`);
+    if (removedCount > 0) {
+      logger.debug('Cleaned up expired query results', { removedCount });
     }
 
     return removedCount;

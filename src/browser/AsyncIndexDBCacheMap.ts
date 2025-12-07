@@ -456,8 +456,8 @@ export class AsyncIndexDBCacheMap<
 
   // Async Query result caching methods
 
-  async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]): Promise<void> {
-    logger.trace('setQueryResult', { queryHash, itemKeys });
+  async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], metadata?: any): Promise<void> {
+    logger.trace('setQueryResult', { queryHash, itemKeys, hasMetadata: !!metadata });
     try {
       return new Promise((resolve, reject) => {
         const request = indexedDB.open(this.dbName, this.version);
@@ -473,7 +473,8 @@ export class AsyncIndexDBCacheMap<
           const store = transaction.objectStore(this.storeName);
 
           const entry = {
-            itemKeys
+            itemKeys,
+            metadata: metadata || undefined
           };
 
           const queryKey = `query:${queryHash}`;
@@ -529,15 +530,14 @@ export class AsyncIndexDBCacheMap<
 
               const entry = JSON.parse(result);
 
-              // Handle both old format (just array) and new format
+              // Handle both old format (just array) and new format (object with itemKeys)
               if (Array.isArray(entry)) {
                 // Old format - return as is
                 resolve(entry);
                 return;
               }
 
-              // New format
-
+              // New format - return itemKeys only (metadata accessed via getQueryResultWithMetadata)
               resolve(entry.itemKeys || null);
             } catch (parseError) {
               logger.error('Failed to parse query result', { queryHash, error: parseError });
@@ -548,6 +548,75 @@ export class AsyncIndexDBCacheMap<
       });
     } catch (error) {
       logger.error('Error in getQueryResult', { queryHash, error });
+      return null;
+    }
+  }
+
+  async getQueryResultWithMetadata(queryHash: string): Promise<{ itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]; metadata?: any } | null> {
+    logger.trace('getQueryResultWithMetadata', { queryHash });
+    try {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(this.dbName, this.version);
+
+        request.onerror = () => {
+          logger.error('Failed to open database for getQueryResultWithMetadata', { error: request.error });
+          reject(request.error);
+        };
+
+        request.onsuccess = () => {
+          const db = request.result;
+          const transaction = db.transaction([this.storeName], 'readonly');
+          const store = transaction.objectStore(this.storeName);
+
+          const queryKey = `query:${queryHash}`;
+          const getRequest = store.get(queryKey);
+
+          getRequest.onerror = () => {
+            logger.error('Failed to retrieve query result with metadata', { queryHash, error: getRequest.error });
+            reject(getRequest.error);
+          };
+
+          getRequest.onsuccess = () => {
+            try {
+              const result = getRequest.result;
+              if (!result) {
+                resolve(null);
+                return;
+              }
+
+              const entry = JSON.parse(result);
+
+              // Handle both old format (just array) and new format (object with itemKeys and metadata)
+              if (Array.isArray(entry)) {
+                // Old format - return without metadata
+                resolve({ itemKeys: entry, metadata: undefined });
+                return;
+              }
+
+              // New format - return both itemKeys and metadata
+              if (entry.metadata) {
+                // Deserialize Date objects
+                if (entry.metadata.createdAt) {
+                  entry.metadata.createdAt = new Date(entry.metadata.createdAt);
+                }
+                if (entry.metadata.expiresAt) {
+                  entry.metadata.expiresAt = new Date(entry.metadata.expiresAt);
+                }
+              }
+
+              resolve({
+                itemKeys: entry.itemKeys || [],
+                metadata: entry.metadata
+              });
+            } catch (parseError) {
+              logger.error('Failed to parse query result with metadata', { queryHash, error: parseError });
+              resolve(null);
+            }
+          };
+        };
+      });
+    } catch (error) {
+      logger.error('Error in getQueryResultWithMetadata', { queryHash, error });
       return null;
     }
   }
