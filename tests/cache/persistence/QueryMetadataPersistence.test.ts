@@ -215,5 +215,3 @@ describe('Query Metadata Persistence', () => {
   });
 });
 
-
-
