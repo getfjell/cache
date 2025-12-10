@@ -99,7 +99,12 @@ export class AsyncIndexDBCacheMap<
   }
 
   private getStorageKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): string {
-    return this.normalizedHashFunction(key);
+    const storageKey = this.normalizedHashFunction(key);
+    if (!storageKey || typeof storageKey !== 'string' || storageKey.trim() === '') {
+      logger.error('Invalid storage key generated from normalizedHashFunction', { key, storageKey });
+      throw new Error(`Invalid storage key generated for key: ${JSON.stringify(key)}`);
+    }
+    return storageKey;
   }
 
   public async get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<V | null> {
@@ -108,24 +113,36 @@ export class AsyncIndexDBCacheMap<
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readonly');
       const store = transaction.objectStore(this.storeName);
-      const storageKey = this.getStorageKey(key);
+      let storageKey: string;
+      
+      try {
+        storageKey = this.getStorageKey(key);
+      } catch (keyError) {
+        logger.error('Failed to generate storage key', { key, error: keyError });
+        return null;
+      }
 
       return new Promise((resolve, reject) => {
-        const request = store.get(storageKey);
+        try {
+          const request = store.get(storageKey);
 
-        request.onerror = () => {
-          logger.error('Error getting from IndexedDB', { key, error: request.error });
-          reject(request.error);
-        };
+          request.onerror = () => {
+            logger.error('Error getting from IndexedDB', { key, storageKey, error: request.error });
+            reject(request.error);
+          };
 
-        request.onsuccess = () => {
-          const stored: StoredItem<V> | undefined = request.result;
-          if (stored && this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key)) {
-            resolve(stored.value);
-          } else {
-            resolve(null);
-          }
-        };
+          request.onsuccess = () => {
+            const stored: StoredItem<V> | undefined = request.result;
+            if (stored && this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key)) {
+              resolve(stored.value);
+            } else {
+              resolve(null);
+            }
+          };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB request', { key, storageKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in IndexedDB get operation', { key, error });
@@ -142,27 +159,39 @@ export class AsyncIndexDBCacheMap<
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readonly');
       const store = transaction.objectStore(this.storeName);
-      const storageKey = this.getStorageKey(key);
+      let storageKey: string;
+      
+      try {
+        storageKey = this.getStorageKey(key);
+      } catch (keyError) {
+        logger.error('Failed to generate storage key for getWithMetadata', { key, error: keyError });
+        return null;
+      }
 
       return new Promise((resolve, reject) => {
-        const request = store.get(storageKey);
+        try {
+          const request = store.get(storageKey);
 
-        request.onerror = () => {
-          logger.error('Error getting from IndexedDB', { key, error: request.error });
-          reject(request.error);
-        };
+          request.onerror = () => {
+            logger.error('Error getting from IndexedDB', { key, storageKey, error: request.error });
+            reject(request.error);
+          };
 
-        request.onsuccess = () => {
-          const stored: StoredItem<V> | undefined = request.result;
-          if (stored && this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key)) {
-            resolve({
-              value: stored.value,
-              metadata: stored.metadata
-            });
-          } else {
-            resolve(null);
-          }
-        };
+          request.onsuccess = () => {
+            const stored: StoredItem<V> | undefined = request.result;
+            if (stored && this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key)) {
+              resolve({
+                value: stored.value,
+                metadata: stored.metadata
+              });
+            } else {
+              resolve(null);
+            }
+          };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB request for getWithMetadata', { key, storageKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in IndexedDB getWithMetadata operation', { key, error });
@@ -176,7 +205,14 @@ export class AsyncIndexDBCacheMap<
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readwrite');
       const store = transaction.objectStore(this.storeName);
-      const storageKey = this.getStorageKey(key);
+      let storageKey: string;
+      
+      try {
+        storageKey = this.getStorageKey(key);
+      } catch (keyError) {
+        logger.error('Failed to generate storage key for set', { key, error: keyError });
+        throw new Error(`Failed to generate storage key: ${keyError}`);
+      }
 
       const storedItem: StoredItem<V> = {
         originalKey: key,
@@ -186,16 +222,21 @@ export class AsyncIndexDBCacheMap<
       };
 
       return new Promise((resolve, reject) => {
-        const request = store.put(storedItem, storageKey);
+        try {
+          const request = store.put(storedItem, storageKey);
 
-        request.onerror = () => {
-          logger.error('Error setting in IndexedDB', { key, value, error: request.error });
-          reject(request.error);
-        };
+          request.onerror = () => {
+            logger.error('Error setting in IndexedDB', { key, storageKey, value, error: request.error });
+            reject(request.error);
+          };
 
-        request.onsuccess = () => {
-          resolve();
-        };
+          request.onsuccess = () => {
+            resolve();
+          };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB put request', { key, storageKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in IndexedDB set operation', { key, value, error });
@@ -226,25 +267,37 @@ export class AsyncIndexDBCacheMap<
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readonly');
       const store = transaction.objectStore(this.storeName);
-      const storageKey = this.getStorageKey(key);
+      let storageKey: string;
+      
+      try {
+        storageKey = this.getStorageKey(key);
+      } catch (keyError) {
+        logger.error('Failed to generate storage key for includesKey', { key, error: keyError });
+        return false;
+      }
 
       return new Promise((resolve, reject) => {
-        const request = store.get(storageKey);
+        try {
+          const request = store.get(storageKey);
 
-        request.onerror = () => {
-          logger.error('Error checking key in IndexedDB', { key, error: request.error });
-          reject(request.error);
-        };
+          request.onerror = () => {
+            logger.error('Error checking key in IndexedDB', { key, storageKey, error: request.error });
+            reject(request.error);
+          };
 
-        request.onsuccess = () => {
-          const stored: StoredItem<V> | undefined = request.result;
-          if (stored) {
-            const matches = this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key);
-            resolve(matches);
-          } else {
-            resolve(false);
-          }
-        };
+          request.onsuccess = () => {
+            const stored: StoredItem<V> | undefined = request.result;
+            if (stored) {
+              const matches = this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key);
+              resolve(matches);
+            } else {
+              resolve(false);
+            }
+          };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB request for includesKey', { key, storageKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in IndexedDB includesKey operation', { key, error });
@@ -258,19 +311,31 @@ export class AsyncIndexDBCacheMap<
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readwrite');
       const store = transaction.objectStore(this.storeName);
-      const storageKey = this.getStorageKey(key);
+      let storageKey: string;
+      
+      try {
+        storageKey = this.getStorageKey(key);
+      } catch (keyError) {
+        logger.error('Failed to generate storage key for delete', { key, error: keyError });
+        return;
+      }
 
       return new Promise((resolve, reject) => {
-        const request = store.delete(storageKey);
+        try {
+          const request = store.delete(storageKey);
 
-        request.onerror = () => {
-          logger.error('Error deleting from IndexedDB', { key, error: request.error });
-          reject(request.error);
-        };
+          request.onerror = () => {
+            logger.error('Error deleting from IndexedDB', { key, storageKey, error: request.error });
+            reject(request.error);
+          };
 
-        request.onsuccess = () => {
-          resolve();
-        };
+          request.onsuccess = () => {
+            resolve();
+          };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB delete request', { key, storageKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in IndexedDB delete operation', { key, error });
