@@ -86,21 +86,41 @@ export class IndexDBCacheMap<
   private async initializeFromIndexedDB(): Promise<void> {
     try {
       const keys = await this.asyncCache.keys();
+
+      let successCount = 0;
+      let errorCount = 0;
+
       for (const key of keys) {
-        const hashedKey = this.normalizedHashFunction(key);
-        // Only load if not already in memory cache
-        if (!this.memoryMap[hashedKey]) {
-          const value = await this.asyncCache.get(key);
-          if (value) {
-            this.memoryMap[hashedKey] = {
-              originalKey: key,
-              value: value
-            };
+        try {
+          const hashedKey = this.normalizedHashFunction(key);
+          // Only load if not already in memory cache
+          if (!this.memoryMap[hashedKey]) {
+            const value = await this.asyncCache.get(key);
+            if (value) {
+              this.memoryMap[hashedKey] = {
+                originalKey: key,
+                value: value
+              };
+              successCount++;
+            }
           }
+        } catch (keyError) {
+          // Log the error but continue with other keys
+          logger.debug('Failed to load individual key from IndexedDB, skipping', { key, error: keyError });
+          errorCount++;
         }
       }
+
+      if (errorCount > 0 && successCount === 0) {
+        logger.warning(`Failed to load any keys from IndexedDB (${errorCount} errors), continuing with empty cache`);
+      } else if (errorCount > 0) {
+        logger.debug(`Loaded ${successCount} keys from IndexedDB with ${errorCount} errors (skipped)`);
+      } else if (successCount > 0) {
+        logger.debug(`Successfully loaded ${successCount} keys from IndexedDB`);
+      }
     } catch (error) {
-      console.warn('Failed to initialize from IndexedDB, using memory-only mode:', error);
+      // Only log if we can't even access IndexedDB at all (different from per-key errors)
+      logger.warning('Failed to access IndexedDB keys during initialization', { error });
     }
   }
 
@@ -275,7 +295,7 @@ export class IndexDBCacheMap<
       itemKeys,
       metadata
     };
-    
+
     // Also persist to IndexedDB
     await this.asyncCache.setQueryResult(queryHash, itemKeys, metadata);
   }
@@ -287,7 +307,7 @@ export class IndexDBCacheMap<
 
   public async getQueryResultWithMetadata(queryHash: string): Promise<{ itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]; metadata?: any } | null> {
     let entry = this.queryResultCache[queryHash];
-    
+
     // If not in memory, try to load from IndexedDB
     if (!entry) {
       const persistedResult = await this.asyncCache.getQueryResultWithMetadata(queryHash);
@@ -300,11 +320,11 @@ export class IndexDBCacheMap<
         entry = this.queryResultCache[queryHash];
       }
     }
-    
+
     if (!entry) {
       return null;
     }
-    
+
     return {
       itemKeys: entry.itemKeys,
       metadata: entry.metadata
