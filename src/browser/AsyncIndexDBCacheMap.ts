@@ -401,12 +401,12 @@ export class AsyncIndexDBCacheMap<
       const transaction = db.transaction([this.storeName], 'readonly');
       const store = transaction.objectStore(this.storeName);
 
-      return new Promise((resolve, reject) => {
+      return new Promise((resolve) => {
         const request = store.openCursor();
 
         request.onerror = () => {
-          logger.error('Error getting keys from IndexedDB', { error: request.error });
-          reject(request.error);
+          logger.debug('Error getting keys from IndexedDB, returning empty array', { error: request.error });
+          resolve(keys);  // ← Resolve with empty array instead of rejecting
         };
 
         request.onsuccess = (event) => {
@@ -421,7 +421,7 @@ export class AsyncIndexDBCacheMap<
         };
       });
     } catch (error) {
-      logger.error('Error in IndexedDB keys operation', { error });
+      logger.debug('Error in IndexedDB keys operation, returning empty array', { error });
       return [];
     }
   }
@@ -526,13 +526,13 @@ export class AsyncIndexDBCacheMap<
 
   async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], metadata?: any): Promise<void> {
     logger.trace('setQueryResult', { queryHash, itemKeys, hasMetadata: !!metadata });
-    
+
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
       logger.error('Invalid queryHash provided to setQueryResult', { queryHash, itemKeys });
       throw new Error(`Invalid queryHash: ${JSON.stringify(queryHash)}`);
     }
-    
+
     try {
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readwrite');
@@ -544,7 +544,7 @@ export class AsyncIndexDBCacheMap<
       };
 
       const queryKey = `query:${queryHash}`;
-      
+
       return new Promise((resolve, reject) => {
         try {
           const putRequest = store.put(safeStringify(entry), queryKey);
@@ -570,20 +570,20 @@ export class AsyncIndexDBCacheMap<
 
   async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
     logger.trace('getQueryResult', { queryHash });
-    
+
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
       logger.error('Invalid queryHash provided to getQueryResult', { queryHash });
       return null;
     }
-    
+
     try {
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readonly');
       const store = transaction.objectStore(this.storeName);
 
       const queryKey = `query:${queryHash}`;
-      
+
       return new Promise((resolve, reject) => {
         try {
           const getRequest = store.get(queryKey);
@@ -630,20 +630,20 @@ export class AsyncIndexDBCacheMap<
 
   async getQueryResultWithMetadata(queryHash: string): Promise<{ itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]; metadata?: any } | null> {
     logger.trace('getQueryResultWithMetadata', { queryHash });
-    
+
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
       logger.error('Invalid queryHash provided to getQueryResultWithMetadata', { queryHash });
       return null;
     }
-    
+
     try {
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readonly');
       const store = transaction.objectStore(this.storeName);
 
       const queryKey = `query:${queryHash}`;
-      
+
       return new Promise((resolve, reject) => {
         try {
           const getRequest = store.get(queryKey);
@@ -714,20 +714,20 @@ export class AsyncIndexDBCacheMap<
 
   async deleteQueryResult(queryHash: string): Promise<void> {
     logger.trace('deleteQueryResult', { queryHash });
-    
+
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
       logger.error('Invalid queryHash provided to deleteQueryResult', { queryHash });
       return;
     }
-    
+
     try {
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readwrite');
       const store = transaction.objectStore(this.storeName);
 
       const queryKey = `query:${queryHash}`;
-      
+
       return new Promise((resolve, reject) => {
         try {
           const deleteRequest = store.delete(queryKey);
