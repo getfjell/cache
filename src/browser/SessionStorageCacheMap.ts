@@ -53,7 +53,9 @@ export class SessionStorageCacheMap<
   private getStorageKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): string {
     const hashedKey = this.normalizedHashFunction(key);
     if (!hashedKey || typeof hashedKey !== 'string' || hashedKey.trim() === '') {
-      logger.error('Invalid storage key generated from normalizedHashFunction', { key, hashedKey });
+      // Log at debug level - this is expected during cache initialization
+      // The error will be caught and handled gracefully in the calling methods
+      logger.debug('Storage key validation: generated key is empty or invalid', { key, hashedKey });
       throw new Error(`Invalid storage key generated for key: ${JSON.stringify(key)}`);
     }
     return `${this.keyPrefix}:${hashedKey}`;

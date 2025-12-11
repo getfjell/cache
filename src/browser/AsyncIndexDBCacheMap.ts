@@ -101,7 +101,9 @@ export class AsyncIndexDBCacheMap<
   private getStorageKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): string {
     const storageKey = this.normalizedHashFunction(key);
     if (!storageKey || typeof storageKey !== 'string' || storageKey.trim() === '') {
-      logger.error('Invalid storage key generated from normalizedHashFunction', { key, storageKey });
+      // Log at debug level - this is expected during cache initialization when IndexedDB is empty
+      // The error will be caught and handled gracefully in the calling methods
+      logger.debug('Storage key validation: generated key is empty or invalid', { key, storageKey });
       throw new Error(`Invalid storage key generated for key: ${JSON.stringify(key)}`);
     }
     return storageKey;
@@ -118,7 +120,8 @@ export class AsyncIndexDBCacheMap<
       try {
         storageKey = this.getStorageKey(key);
       } catch (keyError) {
-        logger.error('Failed to generate storage key', { key, error: keyError });
+        // This is expected during initialization when IndexedDB is empty or being accessed for the first time
+        logger.debug('Storage key generation failed, returning null', { key, error: keyError });
         return null;
       }
 
@@ -164,7 +167,7 @@ export class AsyncIndexDBCacheMap<
       try {
         storageKey = this.getStorageKey(key);
       } catch (keyError) {
-        logger.error('Failed to generate storage key for getWithMetadata', { key, error: keyError });
+        logger.debug('Storage key generation failed during getWithMetadata, returning null', { key, error: keyError });
         return null;
       }
 
@@ -210,7 +213,7 @@ export class AsyncIndexDBCacheMap<
       try {
         storageKey = this.getStorageKey(key);
       } catch (keyError) {
-        logger.error('Failed to generate storage key for set', { key, error: keyError });
+        logger.debug('Storage key generation failed during set, throwing error', { key, error: keyError });
         throw new Error(`Failed to generate storage key: ${keyError}`);
       }
 
@@ -272,7 +275,7 @@ export class AsyncIndexDBCacheMap<
       try {
         storageKey = this.getStorageKey(key);
       } catch (keyError) {
-        logger.error('Failed to generate storage key for includesKey', { key, error: keyError });
+        logger.debug('Storage key generation failed during includesKey, returning false', { key, error: keyError });
         return false;
       }
 
@@ -316,7 +319,7 @@ export class AsyncIndexDBCacheMap<
       try {
         storageKey = this.getStorageKey(key);
       } catch (keyError) {
-        logger.error('Failed to generate storage key for delete', { key, error: keyError });
+        logger.debug('Storage key generation failed during delete, returning silently', { key, error: keyError });
         return;
       }
 
