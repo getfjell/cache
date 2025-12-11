@@ -138,7 +138,11 @@ export const createQueryHash = <
     locations: normalizedLocations
   };
 
-  return deterministicStringify(hashInput);
+  const hash = deterministicStringify(hashInput);
+  if (!hash || typeof hash !== 'string' || hash.trim() === '') {
+    throw new Error(`Invalid query hash generated: hash is empty or invalid. Input: ${JSON.stringify({ pkType, query, locations })}`);
+  }
+  return hash;
 };
 
 /**
@@ -177,5 +181,9 @@ export const createFinderHash = <
     locations: normalizedLocations
   };
 
-  return deterministicStringify(hashInput);
+  const hash = deterministicStringify(hashInput);
+  if (!hash || typeof hash !== 'string' || hash.trim() === '') {
+    throw new Error(`Invalid finder hash generated: hash is empty or invalid. Input: ${JSON.stringify({ finder, params, locations })}`);
+  }
+  return hash;
 };

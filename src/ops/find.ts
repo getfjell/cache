@@ -102,77 +102,85 @@ async function executeFindLogic<
 
   // Check if we have cached query results
   logger.debug('QUERY_CACHE: Checking query cache for hash', { queryHash });
-  const cachedItemKeys = await cacheMap.getQueryResult(queryHash);
-  if (cachedItemKeys) {
-    logger.debug('QUERY_CACHE: Cache HIT - Found cached query result', {
-      queryHash,
-      cachedKeyCount: cachedItemKeys.length,
-      itemKeys: cachedItemKeys.map(k => JSON.stringify(k))
-    });
-
-    // Retrieve all cached items - if any are missing, invalidate the query cache
-    const cachedItems: V[] = [];
-    let allItemsAvailable = true;
-    const missingKeys: any[] = [];
-
-    for (const itemKey of cachedItemKeys) {
-      const item = await cacheMap.get(itemKey);
-      if (item) {
-        cachedItems.push(item);
-        logger.debug('QUERY_CACHE: Retrieved cached item', {
-          itemKey: JSON.stringify(itemKey),
-          itemKeyStr: JSON.stringify(item.key)
-        });
-      } else {
-        allItemsAvailable = false;
-        missingKeys.push(itemKey);
-        logger.debug('QUERY_CACHE: Cached item MISSING from item cache', {
-          itemKey: JSON.stringify(itemKey),
-          queryHash
-        });
-        break;
-      }
-    }
-
-    if (allItemsAvailable) {
-      logger.debug('QUERY_CACHE: All cached items available, returning from cache', {
+  try {
+    const cachedItemKeys = await cacheMap.getQueryResult(queryHash);
+    if (cachedItemKeys) {
+      logger.debug('QUERY_CACHE: Cache HIT - Found cached query result', {
         queryHash,
-        itemCount: cachedItems.length
+        cachedKeyCount: cachedItemKeys.length,
+        itemKeys: cachedItemKeys.map(k => JSON.stringify(k))
       });
 
-      // Apply pagination to cached results
-      let paginatedItems = cachedItems;
-      const offset = findOptions?.offset ?? 0;
-      const limit = findOptions?.limit;
+      // Retrieve all cached items - if any are missing, invalidate the query cache
+      const cachedItems: V[] = [];
+      let allItemsAvailable = true;
+      const missingKeys: any[] = [];
 
-      if (offset > 0) {
-        paginatedItems = paginatedItems.slice(offset);
-      }
-      if (limit != null && limit >= 0) {
-        paginatedItems = paginatedItems.slice(0, limit);
-      }
-
-      return {
-        items: paginatedItems,
-        metadata: {
-          total: cachedItems.length, // Total before pagination
-          returned: paginatedItems.length,
-          offset,
-          limit,
-          hasMore: limit != null && (offset + paginatedItems.length < cachedItems.length)
+      for (const itemKey of cachedItemKeys) {
+        const item = await cacheMap.get(itemKey);
+        if (item) {
+          cachedItems.push(item);
+          logger.debug('QUERY_CACHE: Retrieved cached item', {
+            itemKey: JSON.stringify(itemKey),
+            itemKeyStr: JSON.stringify(item.key)
+          });
+        } else {
+          allItemsAvailable = false;
+          missingKeys.push(itemKey);
+          logger.debug('QUERY_CACHE: Cached item MISSING from item cache', {
+            itemKey: JSON.stringify(itemKey),
+            queryHash
+          });
+          break;
         }
-      };
+      }
+
+      if (allItemsAvailable) {
+        logger.debug('QUERY_CACHE: All cached items available, returning from cache', {
+          queryHash,
+          itemCount: cachedItems.length
+        });
+
+        // Apply pagination to cached results
+        let paginatedItems = cachedItems;
+        const offset = findOptions?.offset ?? 0;
+        const limit = findOptions?.limit;
+
+        if (offset > 0) {
+          paginatedItems = paginatedItems.slice(offset);
+        }
+        if (limit != null && limit >= 0) {
+          paginatedItems = paginatedItems.slice(0, limit);
+        }
+
+        return {
+          items: paginatedItems,
+          metadata: {
+            total: cachedItems.length, // Total before pagination
+            returned: paginatedItems.length,
+            offset,
+            limit,
+            hasMore: limit != null && (offset + paginatedItems.length < cachedItems.length)
+          }
+        };
+      } else {
+        logger.debug('QUERY_CACHE: Some cached items missing, invalidating query cache', {
+          queryHash,
+          missingKeys: missingKeys.map(k => JSON.stringify(k)),
+          foundCount: cachedItems.length,
+          expectedCount: cachedItemKeys.length
+        });
+        cacheMap.deleteQueryResult(queryHash);
+      }
     } else {
-      logger.debug('QUERY_CACHE: Some cached items missing, invalidating query cache', {
-        queryHash,
-        missingKeys: missingKeys.map(k => JSON.stringify(k)),
-        foundCount: cachedItems.length,
-        expectedCount: cachedItemKeys.length
-      });
-      cacheMap.deleteQueryResult(queryHash);
+      logger.debug('QUERY_CACHE: Cache MISS - No cached query result found', { queryHash });
     }
-  } else {
-    logger.debug('QUERY_CACHE: Cache MISS - No cached query result found', { queryHash });
+  } catch (error) {
+    logger.error('QUERY_CACHE: Error checking query cache, falling back to API', {
+      queryHash,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    // Fall through to API call below
   }
 
   // Note: We don't try to use queryIn here because finder parameters don't map to ItemQuery objects
