@@ -226,12 +226,12 @@ describe("get operation edge cases", () => {
   describe("error handling", () => {
     it("should throw on invalid key", async () => {
       await expect(get({} as any, mockContext))
-        .rejects.toThrow("Key for Get is not a valid ItemKey");
+        .rejects.toThrow("Invalid key structure for get operation");
     });
 
     it("should throw on null key", async () => {
       await expect(get(null as any, mockContext))
-        .rejects.toThrow("Key for Get is not a valid ItemKey");
+        .rejects.toThrow("Invalid key structure for get operation");
     });
 
     it("should propagate API errors", async () => {
@@ -246,11 +246,12 @@ describe("get operation edge cases", () => {
   describe("eviction integration", () => {
     it("should trigger eviction after caching new item", async () => {
       const freshItem = { key: { kt: "test", pk: "1" }, name: "fresh" };
+      const evictedKey = JSON.stringify({ kt: "test", pk: "evicted" });
       
       mockCacheMap.get.mockResolvedValueOnce(null);
       mockApi.get.mockResolvedValueOnce(freshItem);
       mockCacheMap.getMetadata.mockResolvedValueOnce(null);
-      mockEvictionManager.onItemAdded.mockResolvedValueOnce(["evicted-key"]);
+      mockEvictionManager.onItemAdded.mockResolvedValueOnce([evictedKey]);
 
       await get({ kt: "test", pk: "1" } as any, mockContext);
 

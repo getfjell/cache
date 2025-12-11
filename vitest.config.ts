@@ -12,6 +12,23 @@ export default defineConfig({
     teardownTimeout: 15000,
     silent: false,
     reporters: ['default'],
+    // Use threads instead of forks - better cleanup of async operations
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        singleThread: false,
+        maxThreads: 2,
+        minThreads: 1,
+        useAtomics: true,
+      },
+    },
+    // Reduce concurrent operations to prevent worker overload
+    fileParallelism: true,
+    maxConcurrency: 2,
+    // Isolate each test file in its own context
+    isolate: true,
+    // Give more time for cleanup
+    poolTimeout: 30000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
