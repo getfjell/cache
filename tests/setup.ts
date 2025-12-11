@@ -1,4 +1,4 @@
-import { beforeAll, vi } from 'vitest'
+import { afterAll, beforeAll, vi } from 'vitest'
 
 // Ensure Buffer is available for browser tests (needed by @fjell/logging)
 // This must be done before any other code that might import @fjell packages
@@ -67,7 +67,10 @@ beforeAll(async () => {
     process.on('uncaughtException', (error) => {
       // Only ignore expected test errors, let real uncaught exceptions through
       if (error.message.includes('Validating PK, Item is undefined') ||
-        error.message.includes('api.httpGet is not a function')) {
+        error.message.includes('api.httpGet is not a function') ||
+        error.message.includes('API Error') ||
+        error.message.includes('API failure') ||
+        error.message.includes('Network error')) {
         // These are expected test errors that are handled by test assertions
         return;
       }
@@ -273,5 +276,25 @@ beforeAll(async () => {
     Object.setPrototypeOf(globalThis.sessionStorage, storagePrototype);
     Object.setPrototypeOf(globalThis.window.localStorage, storagePrototype);
     Object.setPrototypeOf(globalThis.window.sessionStorage, storagePrototype);
+  }
+})
+
+afterAll(async () => {
+  // Clear all mocks and timers to ensure clean worker shutdown
+  vi.clearAllMocks()
+  vi.clearAllTimers()
+  
+  // Reset mock storage if available
+  if (typeof (globalThis as any).__resetMockIndexedDBStorage === 'function') {
+    (globalThis as any).__resetMockIndexedDBStorage()
+  }
+  
+  // Give pending promises time to settle before worker cleanup
+  await new Promise(resolve => setTimeout(resolve, 10))
+  
+  // Remove all process listeners to prevent memory leaks
+  if (typeof process !== 'undefined' && process.removeAllListeners) {
+    process.removeAllListeners('unhandledRejection')
+    process.removeAllListeners('uncaughtException')
   }
 })

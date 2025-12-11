@@ -99,7 +99,12 @@ export class AsyncIndexDBCacheMap<
   }
 
   private getStorageKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): string {
-    return this.normalizedHashFunction(key);
+    const storageKey = this.normalizedHashFunction(key);
+    if (!storageKey || typeof storageKey !== 'string' || storageKey.trim() === '') {
+      logger.error('Invalid storage key generated from normalizedHashFunction', { key, storageKey });
+      throw new Error(`Invalid storage key generated for key: ${JSON.stringify(key)}`);
+    }
+    return storageKey;
   }
 
   public async get(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): Promise<V | null> {
@@ -108,24 +113,36 @@ export class AsyncIndexDBCacheMap<
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readonly');
       const store = transaction.objectStore(this.storeName);
-      const storageKey = this.getStorageKey(key);
+      let storageKey: string;
+
+      try {
+        storageKey = this.getStorageKey(key);
+      } catch (keyError) {
+        logger.error('Failed to generate storage key', { key, error: keyError });
+        return null;
+      }
 
       return new Promise((resolve, reject) => {
-        const request = store.get(storageKey);
+        try {
+          const request = store.get(storageKey);
 
-        request.onerror = () => {
-          logger.error('Error getting from IndexedDB', { key, error: request.error });
-          reject(request.error);
-        };
+          request.onerror = () => {
+            logger.error('Error getting from IndexedDB', { key, storageKey, error: request.error });
+            reject(request.error);
+          };
 
-        request.onsuccess = () => {
-          const stored: StoredItem<V> | undefined = request.result;
-          if (stored && this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key)) {
-            resolve(stored.value);
-          } else {
-            resolve(null);
-          }
-        };
+          request.onsuccess = () => {
+            const stored: StoredItem<V> | undefined = request.result;
+            if (stored && this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key)) {
+              resolve(stored.value);
+            } else {
+              resolve(null);
+            }
+          };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB request', { key, storageKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in IndexedDB get operation', { key, error });
@@ -142,27 +159,39 @@ export class AsyncIndexDBCacheMap<
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readonly');
       const store = transaction.objectStore(this.storeName);
-      const storageKey = this.getStorageKey(key);
+      let storageKey: string;
+
+      try {
+        storageKey = this.getStorageKey(key);
+      } catch (keyError) {
+        logger.error('Failed to generate storage key for getWithMetadata', { key, error: keyError });
+        return null;
+      }
 
       return new Promise((resolve, reject) => {
-        const request = store.get(storageKey);
+        try {
+          const request = store.get(storageKey);
 
-        request.onerror = () => {
-          logger.error('Error getting from IndexedDB', { key, error: request.error });
-          reject(request.error);
-        };
+          request.onerror = () => {
+            logger.error('Error getting from IndexedDB', { key, storageKey, error: request.error });
+            reject(request.error);
+          };
 
-        request.onsuccess = () => {
-          const stored: StoredItem<V> | undefined = request.result;
-          if (stored && this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key)) {
-            resolve({
-              value: stored.value,
-              metadata: stored.metadata
-            });
-          } else {
-            resolve(null);
-          }
-        };
+          request.onsuccess = () => {
+            const stored: StoredItem<V> | undefined = request.result;
+            if (stored && this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key)) {
+              resolve({
+                value: stored.value,
+                metadata: stored.metadata
+              });
+            } else {
+              resolve(null);
+            }
+          };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB request for getWithMetadata', { key, storageKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in IndexedDB getWithMetadata operation', { key, error });
@@ -176,7 +205,14 @@ export class AsyncIndexDBCacheMap<
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readwrite');
       const store = transaction.objectStore(this.storeName);
-      const storageKey = this.getStorageKey(key);
+      let storageKey: string;
+
+      try {
+        storageKey = this.getStorageKey(key);
+      } catch (keyError) {
+        logger.error('Failed to generate storage key for set', { key, error: keyError });
+        throw new Error(`Failed to generate storage key: ${keyError}`);
+      }
 
       const storedItem: StoredItem<V> = {
         originalKey: key,
@@ -186,16 +222,21 @@ export class AsyncIndexDBCacheMap<
       };
 
       return new Promise((resolve, reject) => {
-        const request = store.put(storedItem, storageKey);
+        try {
+          const request = store.put(storedItem, storageKey);
 
-        request.onerror = () => {
-          logger.error('Error setting in IndexedDB', { key, value, error: request.error });
-          reject(request.error);
-        };
+          request.onerror = () => {
+            logger.error('Error setting in IndexedDB', { key, storageKey, value, error: request.error });
+            reject(request.error);
+          };
 
-        request.onsuccess = () => {
-          resolve();
-        };
+          request.onsuccess = () => {
+            resolve();
+          };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB put request', { key, storageKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in IndexedDB set operation', { key, value, error });
@@ -226,25 +267,37 @@ export class AsyncIndexDBCacheMap<
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readonly');
       const store = transaction.objectStore(this.storeName);
-      const storageKey = this.getStorageKey(key);
+      let storageKey: string;
+
+      try {
+        storageKey = this.getStorageKey(key);
+      } catch (keyError) {
+        logger.error('Failed to generate storage key for includesKey', { key, error: keyError });
+        return false;
+      }
 
       return new Promise((resolve, reject) => {
-        const request = store.get(storageKey);
+        try {
+          const request = store.get(storageKey);
 
-        request.onerror = () => {
-          logger.error('Error checking key in IndexedDB', { key, error: request.error });
-          reject(request.error);
-        };
+          request.onerror = () => {
+            logger.error('Error checking key in IndexedDB', { key, storageKey, error: request.error });
+            reject(request.error);
+          };
 
-        request.onsuccess = () => {
-          const stored: StoredItem<V> | undefined = request.result;
-          if (stored) {
-            const matches = this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key);
-            resolve(matches);
-          } else {
-            resolve(false);
-          }
-        };
+          request.onsuccess = () => {
+            const stored: StoredItem<V> | undefined = request.result;
+            if (stored) {
+              const matches = this.normalizedHashFunction(stored.originalKey) === this.normalizedHashFunction(key);
+              resolve(matches);
+            } else {
+              resolve(false);
+            }
+          };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB request for includesKey', { key, storageKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in IndexedDB includesKey operation', { key, error });
@@ -258,19 +311,31 @@ export class AsyncIndexDBCacheMap<
       const db = await this.getDB();
       const transaction = db.transaction([this.storeName], 'readwrite');
       const store = transaction.objectStore(this.storeName);
-      const storageKey = this.getStorageKey(key);
+      let storageKey: string;
+
+      try {
+        storageKey = this.getStorageKey(key);
+      } catch (keyError) {
+        logger.error('Failed to generate storage key for delete', { key, error: keyError });
+        return;
+      }
 
       return new Promise((resolve, reject) => {
-        const request = store.delete(storageKey);
+        try {
+          const request = store.delete(storageKey);
 
-        request.onerror = () => {
-          logger.error('Error deleting from IndexedDB', { key, error: request.error });
-          reject(request.error);
-        };
+          request.onerror = () => {
+            logger.error('Error deleting from IndexedDB', { key, storageKey, error: request.error });
+            reject(request.error);
+          };
 
-        request.onsuccess = () => {
-          resolve();
-        };
+          request.onsuccess = () => {
+            resolve();
+          };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB delete request', { key, storageKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in IndexedDB delete operation', { key, error });
@@ -458,26 +523,27 @@ export class AsyncIndexDBCacheMap<
 
   async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], metadata?: any): Promise<void> {
     logger.trace('setQueryResult', { queryHash, itemKeys, hasMetadata: !!metadata });
+    
+    // Validate queryHash before using it
+    if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
+      logger.error('Invalid queryHash provided to setQueryResult', { queryHash, itemKeys });
+      throw new Error(`Invalid queryHash: ${JSON.stringify(queryHash)}`);
+    }
+    
     try {
+      const db = await this.getDB();
+      const transaction = db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+
+      const entry = {
+        itemKeys,
+        metadata: metadata || undefined
+      };
+
+      const queryKey = `query:${queryHash}`;
+      
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open(this.dbName, this.version);
-
-        request.onerror = () => {
-          logger.error('Failed to open database for setQueryResult', { error: request.error });
-          reject(request.error);
-        };
-
-        request.onsuccess = () => {
-          const db = request.result;
-          const transaction = db.transaction([this.storeName], 'readwrite');
-          const store = transaction.objectStore(this.storeName);
-
-          const entry = {
-            itemKeys,
-            metadata: metadata || undefined
-          };
-
-          const queryKey = `query:${queryHash}`;
+        try {
           const putRequest = store.put(safeStringify(entry), queryKey);
 
           putRequest.onerror = () => {
@@ -488,7 +554,10 @@ export class AsyncIndexDBCacheMap<
           putRequest.onsuccess = () => {
             resolve();
           };
-        };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB put request for query result', { queryHash, queryKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in setQueryResult', { queryHash, error });
@@ -498,21 +567,22 @@ export class AsyncIndexDBCacheMap<
 
   async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
     logger.trace('getQueryResult', { queryHash });
+    
+    // Validate queryHash before using it
+    if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
+      logger.error('Invalid queryHash provided to getQueryResult', { queryHash });
+      return null;
+    }
+    
     try {
+      const db = await this.getDB();
+      const transaction = db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+
+      const queryKey = `query:${queryHash}`;
+      
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open(this.dbName, this.version);
-
-        request.onerror = () => {
-          logger.error('Failed to open database for getQueryResult', { error: request.error });
-          reject(request.error);
-        };
-
-        request.onsuccess = () => {
-          const db = request.result;
-          const transaction = db.transaction([this.storeName], 'readonly');
-          const store = transaction.objectStore(this.storeName);
-
-          const queryKey = `query:${queryHash}`;
+        try {
           const getRequest = store.get(queryKey);
 
           getRequest.onerror = () => {
@@ -544,7 +614,10 @@ export class AsyncIndexDBCacheMap<
               resolve(null);
             }
           };
-        };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB get request for query result', { queryHash, queryKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in getQueryResult', { queryHash, error });
@@ -554,21 +627,22 @@ export class AsyncIndexDBCacheMap<
 
   async getQueryResultWithMetadata(queryHash: string): Promise<{ itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]; metadata?: any } | null> {
     logger.trace('getQueryResultWithMetadata', { queryHash });
+    
+    // Validate queryHash before using it
+    if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
+      logger.error('Invalid queryHash provided to getQueryResultWithMetadata', { queryHash });
+      return null;
+    }
+    
     try {
+      const db = await this.getDB();
+      const transaction = db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+
+      const queryKey = `query:${queryHash}`;
+      
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open(this.dbName, this.version);
-
-        request.onerror = () => {
-          logger.error('Failed to open database for getQueryResultWithMetadata', { error: request.error });
-          reject(request.error);
-        };
-
-        request.onsuccess = () => {
-          const db = request.result;
-          const transaction = db.transaction([this.storeName], 'readonly');
-          const store = transaction.objectStore(this.storeName);
-
-          const queryKey = `query:${queryHash}`;
+        try {
           const getRequest = store.get(queryKey);
 
           getRequest.onerror = () => {
@@ -613,7 +687,10 @@ export class AsyncIndexDBCacheMap<
               resolve(null);
             }
           };
-        };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB get request for query result with metadata', { queryHash, queryKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in getQueryResultWithMetadata', { queryHash, error });
@@ -634,21 +711,22 @@ export class AsyncIndexDBCacheMap<
 
   async deleteQueryResult(queryHash: string): Promise<void> {
     logger.trace('deleteQueryResult', { queryHash });
+    
+    // Validate queryHash before using it
+    if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
+      logger.error('Invalid queryHash provided to deleteQueryResult', { queryHash });
+      return;
+    }
+    
     try {
+      const db = await this.getDB();
+      const transaction = db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
+
+      const queryKey = `query:${queryHash}`;
+      
       return new Promise((resolve, reject) => {
-        const request = indexedDB.open(this.dbName, this.version);
-
-        request.onerror = () => {
-          logger.error('Failed to open database for deleteQueryResult', { error: request.error });
-          reject(request.error);
-        };
-
-        request.onsuccess = () => {
-          const db = request.result;
-          const transaction = db.transaction([this.storeName], 'readwrite');
-          const store = transaction.objectStore(this.storeName);
-
-          const queryKey = `query:${queryHash}`;
+        try {
           const deleteRequest = store.delete(queryKey);
 
           deleteRequest.onerror = () => {
@@ -659,7 +737,10 @@ export class AsyncIndexDBCacheMap<
           deleteRequest.onsuccess = () => {
             resolve();
           };
-        };
+        } catch (requestError) {
+          logger.error('Error creating IndexedDB delete request for query result', { queryHash, queryKey, error: requestError });
+          reject(requestError);
+        }
       });
     } catch (error) {
       logger.error('Error in deleteQueryResult', { queryHash, error });
@@ -791,66 +872,57 @@ export class AsyncIndexDBCacheMap<
   async clearQueryResults(): Promise<void> {
     logger.trace('clearQueryResults');
     try {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open(this.dbName, this.version);
+      const db = await this.getDB();
+      const transaction = db.transaction([this.storeName], 'readwrite');
+      const store = transaction.objectStore(this.storeName);
 
-        request.onerror = () => {
-          logger.error('Failed to open database for clearQueryResults', { error: request.error });
-          reject(request.error);
+      return new Promise((resolve, reject) => {
+        // Use cursor to iterate through keys and delete those that start with 'query:'
+        const cursorRequest = store.openCursor();
+        const keysToDelete: string[] = [];
+
+        cursorRequest.onerror = () => {
+          logger.error('Failed to open cursor for clearQueryResults', { error: cursorRequest.error });
+          reject(cursorRequest.error);
         };
 
-        request.onsuccess = () => {
-          const db = request.result;
-          const transaction = db.transaction([this.storeName], 'readwrite');
-          const store = transaction.objectStore(this.storeName);
-
-          // Use cursor to iterate through keys and delete those that start with 'query:'
-          const cursorRequest = store.openCursor();
-          const keysToDelete: string[] = [];
-
-          cursorRequest.onerror = () => {
-            logger.error('Failed to open cursor for clearQueryResults', { error: cursorRequest.error });
-            reject(cursorRequest.error);
-          };
-
-          cursorRequest.onsuccess = () => {
-            const cursor = cursorRequest.result;
-            if (cursor) {
-              const key = cursor.key;
-              if (typeof key === 'string' && key.startsWith('query:')) {
-                keysToDelete.push(key);
-              }
-              cursor.continue();
-            } else {
-              // No more entries, now delete all query keys
-              if (keysToDelete.length === 0) {
-                resolve();
-                return;
-              }
-
-              let deletedCount = 0;
-              const totalToDelete = keysToDelete.length;
-
-              keysToDelete.forEach(queryKey => {
-                const deleteRequest = store.delete(queryKey);
-
-                deleteRequest.onerror = () => {
-                  logger.error('Failed to delete query key', { queryKey, error: deleteRequest.error });
-                  deletedCount++;
-                  if (deletedCount === totalToDelete) {
-                    resolve(); // Continue even if some deletions failed
-                  }
-                };
-
-                deleteRequest.onsuccess = () => {
-                  deletedCount++;
-                  if (deletedCount === totalToDelete) {
-                    resolve();
-                  }
-                };
-              });
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (cursor) {
+            const key = cursor.key;
+            if (typeof key === 'string' && key.startsWith('query:')) {
+              keysToDelete.push(key);
             }
-          };
+            cursor.continue();
+          } else {
+            // No more entries, now delete all query keys
+            if (keysToDelete.length === 0) {
+              resolve();
+              return;
+            }
+
+            let deletedCount = 0;
+            const totalToDelete = keysToDelete.length;
+
+            keysToDelete.forEach(queryKey => {
+              const deleteRequest = store.delete(queryKey);
+
+              deleteRequest.onerror = () => {
+                logger.error('Failed to delete query key', { queryKey, error: deleteRequest.error });
+                deletedCount++;
+                if (deletedCount === totalToDelete) {
+                  resolve(); // Continue even if some deletions failed
+                }
+              };
+
+              deleteRequest.onsuccess = () => {
+                deletedCount++;
+                if (deletedCount === totalToDelete) {
+                  resolve();
+                }
+              };
+            });
+          }
         };
       });
     } catch (error) {
