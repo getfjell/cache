@@ -397,13 +397,13 @@ export class LocalStorageCacheMap<
 
   public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], metadata?: any): Promise<void> {
     logger.trace('setQueryResult', { queryHash, itemKeys, hasMetadata: !!metadata });
-    
+
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
       logger.error('Invalid queryHash provided to setQueryResult', { queryHash, itemKeys });
       throw new Error(`Invalid queryHash: ${JSON.stringify(queryHash)}`);
     }
-    
+
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
 
     const entry: any = {
@@ -420,13 +420,13 @@ export class LocalStorageCacheMap<
 
   public async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
     logger.trace('getQueryResult', { queryHash });
-    
+
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
       logger.error('Invalid queryHash provided to getQueryResult', { queryHash });
       return null;
     }
-    
+
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
       const data = localStorage.getItem(queryKey);
@@ -452,13 +452,13 @@ export class LocalStorageCacheMap<
 
   public async getQueryResultWithMetadata(queryHash: string): Promise<{ itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]; metadata?: any } | null> {
     logger.trace('getQueryResultWithMetadata', { queryHash });
-    
+
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
       logger.error('Invalid queryHash provided to getQueryResultWithMetadata', { queryHash });
       return null;
     }
-    
+
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
       const data = localStorage.getItem(queryKey);
@@ -500,7 +500,7 @@ export class LocalStorageCacheMap<
       logger.error('Invalid queryHash provided to hasQueryResult', { queryHash });
       return false;
     }
-    
+
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
       return localStorage.getItem(queryKey) !== null;
@@ -512,13 +512,13 @@ export class LocalStorageCacheMap<
 
   public async deleteQueryResult(queryHash: string): Promise<void> {
     logger.trace('deleteQueryResult', { queryHash });
-    
+
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
       logger.error('Invalid queryHash provided to deleteQueryResult', { queryHash });
       return;
     }
-    
+
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
       localStorage.removeItem(queryKey);
