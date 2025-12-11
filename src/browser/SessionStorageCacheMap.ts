@@ -53,7 +53,9 @@ export class SessionStorageCacheMap<
   private getStorageKey(key: ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): string {
     const hashedKey = this.normalizedHashFunction(key);
     if (!hashedKey || typeof hashedKey !== 'string' || hashedKey.trim() === '') {
-      logger.error('Invalid storage key generated from normalizedHashFunction', { key, hashedKey });
+      // Log at debug level - this is expected during cache initialization
+      // The error will be caught and handled gracefully in the calling methods
+      logger.debug('Storage key validation: generated key is empty or invalid', { key, hashedKey });
       throw new Error(`Invalid storage key generated for key: ${JSON.stringify(key)}`);
     }
     return `${this.keyPrefix}:${hashedKey}`;
@@ -316,13 +318,13 @@ export class SessionStorageCacheMap<
 
   public async setQueryResult(queryHash: string, itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[], metadata?: any): Promise<void> {
     logger.trace('setQueryResult', { queryHash, itemKeys, hasMetadata: !!metadata });
-    
+
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
       logger.error('Invalid queryHash provided to setQueryResult', { queryHash, itemKeys });
       throw new Error(`Invalid queryHash: ${JSON.stringify(queryHash)}`);
     }
-    
+
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
 
     const entry: any = {
@@ -340,13 +342,13 @@ export class SessionStorageCacheMap<
 
   public async getQueryResult(queryHash: string): Promise<(ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[] | null> {
     logger.trace('getQueryResult', { queryHash });
-    
+
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
       logger.error('Invalid queryHash provided to getQueryResult', { queryHash });
       return null;
     }
-    
+
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
       const data = sessionStorage.getItem(queryKey);
@@ -372,13 +374,13 @@ export class SessionStorageCacheMap<
 
   public async getQueryResultWithMetadata(queryHash: string): Promise<{ itemKeys: (ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>)[]; metadata?: any } | null> {
     logger.trace('getQueryResultWithMetadata', { queryHash });
-    
+
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
       logger.error('Invalid queryHash provided to getQueryResultWithMetadata', { queryHash });
       return null;
     }
-    
+
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
       const data = sessionStorage.getItem(queryKey);
@@ -420,7 +422,7 @@ export class SessionStorageCacheMap<
       logger.error('Invalid queryHash provided to hasQueryResult', { queryHash });
       return false;
     }
-    
+
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
       return sessionStorage.getItem(queryKey) !== null;
@@ -432,13 +434,13 @@ export class SessionStorageCacheMap<
 
   public async deleteQueryResult(queryHash: string): Promise<void> {
     logger.trace('deleteQueryResult', { queryHash });
-    
+
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
       logger.error('Invalid queryHash provided to deleteQueryResult', { queryHash });
       return;
     }
-    
+
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;
     try {
       sessionStorage.removeItem(queryKey);
