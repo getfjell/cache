@@ -37,11 +37,11 @@
     "docs:test": "cd docs && npm run test"
   },
   "dependencies": {
-    "@fjell/client-api": "^4.4.65",
+    "@fjell/client-api": "^4.4.66",
     "@fjell/core": "^4.4.70",
-    "@fjell/http-api": "^4.4.60",
-    "@fjell/logging": "^4.4.60",
-    "@fjell/registry": "^4.4.77",
+    "@fjell/http-api": "^4.4.61",
+    "@fjell/logging": "^4.4.62",
+    "@fjell/registry": "^4.4.79",
     "fast-safe-stringify": "^2.1.1",
     "flatted": "^3.3.3",
     "yocto-queue": "^1.2.1"
