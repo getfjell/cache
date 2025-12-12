@@ -172,8 +172,19 @@ export const createAggregator = async <
     const cacheConfig = toCacheConfig(aggregates[key]);
     if (item.refs === undefined) {
       if (cacheConfig.optional === false) {
-        logger.error('Item does not have refs an is not optional ', { item });
-        throw new Error('Item does not have refs an is not optional ' + JSON.stringify(item));
+        logger.error('Item missing required refs property', {
+          component: 'cache',
+          subcomponent: 'Aggregator',
+          operation: 'populateRef',
+          refKey: key,
+          item: JSON.stringify(item),
+          suggestion: 'Ensure the item has a refs property or mark this reference as optional in cache configuration'
+        });
+        throw new Error(
+          `Item missing required refs property for reference '${key}'. ` +
+          `Item: ${JSON.stringify(item)}. ` +
+          `Suggestion: Add refs property to item or set optional: true in cache config.`
+        );
       } else {
         if (item.events && Object.prototype.hasOwnProperty.call(item.events, key)) {
           delete item.events[key];
@@ -181,9 +192,21 @@ export const createAggregator = async <
       }
     } else if (item.refs[key] === undefined) {
       if (cacheConfig.optional === false) {
-        logger.error('Item does not have mandatory ref with key, not optional ', { key, item });
-        throw new Error('Item does not have mandatory ref with key, not optional ' +
-          key + ' ' + JSON.stringify(item));
+        logger.error('Item missing required reference', {
+          component: 'cache',
+          subcomponent: 'Aggregator',
+          operation: 'populateRef',
+          refKey: key,
+          availableRefs: Object.keys(item.refs || {}),
+          item: JSON.stringify(item),
+          suggestion: `Ensure the item has refs.${key} property or mark this reference as optional in cache configuration`
+        });
+        throw new Error(
+          `Item missing required reference '${key}'. ` +
+          `Available refs: [${Object.keys(item.refs || {}).join(', ')}]. ` +
+          `Item: ${JSON.stringify(item)}. ` +
+          `Suggestion: Add refs.${key} to item or set optional: true in cache config.`
+        );
       } else {
         if (item.events && Object.prototype.hasOwnProperty.call(item.events, key)) {
           delete item.events[key];
@@ -216,19 +239,56 @@ export const createAggregator = async <
     const cacheConfig = toCacheConfig(events[key]);
 
     if (item.events === undefined) {
-      throw new Error('Item does not have events ' + JSON.stringify(item));
+      logger.error('Item missing events property', {
+        component: 'cache',
+        subcomponent: 'Aggregator',
+        operation: 'populateEvent',
+        eventKey: key,
+        item: JSON.stringify(item),
+        suggestion: 'Ensure the item has an events property with event data'
+      });
+      throw new Error(
+        `Item missing events property for event '${key}'. ` +
+        `Item: ${JSON.stringify(item)}. ` +
+        `Suggestion: Ensure events are properly tracked on this item type.`
+      );
     } else if (item.events[key] === undefined) {
       if (cacheConfig.optional === false) {
-        logger.error('Item does not have mandatory event with key', { key, item });
-        throw new Error('Item does not have mandatory event with key ' + key + ' ' + JSON.stringify(item));
+        logger.error('Item missing required event', {
+          component: 'cache',
+          subcomponent: 'Aggregator',
+          operation: 'populateEvent',
+          eventKey: key,
+          availableEvents: Object.keys(item.events || {}),
+          item: JSON.stringify(item),
+          suggestion: `Ensure the item has events.${key} property or mark this event as optional`
+        });
+        throw new Error(
+          `Item missing required event '${key}'. ` +
+          `Available events: [${Object.keys(item.events || {}).join(', ')}]. ` +
+          `Item: ${JSON.stringify(item)}. ` +
+          `Suggestion: Add events.${key} to item or set optional: true in cache config.`
+        );
       }
     } else {
       const event = item.events[key];
 
       if (event.by === undefined) {
-        logger.error(
-          'populateEvent with an Event that does not have by', { event, ik: item.key, eventKey: key });
-        throw new Error('populateEvent with an Event that does not have by: ' + JSON.stringify({ key }));
+        logger.error('Event missing required "by" field', {
+          component: 'cache',
+          subcomponent: 'Aggregator',
+          operation: 'populateEvent',
+          eventKey: key,
+          event,
+          itemKey: item.key,
+          suggestion: 'Ensure event has a "by" field with the user/actor who triggered the event'
+        });
+        throw new Error(
+          `Event '${key}' missing required "by" field. ` +
+          `Event: ${JSON.stringify(event)}. ` +
+          `Item: ${JSON.stringify(item.key)}. ` +
+          `Suggestion: Events must include a "by" field to track who performed the action.`
+        );
       }
 
       logger.default('EVENT Retrieving Item in Populate', { key: event.by });

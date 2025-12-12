@@ -229,7 +229,7 @@ describe('TTLCalculator', () => {
     it('should throw error for invalid context', () => {
       expect(() => {
         calculator.calculateContextualTTL({});
-      }).toThrow('Context must specify either itemType or (queryType + isComplete)');
+      }).toThrow(/must specify either itemType or.*queryType.*isComplete/);
     });
   });
 

@@ -5,6 +5,10 @@
  * peak hours adjustments, and stale-while-revalidate patterns.
  */
 
+import LibLogger from '../logger';
+
+const logger = LibLogger.get('TTLConfig');
+
 export interface TTLConfig {
   /** Item-level TTL configuration */
   item: {
@@ -244,7 +248,19 @@ export function createTTLConfig(overrides: Partial<TTLConfig> = {}): TTLConfig {
   // Validate the final configuration
   const errors = validateTTLConfig(config);
   if (errors.length > 0) {
-    throw new Error(`Invalid TTL configuration: ${errors.join(', ')}`);
+    logger.error('Invalid TTL configuration', {
+      component: 'cache',
+      subcomponent: 'TTLConfig',
+      operation: 'parseTTLConfig',
+      validationErrors: errors,
+      providedConfig: JSON.stringify(config),
+      suggestion: 'Fix validation errors: ' + errors.join('; ')
+    });
+    throw new Error(
+      `Invalid TTL configuration: ${errors.join(', ')}. ` +
+      `Provided config: ${JSON.stringify(config)}. ` +
+      `Suggestion: Check TTL values are positive numbers and scenario names are valid.`
+    );
   }
 
   return config;

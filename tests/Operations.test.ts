@@ -934,7 +934,7 @@ describe('Cache Operations', () => {
       });
 
       it('should throw error for invalid TTL explanation parameters', () => {
-        expect(() => twoLayerOps.explainTTL()).toThrow('Must provide either itemType or (queryType + isComplete)');
+        expect(() => twoLayerOps.explainTTL()).toThrow(/must provide either itemType or.*queryType.*isComplete/);
       });
 
       it('should handle manual cache warming', async () => {
