@@ -128,7 +128,15 @@ export const createCache = <
     registry: Registry,
     options?: Partial<Options<V, S, L1, L2, L3, L4, L5>>
   ): Cache<V, S, L1, L2, L3, L4, L5> => {
-  logger.debug('createCache', { coordinate, registry, options });
+  logger.debug('createCache', {
+    component: 'cache',
+    operation: 'createCache',
+    itemType: coordinate.kta[0],
+    hierarchy: coordinate.kta,
+    cacheType: options?.cacheType,
+    hasRegistry: !!registry,
+    note: 'Cache creation started'
+  });
 
   // Create complete options with defaults
   const completeOptions = createOptions(options);

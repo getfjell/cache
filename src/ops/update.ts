@@ -55,8 +55,15 @@ async function executeUpdateLogic<
   const { api, cacheMap, pkType } = context;
 
   if (!isValidItemKey(key)) {
-    logger.error('Key for Update is not a valid ItemKey: %j', key);
-    throw new Error('Key for Update is not a valid ItemKey');
+    logger.error('CACHE_OP: Invalid key for update operation', {
+      operation: 'update',
+      key: JSON.stringify(key),
+      keyType: typeof key,
+      itemType: pkType,
+      reason: 'Key validation failed - must be a valid PriKey or ComKey',
+      suggestion: 'Ensure the key has the correct structure: PriKey { kt, pk } or ComKey { kt, sk, lk }'
+    });
+    throw new Error(`Invalid key for update operation: ${JSON.stringify(key)}. Expected valid PriKey or ComKey structure.`);
   }
 
   // Invalidate the item key before executing the update
@@ -66,39 +73,53 @@ async function executeUpdateLogic<
   // Also clear query results since this item might be included in cached queries
   await cacheMap.clearQueryResults();
 
+  const startTime = Date.now();
+  const keyStr = JSON.stringify(key);
+
   try {
+    logger.debug('CACHE_OP: update() started', {
+      operation: 'update',
+      key: keyStr,
+      itemType: pkType,
+      updateData: JSON.stringify(v)
+    });
+
     // Get previous item for event
     const previousItem = await cacheMap.get(key);
 
     const updated = await api.update(key, v);
+    const apiDuration = Date.now() - startTime;
 
     // Cache the result after the update
-    logger.debug('Caching update result', { updatedKey: updated.key });
+    logger.debug('CACHE_OP: Caching update result', {
+      operation: 'update',
+      updatedKey: JSON.stringify(updated.key)
+    });
     await cacheMap.set(updated.key, updated);
 
     // Verify what was cached
     const cachedItem = await cacheMap.get(updated.key);
 
     // Create base metadata if it doesn't exist (needed for TTL and eviction)
-    const keyStr = JSON.stringify(updated.key);
-    const metadata = await cacheMap.getMetadata(keyStr);
+    const updatedKeyStr = JSON.stringify(updated.key);
+    const metadata = await cacheMap.getMetadata(updatedKeyStr);
     if (!metadata) {
       const now = Date.now();
       const baseMetadata = {
-        key: keyStr,
+        key: updatedKeyStr,
         addedAt: now,
         lastAccessedAt: now,
         accessCount: 1,
         estimatedSize: estimateValueSize(updated)
       };
-      await cacheMap.setMetadata(keyStr, baseMetadata);
+      await cacheMap.setMetadata(updatedKeyStr, baseMetadata);
     }
 
     // Set TTL metadata for the newly cached item
-    await context.ttlManager.onItemAdded(keyStr, cacheMap);
+    await context.ttlManager.onItemAdded(updatedKeyStr, cacheMap);
 
     // Handle eviction for the newly cached item
-    const evictedKeys = await context.evictionManager.onItemAdded(keyStr, updated, cacheMap);
+    const evictedKeys = await context.evictionManager.onItemAdded(updatedKeyStr, updated, cacheMap);
     // Remove evicted items from cache
     for (const evictedKey of evictedKeys) {
       const parsedKey = JSON.parse(evictedKey);
@@ -117,9 +138,32 @@ async function executeUpdateLogic<
     );
     context.eventEmitter.emit(queryInvalidatedEvent);
 
+    const totalDuration = Date.now() - startTime;
+    logger.debug('CACHE_OP: update() completed successfully', {
+      operation: 'update',
+      key: updatedKeyStr,
+      itemType: pkType,
+      evictedCount: evictedKeys.length,
+      apiDuration,
+      totalDuration
+    });
+
     return updated;
-  } catch (e) {
-    logger.error("Error updating item", { error: e });
+  } catch (e: any) {
+    const duration = Date.now() - startTime;
+    logger.error('CACHE_OP: update() operation failed', {
+      operation: 'update',
+      key: keyStr,
+      itemType: pkType,
+      updateData: JSON.stringify(v),
+      duration,
+      errorType: e.constructor?.name || typeof e,
+      errorMessage: e.message,
+      errorCode: e.code || e.errorInfo?.code,
+      cacheType: cacheMap.implementationType,
+      suggestion: 'Check item exists, validation rules, update permissions, and API connectivity',
+      stack: e.stack
+    });
     throw e;
   }
 }

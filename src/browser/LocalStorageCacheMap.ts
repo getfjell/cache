@@ -226,7 +226,18 @@ export class LocalStorageCacheMap<
 
           if (isLastAttempt) {
             // Final attempt failed
-            throw new Error('Failed to store item in localStorage: storage quota exceeded even after multiple cleanup attempts');
+            logger.error('LocalStorage quota exceeded after all cleanup attempts', {
+              component: 'cache',
+              subcomponent: 'LocalStorageCacheMap',
+              operation: 'set',
+              key: JSON.stringify(key),
+              retryAttempts: attempt + 1,
+              suggestion: 'Reduce cache size limits, clear more data, or use IndexedDB for larger storage needs'
+            });
+            throw new Error(
+              'Failed to store item in localStorage: storage quota exceeded even after multiple cleanup attempts. ' +
+              'Suggestion: Reduce maxItems in memoryConfig, clear old data, or switch to IndexedDB for larger storage.'
+            );
           }
 
           // Continue to next retry attempt (no delay needed for localStorage)
@@ -400,8 +411,20 @@ export class LocalStorageCacheMap<
 
     // Validate queryHash before using it
     if (!queryHash || typeof queryHash !== 'string' || queryHash.trim() === '') {
-      logger.error('Invalid queryHash provided to setQueryResult', { queryHash, itemKeys });
-      throw new Error(`Invalid queryHash: ${JSON.stringify(queryHash)}`);
+      logger.error('Invalid queryHash provided to setQueryResult', {
+        component: 'cache',
+        subcomponent: 'LocalStorageCacheMap',
+        operation: 'setQueryResult',
+        queryHash,
+        queryHashType: typeof queryHash,
+        itemKeys,
+        suggestion: 'Ensure queryHash is a non-empty string generated from query normalization'
+      });
+      throw new Error(
+        `Invalid queryHash provided to setQueryResult: ${JSON.stringify(queryHash)}. ` +
+        `Expected non-empty string, got ${typeof queryHash}. ` +
+        `This usually indicates a bug in query hash generation.`
+      );
     }
 
     const queryKey = `${this.keyPrefix}:query:${queryHash}`;

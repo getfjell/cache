@@ -212,9 +212,21 @@ export class AsyncIndexDBCacheMap<
 
       try {
         storageKey = this.getStorageKey(key);
-      } catch (keyError) {
-        logger.debug('Storage key generation failed during set, throwing error', { key, error: keyError });
-        throw new Error(`Failed to generate storage key: ${keyError}`);
+      } catch (keyError: any) {
+        logger.error('Storage key generation failed', {
+          component: 'cache',
+          subcomponent: 'AsyncIndexDBCacheMap',
+          operation: 'set',
+          key: JSON.stringify(key),
+          errorType: keyError?.constructor?.name,
+          errorMessage: keyError?.message,
+          suggestion: 'Check key structure and normalization logic'
+        });
+        throw new Error(
+          `Failed to generate storage key for IndexedDB: ${keyError?.message || keyError}. ` +
+          `Key: ${JSON.stringify(key)}. ` +
+          `This indicates a key normalization issue.`
+        );
       }
 
       const storedItem: StoredItem<V> = {
@@ -241,9 +253,28 @@ export class AsyncIndexDBCacheMap<
           reject(requestError);
         }
       });
-    } catch (error) {
-      logger.error('Error in IndexedDB set operation', { key, value, error });
-      throw new Error(`Failed to store item in IndexedDB: ${error}`);
+    } catch (error: any) {
+      const isQuotaError = error?.name === 'QuotaExceededError' ||
+                          error?.message?.includes('quota');
+      
+      logger.error('Error in IndexedDB set operation', {
+        component: 'cache',
+        subcomponent: 'AsyncIndexDBCacheMap',
+        operation: 'set',
+        key: JSON.stringify(key),
+        errorType: error?.name,
+        errorMessage: error?.message,
+        isQuotaError,
+        suggestion: isQuotaError
+          ? 'IndexedDB quota exceeded. Clear old data, reduce cache size, or request more storage quota.'
+          : 'Check IndexedDB support, permissions, and data serializability.'
+      });
+      
+      const errorMsg = isQuotaError
+        ? 'IndexedDB quota exceeded. Try clearing old cache data or reducing cache size.'
+        : `Failed to store item in IndexedDB: ${error?.message || error}`;
+      
+      throw new Error(errorMsg);
     }
   }
 

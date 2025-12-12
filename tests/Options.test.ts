@@ -277,7 +277,7 @@ describe('Options', () => {
         cacheType: 'invalid' as CacheType
       });
 
-      expect(() => createCacheMap(testKta, options)).toThrow('Unsupported cache type: invalid');
+      expect(() => createCacheMap(testKta, options)).toThrow(/Unsupported cache type.*invalid/);
     });
 
     it('should throw error for custom cache without factory', () => {
@@ -403,8 +403,8 @@ describe('Options', () => {
       // Mock browser environment
       global.window = {} as any;
 
-      expect(() => createOptions<TestItem, 'test'>({ cacheType: 'localStorage' })).toThrow('localStorage is not available in non-browser environments');
-      expect(() => createOptions<TestItem, 'test'>({ cacheType: 'sessionStorage' })).toThrow('sessionStorage is not available in non-browser environments');
+      expect(() => createOptions<TestItem, 'test'>({ cacheType: 'localStorage' })).toThrow(/localStorage is not available in non-browser/);
+      expect(() => createOptions<TestItem, 'test'>({ cacheType: 'sessionStorage' })).toThrow(/sessionStorage is not available in non-browser/);
     });
 
     it('should validate IndexedDB availability', () => {
@@ -412,7 +412,7 @@ describe('Options', () => {
       global.window = {} as any;
       delete (global as any).indexedDB;
 
-      expect(() => createOptions<TestItem, 'test'>({ cacheType: 'indexedDB' })).toThrow('indexedDB is not available in this environment');
+      expect(() => createOptions<TestItem, 'test'>({ cacheType: 'indexedDB' })).toThrow(/IndexedDB is not available/);
     });
 
     it('should pass validation in node environment for memory cache', () => {

@@ -143,10 +143,29 @@ export class SessionStorageCacheMap<
       };
       const jsonString = safeStringify(toStore);
       sessionStorage.setItem(storageKey, jsonString);
-    } catch (error) {
-      logger.error('Error storing to sessionStorage', { errorMessage: (error as Error)?.message });
-      // Handle quota exceeded or other sessionStorage errors
-      throw new Error(`Failed to store item in sessionStorage: ${error}`);
+    } catch (error: any) {
+      const isQuotaError = error?.name === 'QuotaExceededError' ||
+                          error?.message?.includes('quota') ||
+                          error?.code === 22;
+      
+      logger.error('Error storing to sessionStorage', {
+        component: 'cache',
+        subcomponent: 'SessionStorageCacheMap',
+        operation: 'set',
+        key: JSON.stringify(key),
+        errorType: error?.name,
+        errorMessage: error?.message,
+        isQuotaError,
+        suggestion: isQuotaError
+          ? 'SessionStorage quota exceeded. Clear old data, reduce cache size, or use IndexedDB instead.'
+          : 'Check browser sessionStorage support and data serializability.'
+      });
+      
+      const errorMsg = isQuotaError
+        ? 'SessionStorage quota exceeded. Try clearing old cache data or reducing cache size.'
+        : `Failed to store item in sessionStorage: ${error?.message || error}`;
+      
+      throw new Error(errorMsg);
     }
   }
 

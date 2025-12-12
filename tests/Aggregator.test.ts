@@ -162,7 +162,7 @@ describe('Aggregator', () => {
     } as Item<"test">;
 
     await expect(aggregator.populate(itemWithMissingRef))
-      .rejects.toThrow('Item does not have mandatory ref with key, not optional other');
+      .rejects.toThrow(/Item missing required reference.*other/);
   });
 
   it('should handle optional references gracefully', async () => {
@@ -209,7 +209,7 @@ describe('Aggregator', () => {
 
     await expect(
       aggregator.populate(itemWithMissingOptionalRef)
-    ).rejects.toThrow('Item does not have mandatory ref with key, not optional other');
+    ).rejects.toThrow(/Item missing required reference.*other/);
   });
 
   it('should throw error for missing references entirely', async () => {
@@ -231,7 +231,7 @@ describe('Aggregator', () => {
 
     await expect(
       aggregator.populate(itemWithMissingOptionalRef)
-    ).rejects.toThrow('Item does not have refs an is not optional');
+    ).rejects.toThrow(/Item missing required refs property/);
   });
 
   it('should populate an item with events', async () => {
@@ -290,7 +290,7 @@ describe('Aggregator', () => {
 
     await expect(
       aggregator.populate(itemWithEvent)
-    ).rejects.toThrow('Item does not have mandatory event with key created');
+    ).rejects.toThrow(/Item missing required event.*created/);
   });
 
   it('should populate an item with events when the by key is missing', async () => {
@@ -320,7 +320,7 @@ describe('Aggregator', () => {
 
     await expect(
       aggregator.populate(itemWithEvent)
-    ).rejects.toThrow('populateEvent with an Event that does not have by');
+    ).rejects.toThrow(/Event.*missing required "by" field/);
   });
 
   it('should throw an error if a mandatory event is missing', async () => {
@@ -345,7 +345,7 @@ describe('Aggregator', () => {
 
     await expect(aggregator.populate(itemWithoutEvents))
       .rejects
-      .toThrow('Item does not have mandatory event with key created');
+      .toThrow(/Item missing required event.*created/);
   });
 
   it('should handle optional events gracefully', async () => {

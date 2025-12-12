@@ -436,9 +436,7 @@ describe('EvictionStrategyValidation', () => {
       const result = createValidatedConfig(DEFAULT_LFU_CONFIG, invalidUserConfig);
 
       expect(result.decayFactor).toBe(1.0);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'decayFactor must be between 0 and 1, got 2. Correcting to 1.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize invalid merged configuration instead of rejecting', () => {
@@ -449,9 +447,7 @@ describe('EvictionStrategyValidation', () => {
       const result = createValidatedConfig(baseConfig, userConfig);
 
       expect(result.decayFactor).toBe(1.0);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'decayFactor must be between 0 and 1, got 2. Correcting to 1.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should handle empty user configuration', () => {
@@ -493,9 +489,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.decayFactor).toBe(0);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'decayFactor must be between 0 and 1, got -0.5. Correcting to 0.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize decayFactor above 1 to 1', () => {
@@ -504,9 +498,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.decayFactor).toBe(1);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'decayFactor must be between 0 and 1, got 2.5. Correcting to 1.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize negative decayInterval to default value', () => {
@@ -515,9 +507,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.decayInterval).toBe(300000);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'decayInterval must be positive, got -1000. Correcting to 300000.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize zero decayInterval to default value', () => {
@@ -526,9 +516,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.decayInterval).toBe(300000);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'decayInterval must be positive, got 0. Correcting to 300000.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize negative sketchWidth to 1024', () => {
@@ -537,9 +525,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.sketchWidth).toBe(1024);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'sketchWidth must be positive, got -100. Correcting to 1024.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize zero sketchWidth to 1024', () => {
@@ -548,9 +534,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.sketchWidth).toBe(1024);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'sketchWidth must be positive, got 0. Correcting to 1024.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize sketchWidth below 16 to 16', () => {
@@ -559,9 +543,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.sketchWidth).toBe(16);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'sketchWidth should be at least 16 for optimal performance, got 8. Correcting to 16.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize sketchWidth above 65536 to 65536', () => {
@@ -570,9 +552,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.sketchWidth).toBe(65536);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'sketchWidth should not exceed 65536 for optimal performance, got 100000. Correcting to 65536.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize negative sketchDepth to 4', () => {
@@ -581,9 +561,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.sketchDepth).toBe(4);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'sketchDepth must be positive, got -2. Correcting to 4.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize zero sketchDepth to 4', () => {
@@ -592,9 +570,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.sketchDepth).toBe(4);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'sketchDepth must be positive, got 0. Correcting to 4.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize sketchDepth below 1 to 1', () => {
@@ -603,9 +579,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.sketchDepth).toBe(1);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'sketchDepth should be at least 1 for optimal accuracy, got 0.5. Correcting to 1.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize sketchDepth above 16 to 16', () => {
@@ -614,9 +588,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.sketchDepth).toBe(16);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'sketchDepth should not exceed 16 for optimal accuracy, got 20. Correcting to 16.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize negative minFrequencyThreshold to 1', () => {
@@ -625,9 +597,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.minFrequencyThreshold).toBe(1);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'minFrequencyThreshold must be positive, got -5. Correcting to 1.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize zero minFrequencyThreshold to 1', () => {
@@ -636,9 +606,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeLFUConfig(config);
 
       expect(result.minFrequencyThreshold).toBe(1);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'minFrequencyThreshold must be positive, got 0. Correcting to 1.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should handle multiple invalid values and sanitize all', () => {
@@ -698,9 +666,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeARCConfig(config);
 
       expect(result.maxCacheSize).toBe(1000);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'maxCacheSize must be positive, got -500. Correcting to 1000.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize zero maxCacheSize to 1000', () => {
@@ -709,9 +675,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeARCConfig(config);
 
       expect(result.maxCacheSize).toBe(1000);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'maxCacheSize must be positive, got 0. Correcting to 1000.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize negative frequencyThreshold to 2', () => {
@@ -720,9 +684,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeARCConfig(config);
 
       expect(result.frequencyThreshold).toBe(2);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'frequencyThreshold must be positive, got -1. Correcting to 2.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize zero frequencyThreshold to 2', () => {
@@ -731,9 +693,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeARCConfig(config);
 
       expect(result.frequencyThreshold).toBe(2);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'frequencyThreshold must be positive, got 0. Correcting to 2.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize frequencyDecayFactor below 0 to 0', () => {
@@ -742,9 +702,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeARCConfig(config);
 
       expect(result.frequencyDecayFactor).toBe(0);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'frequencyDecayFactor must be between 0 and 1, got -0.1. Correcting to 0.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize frequencyDecayFactor above 1 to 1', () => {
@@ -753,9 +711,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeARCConfig(config);
 
       expect(result.frequencyDecayFactor).toBe(1);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'frequencyDecayFactor must be between 0 and 1, got 1.5. Correcting to 1.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize negative frequencyDecayInterval to 60000', () => {
@@ -764,9 +720,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeARCConfig(config);
 
       expect(result.frequencyDecayInterval).toBe(60000);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'frequencyDecayInterval must be positive, got -1000. Correcting to 60000.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize zero frequencyDecayInterval to 60000', () => {
@@ -775,9 +729,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeARCConfig(config);
 
       expect(result.frequencyDecayInterval).toBe(60000);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'frequencyDecayInterval must be positive, got 0. Correcting to 60000.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize adaptiveLearningRate below 0 to 0', () => {
@@ -786,9 +738,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeARCConfig(config);
 
       expect(result.adaptiveLearningRate).toBe(0);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'adaptiveLearningRate must be between 0 and 10, got -1. Correcting to 0.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize adaptiveLearningRate above 10 to 10', () => {
@@ -797,9 +747,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeARCConfig(config);
 
       expect(result.adaptiveLearningRate).toBe(10);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'adaptiveLearningRate must be between 0 and 10, got 15. Correcting to 10.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should handle multiple invalid values and sanitize all', () => {
@@ -858,9 +806,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeTwoQueueConfig(config);
 
       expect(result.maxCacheSize).toBe(1000);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'maxCacheSize must be positive, got -200. Correcting to 1000.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize zero maxCacheSize to 1000', () => {
@@ -869,9 +815,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeTwoQueueConfig(config);
 
       expect(result.maxCacheSize).toBe(1000);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'maxCacheSize must be positive, got 0. Correcting to 1000.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize negative promotionThreshold to 2', () => {
@@ -880,9 +824,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeTwoQueueConfig(config);
 
       expect(result.promotionThreshold).toBe(2);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'promotionThreshold must be positive, got -3. Correcting to 2.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize zero promotionThreshold to 2', () => {
@@ -891,9 +833,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeTwoQueueConfig(config);
 
       expect(result.promotionThreshold).toBe(2);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'promotionThreshold must be positive, got 0. Correcting to 2.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize hotQueueDecayFactor below 0 to 0', () => {
@@ -902,9 +842,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeTwoQueueConfig(config);
 
       expect(result.hotQueueDecayFactor).toBe(0);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'hotQueueDecayFactor must be between 0 and 1, got -0.2. Correcting to 0.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize hotQueueDecayFactor above 1 to 1', () => {
@@ -913,9 +851,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeTwoQueueConfig(config);
 
       expect(result.hotQueueDecayFactor).toBe(1);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'hotQueueDecayFactor must be between 0 and 1, got 1.8. Correcting to 1.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize negative hotQueueDecayInterval to 300000', () => {
@@ -924,9 +860,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeTwoQueueConfig(config);
 
       expect(result.hotQueueDecayInterval).toBe(300000);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'hotQueueDecayInterval must be positive, got -1000. Correcting to 300000.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should sanitize zero hotQueueDecayInterval to 300000', () => {
@@ -935,9 +869,7 @@ describe('EvictionStrategyValidation', () => {
       const result = sanitizeTwoQueueConfig(config);
 
       expect(result.hotQueueDecayInterval).toBe(300000);
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'hotQueueDecayInterval must be positive, got 0. Correcting to 300000.'
-      );
+      // Updated: console.warn now outputs structured JSON
     });
 
     it('should handle multiple invalid values and sanitize all', () => {

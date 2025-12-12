@@ -11,6 +11,9 @@ import { TTLConfig } from './ttl/TTLConfig';
 
 import { validateSizeConfig } from './utils/CacheSize';
 import { EvictionStrategyConfigs } from './eviction/EvictionStrategyConfig';
+import LibLogger from './logger';
+
+const logger = LibLogger.get('Options');
 
 /**
  * Available cache types for the cache instance
@@ -295,13 +298,32 @@ export const createCacheMap = <
 
     case 'custom':
       if (!options.customCacheMapFactory) {
-        throw new Error('Custom cache map factory is required when cacheType is "custom"');
+        logger.error('Custom cache map factory missing', {
+          component: 'cache',
+          operation: 'createCacheMap',
+          cacheType: 'custom',
+          suggestion: 'Provide customCacheMapFactory function in cache options when using cacheType: "custom"'
+        });
+        throw new Error(
+          'Custom cache map factory is required when cacheType is "custom". ' +
+          'Provide customCacheMapFactory in cache options.'
+        );
       }
       underlyingCache = options.customCacheMapFactory(kta);
       break;
 
     default:
-      throw new Error(`Unsupported cache type: ${options.cacheType}`);
+      logger.error('Unsupported cache type', {
+        component: 'cache',
+        operation: 'createCacheMap',
+        cacheType: options.cacheType,
+        validTypes: ['memory', 'localStorage', 'sessionStorage', 'indexedDB', 'asyncIndexedDB', 'custom'],
+        suggestion: 'Use one of: memory, localStorage, sessionStorage, indexedDB, asyncIndexedDB, or custom'
+      });
+      throw new Error(
+        `Unsupported cache type: ${options.cacheType}. ` +
+        `Valid types: memory, localStorage, sessionStorage, indexedDB, asyncIndexedDB, custom.`
+      );
   }
 
   // Wrap with TwoLayerCacheMap if two-layer caching is enabled
@@ -409,23 +431,38 @@ export const validateOptions = <
 
   // Validate required properties
   if (options.cacheType === 'custom' && !options.customCacheMapFactory) {
-    throw new Error('customCacheMapFactory is required when cacheType is "custom"');
+    throw new Error(
+      'customCacheMapFactory is required when cacheType is "custom". ' +
+      'Provide a factory function that creates your custom CacheMap implementation.'
+    );
   }
 
   if (typeof options.maxRetries === 'number' && options.maxRetries < 0) {
-    throw new Error('maxRetries must be non-negative');
+    throw new Error(
+      `maxRetries must be non-negative, got ${options.maxRetries}. ` +
+      `Suggestion: Use 0 or positive integer for retry attempts.`
+    );
   }
 
   if (typeof options.retryDelay === 'number' && options.retryDelay < 0) {
-    throw new Error('retryDelay must be non-negative');
+    throw new Error(
+      `retryDelay must be non-negative, got ${options.retryDelay}ms. ` +
+      `Suggestion: Use 0 or positive number for delay in milliseconds.`
+    );
   }
 
   if (typeof options.ttl === 'number' && options.ttl <= 0) {
-    throw new Error('ttl must be positive');
+    throw new Error(
+      `ttl must be positive, got ${options.ttl}. ` +
+      `Suggestion: Use positive number for TTL in seconds, or 0 to disable TTL.`
+    );
   }
 
   if (typeof options.memoryConfig?.maxItems === 'number' && options.memoryConfig.maxItems <= 0) {
-    throw new Error('memoryConfig.maxItems must be positive');
+    throw new Error(
+      `memoryConfig.maxItems must be positive, got ${options.memoryConfig.maxItems}. ` +
+      `Suggestion: Use positive integer for maximum cache items.`
+    );
   }
 
   // Validate size configurations
@@ -551,19 +588,51 @@ export const validateOptions = <
       typeof window.document.createElement === 'function';
 
     if (!isRealBrowser) {
-      throw new Error(`${options.cacheType} is not available in non-browser environments`);
+      logger.error('Browser cache type used in non-browser environment', {
+        component: 'cache',
+        operation: 'validateOptions',
+        cacheType: options.cacheType,
+        environment: typeof window === 'undefined' ? 'node' : 'unknown',
+        suggestion: 'Use cacheType: "memory" for Node.js/server environments, or ensure code runs in browser'
+      });
+      throw new Error(
+        `${options.cacheType} is not available in non-browser environments. ` +
+        `Detected environment: ${typeof window === 'undefined' ? 'Node.js/server' : 'non-browser'}. ` +
+        `Suggestion: Use cacheType: "memory" for server-side caching.`
+      );
     }
   }
 
   // IndexedDB validation
   if (options.cacheType === 'indexedDB') {
     if (typeof window === 'undefined' || !window.indexedDB) {
-      throw new Error(`${options.cacheType} is not available in this environment`);
+      logger.error('IndexedDB not available', {
+        component: 'cache',
+        operation: 'validateOptions',
+        cacheType: 'indexedDB',
+        hasWindow: typeof window !== 'undefined',
+        hasIndexedDB: typeof window !== 'undefined' && !!window.indexedDB,
+        suggestion: 'Use memory cache for Node.js, or check browser IndexedDB support'
+      });
+      throw new Error(
+        `IndexedDB is not available in this environment. ` +
+        `Browser support required. ` +
+        `Suggestion: Use cacheType: "memory" for server-side or unsupported browsers.`
+      );
     }
   }
 
   // AsyncIndexedDB validation - should not be used with synchronous cache factory
   if (options.cacheType === 'asyncIndexedDB') {
-    throw new Error('asyncIndexedDB cannot be used with synchronous cache factory. Use AsyncIndexDBCacheMap directly for async operations.');
+    logger.error('AsyncIndexedDB cannot be used with sync factory', {
+      component: 'cache',
+      operation: 'validateOptions',
+      cacheType: 'asyncIndexedDB',
+      suggestion: 'Use AsyncIndexDBCacheMap directly for async operations, or use cacheType: "indexedDB" for sync wrapper'
+    });
+    throw new Error(
+      'asyncIndexedDB cannot be used with synchronous cache factory. ' +
+      'Use AsyncIndexDBCacheMap directly for async operations, or use cacheType: "indexedDB" for the sync wrapper.'
+    );
   }
 };
