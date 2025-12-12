@@ -1,14 +1,10 @@
 name: Run Tests
 
 on:
-  push:
-    branches:
-      - main
-      - working
-      - 'feature/**'
   pull_request:
     branches:
       - main
+      - working
 
 permissions:
   contents: read
