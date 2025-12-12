@@ -414,7 +414,21 @@ export class TTLManager {
    * Cleanup resources
    */
   public destroy(): void {
+    logger.debug('TTL manager destroy started', {
+      component: 'cache',
+      subcomponent: 'TTLManager',
+      operation: 'destroy',
+      autoCleanupEnabled: !!this.config.cleanupInterval,
+      note: 'Stopping auto-cleanup and clearing TTL data'
+    });
+    
     this.stopAutoCleanup();
-    logger.debug('TTL manager destroyed');
+    
+    logger.debug('TTL manager destroyed', {
+      component: 'cache',
+      subcomponent: 'TTLManager',
+      operation: 'destroy',
+      note: 'All TTL tracking data cleared'
+    });
   }
 }

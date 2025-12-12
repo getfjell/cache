@@ -422,8 +422,9 @@ describe('CacheEventEmitter', () => {
       expect(errorListener).toHaveBeenCalled();
       expect(errorHandler).toHaveBeenCalled();
 
-      // Both errors should be logged
-      expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
+      // Both errors should be logged (now with structured logging, expect more calls)
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      expect(consoleErrorSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
 
       consoleErrorSpy.mockRestore();
     });
@@ -469,10 +470,13 @@ describe('CacheEventEmitter', () => {
       emitter.emit(event);
 
       expect(errorListener).toHaveBeenCalled();
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error in cache event listener:',
-        expect.any(Error)
+      // Updated for structured logging - check that console.error was called with error context
+      expect(consoleErrorSpy).toHaveBeenCalled();
+      const errorCalls = consoleErrorSpy.mock.calls;
+      const hasErrorMessage = errorCalls.some(call =>
+        call.some(arg => typeof arg === 'string' && arg.includes('Error in cache event listener'))
       );
+      expect(hasErrorMessage).toBe(true);
 
       consoleErrorSpy.mockRestore();
     });

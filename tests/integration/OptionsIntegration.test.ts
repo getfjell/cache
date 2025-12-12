@@ -13,7 +13,12 @@ vi.mock('@fjell/client-api');
 vi.mock('../../src/logger', () => ({
   default: {
     get: () => ({
-      debug: vi.fn()
+      debug: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      trace: vi.fn(),
+      default: vi.fn()
     })
   }
 }));

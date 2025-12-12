@@ -1,3 +1,7 @@
+import LibLogger from './logger';
+
+const logger = LibLogger.get('CacheStats');
+
 /**
  * Cache statistics tracking interface
  */
@@ -28,12 +32,23 @@ export class CacheStatsManager {
     numUnsubscriptions: 0,
     activeSubscriptions: 0
   };
+  
+  private lastLoggedStats: CacheStats = {
+    numRequests: 0,
+    numMisses: 0,
+    numHits: 0,
+    numSubscriptions: 0,
+    numUnsubscriptions: 0,
+    activeSubscriptions: 0
+  };
+  private readonly LOG_THRESHOLD = 100; // Log every 100 requests
 
   /**
    * Increment the request counter
    */
   incrementRequests(): void {
     this.stats.numRequests++;
+    this.maybeLogStats();
   }
 
   /**
@@ -48,6 +63,33 @@ export class CacheStatsManager {
    */
   incrementMisses(): void {
     this.stats.numMisses++;
+  }
+  
+  /**
+   * Log statistics periodically for monitoring
+   */
+  private maybeLogStats(): void {
+    const requestsSinceLastLog = this.stats.numRequests - this.lastLoggedStats.numRequests;
+    
+    if (requestsSinceLastLog >= this.LOG_THRESHOLD) {
+      const hitRate = this.stats.numRequests > 0
+        ? ((this.stats.numHits / this.stats.numRequests) * 100).toFixed(2)
+        : '0.00';
+      
+      logger.debug('Cache statistics update', {
+        component: 'cache',
+        subcomponent: 'CacheStatsManager',
+        totalRequests: this.stats.numRequests,
+        hits: this.stats.numHits,
+        misses: this.stats.numMisses,
+        hitRate: `${hitRate}%`,
+        activeSubscriptions: this.stats.activeSubscriptions,
+        requestsSinceLastLog,
+        note: `Statistics logged every ${this.LOG_THRESHOLD} requests for monitoring`
+      });
+      
+      this.lastLoggedStats = { ...this.stats };
+    }
   }
 
   /**
