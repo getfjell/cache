@@ -140,7 +140,22 @@ export const createQueryHash = <
 
   const hash = deterministicStringify(hashInput);
   if (!hash || typeof hash !== 'string' || hash.trim() === '') {
-    throw new Error(`Invalid query hash generated: hash is empty or invalid. Input: ${JSON.stringify({ pkType, query, locations })}`);
+    const errorContext = {
+      component: 'cache',
+      subcomponent: 'normalization',
+      operation: 'createQueryHash',
+      pkType,
+      query: JSON.stringify(query),
+      locations: JSON.stringify(locations),
+      hashResult: hash,
+      suggestion: 'This indicates a bug in query normalization. Check query and location structures.'
+    };
+    console.error('Invalid query hash generated:', JSON.stringify(errorContext, null, 2));
+    throw new Error(
+      `Invalid query hash generated: hash is empty or invalid. ` +
+      `Input: ${JSON.stringify({ pkType, query, locations })}. ` +
+      `This indicates a bug in query normalization logic.`
+    );
   }
   return hash;
 };

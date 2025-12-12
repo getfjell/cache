@@ -6,6 +6,9 @@ import {
   CacheSubscriptionOptions
 } from "./CacheEventTypes";
 import { normalizeKeyValue } from "../normalization";
+import LibLogger from "../logger";
+
+const logger = LibLogger.get('CacheEventEmitter');
 
 /**
  * Internal subscription data
@@ -169,10 +172,19 @@ export class CacheEventEmitter<
    */
   public emit(event: AnyCacheEvent<V, S, L1, L2, L3, L4, L5>): void {
     if (this.isDestroyed) {
+      logger.debug('Event emission skipped - emitter is destroyed', {
+        component: 'cache',
+        subcomponent: 'CacheEventEmitter',
+        eventType: event.type,
+        suggestion: 'This is expected during cleanup. Ensure emitter is not used after destroy().'
+      });
       return;
     }
 
     let emittedCount = 0;
+    const totalSubscriptions = this.subscriptions.size;
+    const activeSubscriptions = Array.from(this.subscriptions.values()).filter(s => s.isActive).length;
+    
     for (const subscription of this.subscriptions.values()) {
       if (!subscription.isActive) {
         continue;
@@ -183,6 +195,18 @@ export class CacheEventEmitter<
         emittedCount++;
       }
     }
+    
+    logger.trace('Event emitted to subscriptions', {
+      component: 'cache',
+      subcomponent: 'CacheEventEmitter',
+      eventType: event.type,
+      eventSource: event.source,
+      eventKey: 'key' in event ? JSON.stringify(event.key) : undefined,
+      totalSubscriptions,
+      activeSubscriptions,
+      emittedCount,
+      note: emittedCount === 0 ? 'No subscriptions matched this event' : undefined
+    });
   }
 
   /**
@@ -461,16 +485,32 @@ export class CacheEventEmitter<
   ): void {
     const errorObj = error instanceof Error ? error : new Error(String(error));
 
+    const errorContext = {
+      component: 'CacheEventEmitter',
+      operation: 'event-listener',
+      eventType: event.type,
+      eventKey: 'key' in event ? JSON.stringify(event.key) : undefined,
+      subscriptionId: subscription.id,
+      errorType: errorObj.constructor.name,
+      errorMessage: errorObj.message,
+      suggestion: 'Review event listener implementation for errors. Consider adding error handling in the listener.',
+      stack: errorObj.stack
+    };
+
     if (subscription.options.onError) {
       try {
         subscription.options.onError(errorObj, event);
-      } catch (handlerError) {
+      } catch (handlerError: any) {
         // If the error handler itself throws, log both errors
-        console.error('Error in cache event listener:', errorObj);
+        console.error('Error in cache event listener:', JSON.stringify(errorContext, null, 2));
+        console.error('Original error:', errorObj);
         console.error('Error in error handler:', handlerError);
+        console.error('Critical: Both the event listener and its error handler failed. Review error handling logic.');
       }
     } else {
-      console.error('Error in cache event listener:', errorObj);
+      console.error('Error in cache event listener (no error handler configured):', JSON.stringify(errorContext, null, 2));
+      console.error('Original error:', errorObj);
+      console.error('Suggestion: Add an onError handler to your subscription to handle listener errors gracefully.');
     }
   }
 }

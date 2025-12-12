@@ -99,10 +99,27 @@ async function executeAllLogic<
 
     try {
       const ret = await api.all(query, locations, allOptions);
-      logger.debug('API response received (not cached due to bypass)', { query, locations, itemCount: ret.items.length });
+      logger.debug('API response received (not cached due to bypass)', {
+        operation: 'all',
+        mode: 'bypass',
+        query,
+        locations,
+        itemCount: ret.items.length,
+        metadata: ret.metadata
+      });
       return ret;
-    } catch (error) {
-      logger.error('API request failed', { query, locations, error });
+    } catch (error: any) {
+      logger.error('API request failed in bypass mode', {
+        operation: 'all',
+        mode: 'bypass',
+        query,
+        locations,
+        errorType: error.constructor?.name || typeof error,
+        errorMessage: error.message,
+        errorCode: error.code || error.errorInfo?.code,
+        suggestion: 'Verify API endpoint is accessible, query syntax is correct, and locations are valid',
+        error
+      });
       throw error;
     }
   }
@@ -205,10 +222,17 @@ async function executeAllLogic<
       } else {
         logger.debug('QUERY_CACHE: Direct cache query returned no items', { queryHash });
       }
-    } catch (error) {
+    } catch (error: any) {
       logger.debug('QUERY_CACHE: Error querying cache directly, proceeding to API', {
+        operation: 'all',
+        phase: 'cache-query',
         queryHash,
-        error: error instanceof Error ? error.message : String(error)
+        query: JSON.stringify(query),
+        locations: JSON.stringify(locations),
+        errorType: error.constructor?.name || typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        cacheType: cacheMap.implementationType,
+        note: 'This is expected behavior - falling back to API when cache query fails'
       });
     }
   } else {
@@ -308,9 +332,19 @@ async function executeAllLogic<
       await cacheMap.setQueryResult(queryHash, []);
       logger.debug('QUERY_CACHE: Cached empty query result for not found', { queryHash });
     } else {
-      logger.debug('QUERY_CACHE: API error occurred', {
+      logger.error('QUERY_CACHE: API error occurred during all() operation', {
+        operation: 'all',
+        phase: 'api-fetch',
         queryHash,
-        error: e instanceof Error ? e.message : String(e)
+        query: JSON.stringify(query),
+        locations: JSON.stringify(locations),
+        errorType: e instanceof Error ? e.constructor.name : typeof e,
+        errorMessage: e instanceof Error ? e.message : String(e),
+        errorCode: (e as any).code || (e as any).errorInfo?.code,
+        cacheType: cacheMap.implementationType,
+        inFlightRequestsCount: inFlightRequests.size,
+        suggestion: 'Check API connectivity, query syntax, location keys, and network connectivity',
+        error: e
       });
       throw e;
     }

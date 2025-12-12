@@ -102,8 +102,15 @@ async function executeGetLogic<
   statsManager.incrementRequests();
 
   if (!isValidItemKey(key)) {
-    logger.error('CACHE_OP: Invalid key for get', { key: keyStr });
-    throw new Error('Key for Get is not a valid ItemKey');
+    logger.error('CACHE_OP: Invalid key for get operation', {
+      key: keyStr,
+      keyType: typeof key,
+      reason: 'Key validation failed - must be a valid PriKey or ComKey',
+      suggestion: 'Ensure the key has the correct structure: PriKey { kt, pk } or ComKey { kt, sk, lk }',
+      itemType: pkType,
+      coordinate: JSON.stringify(context.coordinate)
+    });
+    throw new Error(`Invalid key for get operation: ${keyStr}. Expected valid PriKey or ComKey structure.`);
   }
 
   // Check if cache bypass is enabled
@@ -131,10 +138,17 @@ async function executeGetLogic<
         });
         return null;
       }
-    } catch (error) {
+    } catch (error: any) {
       logger.error('CACHE_OP: API request failed in bypass mode', {
+        operation: 'get',
+        mode: 'bypass',
         key: keyStr,
+        itemType: pkType,
         duration: Date.now() - startTime,
+        errorType: error.constructor?.name || typeof error,
+        errorMessage: error.message,
+        errorCode: error.code || error.errorInfo?.code,
+        suggestion: 'Verify API endpoint is accessible and key exists. Cache bypass mode does not retry.',
         error
       });
       throw error;
@@ -342,10 +356,19 @@ async function executeGetLogic<
     // Ensure we clean up the in-flight request on error
     inFlightRequests.delete(requestKeyStr);
     const duration = Date.now() - startTime;
-    logger.error("CACHE_OP: Error in get() operation", {
+    logger.error("CACHE_OP: get() operation failed", {
+      operation: 'get',
       key: keyStr,
+      itemType: pkType,
       duration,
-      message: e.message,
+      errorType: e.constructor?.name || typeof e,
+      errorMessage: e.message,
+      errorCode: e.code || e.errorInfo?.code,
+      cacheType: cacheMap.implementationType,
+      ttlEnabled: ttlManager.isTTLEnabled(),
+      bypassMode: context.options?.bypassCache || false,
+      inFlightRequestsCount: inFlightRequests.size,
+      suggestion: 'Check API connectivity, key validity, and cache configuration',
       stack: e.stack
     });
     throw e;

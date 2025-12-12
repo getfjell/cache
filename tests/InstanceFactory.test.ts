@@ -11,7 +11,12 @@ vi.mock('@fjell/client-api');
 vi.mock('../src/logger', () => ({
   default: {
     get: () => ({
-      debug: vi.fn()
+      debug: vi.fn(),
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      trace: vi.fn(),
+      default: vi.fn()
     })
   }
 }));
@@ -260,7 +265,7 @@ describe('InstanceFactory Integration Tests', () => {
       };
 
       expect(() => createInstanceFactory(mockApi, options))
-        .toThrow('localStorage is not available in non-browser environments');
+        .toThrow(/localStorage is not available in non-browser/);
     });
 
     it('should throw error for sessionStorage in non-browser environment', () => {
@@ -271,7 +276,7 @@ describe('InstanceFactory Integration Tests', () => {
       };
 
       expect(() => createInstanceFactory(mockApi, options))
-        .toThrow('sessionStorage is not available in non-browser environments');
+        .toThrow(/sessionStorage is not available in non-browser/);
     });
 
     it('should throw error for IndexedDB when not available', () => {
@@ -283,7 +288,7 @@ describe('InstanceFactory Integration Tests', () => {
       };
 
       expect(() => createInstanceFactory(mockApi, options))
-        .toThrow('indexedDB is not available in this environment');
+        .toThrow(/IndexedDB is not available/);
     });
   });
 

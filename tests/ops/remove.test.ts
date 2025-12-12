@@ -129,7 +129,7 @@ describe('remove operation', () => {
     it('should throw error for null pk', async () => {
       const invalidKey = { kt: 'test', pk: null } as any;
 
-      await expect(remove(invalidKey, context)).rejects.toThrow('Key for Remove is not a valid ItemKey');
+      await expect(remove(invalidKey, context)).rejects.toThrow(/Invalid key for remove operation/);
 
       expect(mockApi.remove).not.toHaveBeenCalled();
       expect(mockCacheMap.delete).not.toHaveBeenCalled();
@@ -138,7 +138,7 @@ describe('remove operation', () => {
     it('should throw error for empty string pk', async () => {
       const invalidKey = { kt: 'test', pk: '' } as any;
 
-      await expect(remove(invalidKey, context)).rejects.toThrow('Key for Remove is not a valid ItemKey');
+      await expect(remove(invalidKey, context)).rejects.toThrow(/Invalid key for remove operation/);
 
       expect(mockApi.remove).not.toHaveBeenCalled();
       expect(mockCacheMap.delete).not.toHaveBeenCalled();

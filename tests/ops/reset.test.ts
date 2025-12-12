@@ -258,7 +258,7 @@ describe("reset operation", () => {
       };
 
       await expect(reset<TestItem, "test">(coordinate, unsupportedOptions))
-        .rejects.toThrow("Unsupported cache type: unsupported");
+        .rejects.toThrow(/Unsupported cache type.*unsupported/);
     });
   });
 
