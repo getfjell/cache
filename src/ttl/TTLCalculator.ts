@@ -8,6 +8,9 @@
  */
 
 import { TTLConfig } from './TTLConfig.js';
+import LibLogger from '../logger';
+
+const logger = LibLogger.get('TTLCalculator');
 
 export interface TTLCalculationContext {
   /** Item type for item-level TTL calculation */
@@ -93,8 +96,17 @@ export class TTLCalculator {
       return this.calculateQueryTTL(context.queryType, context.isComplete, context);
     }
 
+    logger.error('Invalid TTL calculation context', {
+      component: 'cache',
+      subcomponent: 'TTLCalculator',
+      operation: 'calculate',
+      context,
+      suggestion: 'Provide either itemType for item TTL or (queryType + isComplete) for query TTL'
+    });
     throw new Error(
-      'Context must specify either itemType or (queryType + isComplete)'
+      'Invalid TTL calculation context: must specify either itemType or (queryType + isComplete). ' +
+      `Provided context: ${JSON.stringify(context)}. ` +
+      `Suggestion: Check TTL calculation call site and ensure proper context is passed.`
     );
   }
 

@@ -51,17 +51,35 @@ async function executeRemoveLogic<
 ): Promise<void> {
   const { api, cacheMap } = context;
 
+  const keyStr = JSON.stringify(key);
+
   if (!isValidItemKey(key)) {
-    logger.error('Key for Remove is not a valid ItemKey: %j', key);
-    throw new Error('Key for Remove is not a valid ItemKey');
+    logger.error('CACHE_OP: Invalid key for remove operation', {
+      operation: 'remove',
+      key: keyStr,
+      keyType: typeof key,
+      reason: 'Key validation failed - must be a valid PriKey or ComKey',
+      suggestion: 'Ensure the key has the correct structure: PriKey { kt, pk } or ComKey { kt, sk, lk }'
+    });
+    throw new Error(`Invalid key for remove operation: ${keyStr}. Expected valid PriKey or ComKey structure.`);
   }
 
+  const startTime = Date.now();
+
   try {
+    logger.debug('CACHE_OP: remove() started', {
+      operation: 'remove',
+      key: keyStr,
+      cacheType: cacheMap.implementationType
+    });
+
     // Get item before removal for event
     const previousItem = await cacheMap.get(key);
 
     // First remove from API, then from cache to maintain consistency
     await api.remove(key);
+    const apiDuration = Date.now() - startTime;
+    
     cacheMap.delete(key);
 
     // Clear query results since this item might have been in cached queries
@@ -80,9 +98,27 @@ async function executeRemoveLogic<
     );
     context.eventEmitter.emit(queryInvalidatedEvent);
 
-    logger.debug('Successfully removed item from API and cache', { key });
-  } catch (e) {
-    logger.error("Error deleting item", { error: e });
+    const totalDuration = Date.now() - startTime;
+    logger.debug('CACHE_OP: remove() completed successfully', {
+      operation: 'remove',
+      key: keyStr,
+      hadCachedItem: !!previousItem,
+      apiDuration,
+      totalDuration
+    });
+  } catch (e: any) {
+    const duration = Date.now() - startTime;
+    logger.error('CACHE_OP: remove() operation failed', {
+      operation: 'remove',
+      key: keyStr,
+      duration,
+      errorType: e.constructor?.name || typeof e,
+      errorMessage: e.message,
+      errorCode: e.code || e.errorInfo?.code,
+      cacheType: cacheMap.implementationType,
+      suggestion: 'Check item exists, delete permissions, referential integrity constraints, and API connectivity',
+      stack: e.stack
+    });
     throw e;
   }
 }

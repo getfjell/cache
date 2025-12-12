@@ -51,11 +51,17 @@ export const createInstanceFactory = <
     const instanceOptions = createOptions(options);
 
     logger.debug("Creating cache instance", {
-      coordinate,
-      registry: context.registry,
-      api,
+      component: 'cache',
+      operation: 'createInstance',
+      itemType: coordinate.kta[0],
+      hierarchy: coordinate.kta,
       cacheType: instanceOptions.cacheType,
-      options: instanceOptions
+      ttlEnabled: !!instanceOptions.ttl,
+      ttlValue: instanceOptions.ttl,
+      evictionEnabled: !!instanceOptions.evictionConfig,
+      evictionStrategy: instanceOptions.evictionConfig?.type,
+      twoLayerEnabled: !!instanceOptions.twoLayer,
+      note: 'Cache instance initialization started'
     });
 
     // Create the appropriate cache map based on options
