@@ -565,7 +565,16 @@ export class TwoLayerOperations<
       return this.ttlCalculator.explainTTLCalculation({ queryType, isComplete });
     }
     
-    throw new Error('Must provide either itemType or (queryType + isComplete)');
+    logger.error('Invalid TTL explanation request', {
+      component: 'cache',
+      operation: 'explainTTL',
+      providedParams: { itemType, queryType, isComplete },
+      suggestion: 'Provide either itemType for item TTL or (queryType + isComplete) for query TTL'
+    });
+    throw new Error(
+      'Invalid TTL explanation request: must provide either itemType or (queryType + isComplete). ' +
+      `Provided: ${JSON.stringify({ itemType, queryType, isComplete })}`
+    );
   }
 
   /**
@@ -632,7 +641,16 @@ export class TwoLayerOperations<
   private buildItemKey(item: V | ComKey<S, L1, L2, L3, L4, L5> | PriKey<S>): string {
     // Handle null/undefined cases
     if (!item) {
-      throw new Error('Cannot build key for null/undefined item');
+      logger.error('Cannot build key for null/undefined item', {
+        component: 'cache',
+        operation: 'buildItemKey',
+        item,
+        suggestion: 'Ensure item is not null/undefined before calling buildItemKey'
+      });
+      throw new Error(
+        'Cannot build key for null/undefined item. ' +
+        'This indicates a bug in the cache operation logic.'
+      );
     }
 
     // Handle different key formats
