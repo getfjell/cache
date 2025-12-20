@@ -1,5 +1,5 @@
 // Normalization utilities for cache keys
-import { ItemQuery, LocKeyArray } from "@fjell/core";
+import { ItemQuery, LocKeyArray } from "@fjell/types";
 
 // Normalize a key value to string for consistent comparison and hashing
 export const normalizeKeyValue = (value: string | number): string => {

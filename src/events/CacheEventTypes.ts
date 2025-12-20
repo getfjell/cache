@@ -1,4 +1,4 @@
-import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/core";
+import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/types";
 
 /**
  * Types of events that can be emitted by the cache system

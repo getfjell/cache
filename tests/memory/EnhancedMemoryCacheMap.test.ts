@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EnhancedMemoryCacheMap } from '../../src/memory/EnhancedMemoryCacheMap';
 import { CacheSizeConfig } from '../../src/Options';
-import { ComKey, IQFactory, Item, ItemQuery, PriKey, UUID } from '@fjell/core';
+import { ComKey, Item, ItemQuery, PriKey, UUID } from '@fjell/types';
+import { IQFactory } from '@fjell/core';
 
 // Mock item types for testing
 interface TestItem extends Item<'test'> {

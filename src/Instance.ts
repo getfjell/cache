@@ -1,10 +1,9 @@
 
 import LibLogger from "./logger";
-import { Item } from "@fjell/core";
+import { Coordinate, Item } from "@fjell/types";
 import { Registry } from "@fjell/registry";
 import { ClientApi } from "@fjell/client-api";
 import { Cache, createCache } from "./Cache";
-import { Coordinate } from "@fjell/core";
 
 const logger = LibLogger.get("Instance");
 

@@ -5,7 +5,7 @@ import { createCache } from '../../src/Cache';
 import { createInstance } from '../../src/Instance';
 import { Options } from '../../src/Options';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
-import { Item } from '@fjell/core';
+import { Item } from '@fjell/types';
 import { ClientApi } from '@fjell/client-api';
 
 // Mock the dependencies

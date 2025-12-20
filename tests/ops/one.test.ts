@@ -3,10 +3,10 @@ import { one } from '../../src/ops/one';
 import { CacheContext } from '../../src/CacheContext';
 import { CacheMap } from '../../src/CacheMap';
 import { ClientApi } from '@fjell/client-api';
-import { ComKey, IQFactory, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/core';
+import { ComKey, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/types';
+import { createCoordinate, IQFactory } from '@fjell/core';
 import { NotFoundError } from '@fjell/http-api';
 import { createQueryHash } from '../../src/normalization';
-import { createCoordinate } from '@fjell/core';
 
 describe('one operation', () => {
   // Test data types

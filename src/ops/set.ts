@@ -1,9 +1,11 @@
 import {
   ComKey,
-  isItemKeyEqual,
-  isValidItemKey,
   Item,
   PriKey
+} from "@fjell/types";
+import {
+  isItemKeyEqual,
+  isValidItemKey,
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
@@ -101,15 +103,23 @@ export const set = async <
   v: Item<S, L1, L2, L3, L4, L5>,
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[CacheContext<V, S, L1, L2, L3, L4, L5>, V]> => {
+  if (key === null) {
+    throw new Error('Key cannot be null');
+  }
+
+  if (typeof key === 'undefined') {
+    throw new Error('Key for Set is not a valid ItemKey');
+  }
+
   const startTime = Date.now();
   const { cacheMap, pkType, ttlManager, evictionManager, eventEmitter } = context;
   const keyStr = JSON.stringify(key);
   
+  if (v === null || typeof v === 'undefined') {
+    throw new Error('Item cannot be null');
+  }
+
   logger.default('set', { key, v });
-  logger.debug('CACHE_OP: set() started', {
-    key: keyStr,
-    cacheType: cacheMap.implementationType
-  });
 
   if (!isValidItemKey(key)) {
     logger.error('CACHE_OP: Invalid key for set', { key: keyStr });

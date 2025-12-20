@@ -1,9 +1,11 @@
 import {
   ComKey,
-  createUpdateWrapper,
-  isValidItemKey,
   Item,
   PriKey
+} from "@fjell/types";
+import {
+  createUpdateWrapper,
+  isValidItemKey,
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
@@ -53,6 +55,10 @@ async function executeUpdateLogic<
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<V> {
   const { api, cacheMap, pkType } = context;
+
+  if (key === null) {
+    throw new Error('Key cannot be null');
+  }
 
   if (!isValidItemKey(key)) {
     logger.error('CACHE_OP: Invalid key for update operation', {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LocalStorageCacheMap } from '../../src/browser/LocalStorageCacheMap';
-import { ComKey, Evented, ManagedEvents, PriKey } from '@fjell/core';
+import { ComKey, Evented, ManagedEvents, PriKey } from '@fjell/types';
 
 // Mock events for test items
 const createMockEvents = (): ManagedEvents & Evented => ({

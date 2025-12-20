@@ -1,7 +1,7 @@
 import { CacheMap } from '../../src/CacheMap';
 import { Cache, createCache } from '../../src/Cache';
 import { PItemApi } from '@fjell/client-api';
-import { AllOperationResult, Item, PriKey } from '@fjell/core';
+import { AllOperationResult, Item, PriKey } from '@fjell/types';
 import { createCoordinate } from '@fjell/core';
 import { createRegistry } from '@fjell/registry';
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';

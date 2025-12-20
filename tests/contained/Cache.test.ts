@@ -1,6 +1,6 @@
 import { Cache, createCache } from '../../src/Cache';
 import { CItemApi } from "@fjell/client-api";
-import { AllOperationResult, ComKey, Item, ItemQuery, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/core";
+import { AllOperationResult, ComKey, Item, ItemQuery, LocKey, LocKeyArray, PriKey, UUID } from "@fjell/types";
 import { createCoordinate } from "@fjell/core";
 import { createRegistry } from "@fjell/registry";
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';

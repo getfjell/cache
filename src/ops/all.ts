@@ -1,10 +1,12 @@
 import {
   AllOperationResult,
   AllOptions,
-  createAllWrapper,
   Item,
   ItemQuery,
   LocKeyArray
+} from "@fjell/types";
+import {
+  createAllWrapper,
 } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";

@@ -8,7 +8,7 @@
 import { createRegistry } from '../src/Registry';
 import { createCItemApi } from '@fjell/client-api';
 import { createInstanceFactory, Options } from '../src/index.js';
-import { Item } from '@fjell/core';
+import { Item } from "@fjell/types";
 
 // Define User interface
 interface User extends Item<'user'> {
