@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { facet } from '../../src/ops/facet';
-import { type ComKey, createCoordinate, type Item, type PriKey, type UUID } from '@fjell/core';
+import { type ComKey, type Item, type PriKey, type UUID } from '@fjell/types';
+import { createCoordinate } from '@fjell/core';
 import { CacheContext } from '../../src/CacheContext';
 
 // Define test types

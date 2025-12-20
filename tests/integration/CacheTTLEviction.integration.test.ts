@@ -3,7 +3,7 @@ import { Cache, createCache } from '../../src/Cache';
 import { createOptions } from '../../src/Options';
 import { ClientApi } from '@fjell/client-api';
 import { Coordinate, Registry } from '@fjell/registry';
-import { Item } from '@fjell/core';
+import { Item } from '@fjell/types';
 
 // Mock types for testing
 interface TestItem extends Item<'test', 'location'> {

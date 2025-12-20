@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AsyncIndexDBCacheMap } from '../../../src/browser/AsyncIndexDBCacheMap';
 import { TwoLayerCacheMap } from '../../../src/cache/layers/TwoLayerCacheMap';
-import { AllItemTypeArrays, ComKey, PriKey } from '@fjell/core';
+import { AllItemTypeArrays, ComKey, PriKey } from '@fjell/types';
 
 interface TestItem {
   key: PriKey<'test'>;

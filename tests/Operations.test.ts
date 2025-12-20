@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type AffectedKeys, createOperations, isComKey, isPriKey, type OperationParams, Operations, TwoLayerOperations } from '../src/Operations';
 import type { Operations as CoreOperations } from '@fjell/core';
-import { AllOperationResult, ComKey, createCoordinate, Item, PriKey } from '@fjell/core';
+import { AllOperationResult, ComKey, Item, PriKey } from '@fjell/types';
+import { createCoordinate } from '@fjell/core';
 import type { ClientApi } from '@fjell/client-api';
 import { CacheMap } from '../src/CacheMap';
 import { CacheEventEmitter } from '../src/events/CacheEventEmitter';

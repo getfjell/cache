@@ -2,24 +2,30 @@ import {
   AffectedKeys,
   AllOperationResult,
   AllOptions,
+  ComKey,
+  CreateOptions,
+  FindOperationResult,
+  FindOptions,
+  Item,
+  ItemQuery,
+  LocKeyArray,
+  OperationParams,
+  PriKey,
+} from "@fjell/types";
+import {
   Operations as CoreOperations,
   createAllFacetWrapper,
   createAllWrapper,
   createCreateWrapper,
   createGetWrapper,
   createOneWrapper,
-  CreateOptions,
   createRemoveWrapper,
   createUpdateWrapper,
-  FindOperationResult,
-  FindOptions,
   isComKey,
   isPriKey,
-  OperationParams
 } from "@fjell/core";
-import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/core";
 import { ClientApi } from "@fjell/client-api";
-import { Coordinate } from "@fjell/core";
+import { Coordinate } from "@fjell/types";
 import { Options } from "./Options";
 import { Registry } from "@fjell/registry";
 import LibLogger from "./logger";

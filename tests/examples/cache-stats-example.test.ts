@@ -4,7 +4,7 @@ import { createCache } from '../../src';
 import { createPItemApi } from '@fjell/client-api';
 import { createCoordinate } from '@fjell/core';
 import { createRegistry } from '@fjell/registry';
-import { Item, PriKey } from '@fjell/core';
+import { Item, PriKey } from '@fjell/types';
 
 // Mock the console.log to capture output
 const mockConsoleLog = vi.fn();

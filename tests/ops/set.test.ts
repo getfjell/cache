@@ -5,7 +5,8 @@ import { CacheMap } from '../../src/CacheMap';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
 import { CacheEventEmitter } from '../../src/events/CacheEventEmitter';
 import { ClientApi } from '@fjell/client-api';
-import { ComKey, createCoordinate, Item, PriKey, UUID } from '@fjell/core';
+import { ComKey, Item, PriKey, UUID } from '@fjell/types';
+import { createCoordinate } from '@fjell/core';
 
 describe('set operation', () => {
   // Test data types

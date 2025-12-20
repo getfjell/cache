@@ -1,4 +1,5 @@
-import { ComKey, isComKey, LocKeyArray, PriKey, toKeyTypeArray } from "@fjell/core";
+import { ComKey, LocKeyArray, PriKey } from "@fjell/types";
+import { isComKey, toKeyTypeArray } from "@fjell/core";
 import { Registry } from "@fjell/registry";
 import { Cache } from "../Cache";
 import LibLogger from "../logger";
@@ -54,7 +55,7 @@ export const invalidateCachesByKeysAndKeyTypes = async (
 
   for (const key of keys) {
     const keyTypes = isComKey(key)
-      ? [key.kt, ...key.loc.map(locKey => locKey.kt)]
+      ? [key.kt, ...(key as ComKey<any, any, any, any, any, any>).loc.map(locKey => locKey.kt)]
       : [key.kt];
 
     const keyTypesKey = keyTypes.join('|');

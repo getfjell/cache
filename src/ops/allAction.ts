@@ -1,9 +1,11 @@
 import {
   ComKey,
-  createAllActionWrapper,
   Item,
   LocKeyArray,
   PriKey
+} from "@fjell/types";
+import {
+  createAllActionWrapper,
 } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";

@@ -1,12 +1,14 @@
 import {
   AllItemTypeArrays,
   ComKey,
-  isComKey,
-  isQueryMatch,
   Item,
   ItemQuery,
   LocKeyArray,
   PriKey
+} from "@fjell/types";
+import {
+  isComKey,
+  isQueryMatch,
 } from "@fjell/core";
 import { CacheItemMetadata } from "../eviction/EvictionStrategy";
 import { createNormalizedHashFunction, isLocKeyArrayEqual, QueryCacheEntry } from "../normalization";
