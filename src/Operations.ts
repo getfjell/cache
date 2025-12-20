@@ -12,18 +12,8 @@ import {
   OperationParams,
   PriKey,
 } from "@fjell/types";
-import {
-  Operations as CoreOperations,
-  createAllFacetWrapper,
-  createAllWrapper,
-  createCreateWrapper,
-  createGetWrapper,
-  createOneWrapper,
-  createRemoveWrapper,
-  createUpdateWrapper,
-  isComKey,
-  isPriKey,
-} from "@fjell/core";
+import { Operations as CoreOperations } from "@fjell/types";
+import { createAllFacetWrapper, createAllWrapper, createCreateWrapper, createGetWrapper, createOneWrapper, createRemoveWrapper, createUpdateWrapper, isComKey, isPriKey } from "@fjell/core";
 import { ClientApi } from "@fjell/client-api";
 import { Coordinate } from "@fjell/types";
 import { Options } from "./Options";
