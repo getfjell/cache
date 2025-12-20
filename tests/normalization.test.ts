@@ -6,7 +6,7 @@ import {
   normalizeKeyValue,
   normalizeLocKeyItem
 } from '../src/normalization';
-import { ComKey, PriKey, UUID } from '@fjell/core';
+import { ComKey, PriKey, UUID } from '@fjell/types';
 
 describe('Normalization Utilities', () => {
   describe('normalizeKeyValue', () => {

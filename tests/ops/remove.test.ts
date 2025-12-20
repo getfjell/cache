@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { remove } from '../../src/ops/remove';
 import { CacheContext } from '../../src/CacheContext';
-import { ComKey, createCoordinate, Item, PriKey } from '@fjell/core';
+import { ComKey, Item, PriKey } from '@fjell/types';
+import { createCoordinate } from '@fjell/core';
 
 type TestItem = Item<'test'>;
 type TestPriKey = PriKey<'test'>;

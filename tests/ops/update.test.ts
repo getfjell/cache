@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { update } from '../../src/ops/update';
 import { CacheContext } from '../../src/CacheContext';
-import { ComKey, createCoordinate, Item, PriKey, UUID } from '@fjell/core';
+import { ComKey, Item, PriKey, UUID } from '@fjell/types';
+import { createCoordinate } from '@fjell/core';
 import { ClientApi } from '@fjell/client-api';
 import { CacheMap } from '../../src/CacheMap';
 

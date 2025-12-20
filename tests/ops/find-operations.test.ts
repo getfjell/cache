@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { find } from '../../src/ops/find';
 import { findOne } from '../../src/ops/findOne';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
-import { AllOperationResult, ComKey, FindOperationResult, Item, PriKey, UUID } from '@fjell/core';
+import { AllOperationResult, ComKey, FindOperationResult, Item, PriKey, UUID } from '@fjell/types';
 import { CacheContext, createCacheContext } from '../../src/CacheContext';
 import { Options } from '../../src/Options';
 import { createFinderHash } from '../../src/normalization';

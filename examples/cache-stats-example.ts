@@ -2,7 +2,7 @@ import { createCache } from '../src';
 import { createPItemApi } from '@fjell/client-api';
 import { createCoordinate } from '@fjell/core';
 import { createRegistry } from '@fjell/registry';
-import { Item, PriKey } from '@fjell/core';
+import { Item, PriKey } from "@fjell/types";
 
 // Define a simple widget type for demonstration
 interface Widget extends Item<'widget'> {

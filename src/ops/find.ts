@@ -1,9 +1,11 @@
 import {
-  createFindWrapper,
   FindOperationResult,
   FindOptions,
   Item,
   LocKeyArray
+} from "@fjell/types";
+import {
+  createFindWrapper,
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";

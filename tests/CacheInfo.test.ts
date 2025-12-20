@@ -4,7 +4,7 @@ import { EnhancedMemoryCacheMap } from '../src/memory/EnhancedMemoryCacheMap';
 import { LocalStorageCacheMap } from '../src/browser/LocalStorageCacheMap';
 import { SessionStorageCacheMap } from '../src/browser/SessionStorageCacheMap';
 import { IndexDBCacheMap } from '../src/browser/IndexDBCacheMap';
-import { Item } from '@fjell/core';
+import { Item } from '@fjell/types';
 
 describe('CacheMap Implementation Types', () => {
   interface TestItem extends Item<'test'> {

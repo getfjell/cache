@@ -1,7 +1,7 @@
 import {
   Coordinate,
   Item
-} from "@fjell/core";
+} from "@fjell/types";
 import { CacheMap } from "../CacheMap";
 import { createCacheMap, Options, validateOptions } from "../Options";
 

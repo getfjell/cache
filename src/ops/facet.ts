@@ -1,8 +1,10 @@
 import {
   ComKey,
-  createFacetWrapper,
   Item,
-  PriKey
+  PriKey,
+} from "@fjell/types";
+import {
+  createFacetWrapper,
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import LibLogger from "../logger";

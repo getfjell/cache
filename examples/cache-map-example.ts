@@ -14,7 +14,7 @@
  */
 
 import { MemoryCacheMap } from '../src/memory/MemoryCacheMap';
-import { ComKey, Item, PriKey } from '@fjell/core';
+import { ComKey, Item, PriKey } from "@fjell/types";
 
 // Define test data models
 interface Document extends Item<'document'> {

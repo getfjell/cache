@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ComKey, Item, PriKey } from '@fjell/core';
+import { ComKey, Item, PriKey } from '@fjell/types';
 import { MemoryCacheMap } from '../../../src/memory/MemoryCacheMap';
 import { TwoLayerCacheMap } from '../../../src/cache/layers/TwoLayerCacheMap';
 import { TwoLayerCacheOptions } from '../../../src/cache/types/TwoLayerTypes';

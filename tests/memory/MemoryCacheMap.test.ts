@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
-import { ComKey, IQFactory, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/core';
+import { ComKey, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/types';
+import { IQFactory } from '@fjell/core';
 
 describe('MemoryCacheMap', () => {
   // Test data types

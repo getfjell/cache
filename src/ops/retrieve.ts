@@ -1,8 +1,10 @@
 import {
   ComKey,
-  isValidItemKey,
   Item,
   PriKey
+} from "@fjell/types";
+import {
+  isValidItemKey,
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import LibLogger from "../logger";
@@ -35,6 +37,10 @@ export const retrieve = async <
 
   // Track cache request
   statsManager.incrementRequests();
+
+  if (key === null) {
+    throw new Error('Key cannot be null');
+  }
 
   if (!isValidItemKey(key)) {
     logger.error('CACHE_OP: Invalid key for retrieve', { key: keyStr });

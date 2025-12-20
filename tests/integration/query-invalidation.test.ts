@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCache } from '../../src/Cache';
-import { AllOperationResult, Item, ItemQuery, PriKey } from '@fjell/core';
+import { AllOperationResult, Item, ItemQuery, PriKey } from '@fjell/types';
 import { CacheEventFactory } from '../../src/events/CacheEventFactory';
 
 interface TestItem extends Item<'test'> {

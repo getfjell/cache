@@ -1,9 +1,11 @@
 import {
   ComKey,
-  createRemoveWrapper,
-  isValidItemKey,
   Item,
   PriKey
+} from "@fjell/types";
+import {
+  createRemoveWrapper,
+  isValidItemKey,
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
@@ -52,6 +54,10 @@ async function executeRemoveLogic<
   const { api, cacheMap } = context;
 
   const keyStr = JSON.stringify(key);
+
+  if (key === null) {
+    throw new Error('Key cannot be null');
+  }
 
   if (!isValidItemKey(key)) {
     logger.error('CACHE_OP: Invalid key for remove operation', {

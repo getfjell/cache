@@ -1,8 +1,10 @@
 import {
-  createOneWrapper,
   Item,
   ItemQuery,
   LocKeyArray
+} from "@fjell/types";
+import {
+  createOneWrapper,
 } from "@fjell/core";
 import { NotFoundError } from "@fjell/http-api";
 import { CacheContext } from "../CacheContext";

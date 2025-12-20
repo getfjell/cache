@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ComKey, LocKeyArray, PriKey } from '@fjell/core';
+import { ComKey, LocKeyArray, PriKey } from '@fjell/types';
 import { Registry } from '@fjell/registry';
 import { Cache } from '../../src/Cache';
 import {

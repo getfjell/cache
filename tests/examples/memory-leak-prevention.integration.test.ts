@@ -8,7 +8,7 @@ import { Coordinate } from '@fjell/registry';
 import { createRegistry } from '../../src/Registry';
 import { CacheEventFactory } from '../../src/events/CacheEventFactory';
 import { CacheEventEmitter } from '../../src/events/CacheEventEmitter';
-import { ComKey, Item, ItemQuery, PriKey } from '@fjell/core';
+import { ComKey, Item, ItemQuery, PriKey } from '@fjell/types';
 
 // Test item interface
 interface TestUser extends Item<'User', 'company', 'department', 'team'> {

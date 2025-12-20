@@ -1,7 +1,7 @@
 import { Aggregator, createAggregator, toCacheConfig } from '../src/Aggregator';
 import { Cache } from '../src/Cache';
 import { CacheMap } from '../src/CacheMap';
-import { Item, PriKey } from '@fjell/core';
+import { Item, PriKey } from '@fjell/types';
 import { beforeEach, describe, expect, it, type Mocked, vi } from 'vitest';
 
 vi.mock('../src/CacheMap');

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCache } from '../src/Cache';
 import { MemoryCacheMap } from '../src/memory/MemoryCacheMap';
-import { ComKey, Item, PriKey } from '@fjell/core';
+import { ComKey, Item, PriKey } from '@fjell/types';
 import { createCoordinate } from '@fjell/core';
 import { createRegistry } from '@fjell/registry';
 

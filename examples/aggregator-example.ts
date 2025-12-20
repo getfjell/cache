@@ -17,7 +17,7 @@ import { createCache } from '../src/Cache';
 import { createInstance } from '../src/Instance';
 import { createRegistry } from '../src/Registry';
 import { ClientApi } from '@fjell/client-api';
-import { Item, PriKey } from '@fjell/core';
+import { Item, PriKey } from "@fjell/types";
 import { createCoordinate } from '@fjell/core';
 
 // Define our business models with relationships

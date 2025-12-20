@@ -10,9 +10,8 @@ import {
 import { runBasicCacheExample } from '../../examples/basic-cache-example';
 import { createCache } from '../../src/Cache';
 import { createRegistry } from '../../src/Registry';
-import { AllOperationResult, createCoordinate } from '@fjell/core';
-import { ClientApi } from '@fjell/client-api';
-import { Item, PriKey } from '@fjell/core';
+import { AllOperationResult, Item, PriKey } from '@fjell/types';
+import { createCoordinate } from '@fjell/core';
 
 describe('Basic Cache Example Integration Tests', () => {
   const testConsole = setupConsoleCapture();

@@ -1,5 +1,5 @@
 
-import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/core";
+import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/types";
 import {
   CacheClearedEvent,
   ItemEvent,

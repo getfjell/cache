@@ -1,9 +1,11 @@
 import {
   ComKey,
-  createGetWrapper,
-  isValidItemKey,
   Item,
   PriKey
+} from "@fjell/types";
+import {
+  createGetWrapper,
+  isValidItemKey,
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
@@ -100,6 +102,10 @@ async function executeGetLogic<
 
   // Track cache request
   statsManager.incrementRequests();
+
+  if (key === null) {
+    throw new Error('Key cannot be null');
+  }
 
   if (!isValidItemKey(key)) {
     logger.error('CACHE_OP: Invalid key for get operation', {

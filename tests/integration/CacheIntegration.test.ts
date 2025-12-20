@@ -3,7 +3,7 @@ import { Cache, createCache } from '../../src/Cache';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
 import { LocalStorageCacheMap } from '../../src/browser/LocalStorageCacheMap';
 import { SessionStorageCacheMap } from '../../src/browser/SessionStorageCacheMap';
-import { ComKey, Item, PriKey, UUID } from '@fjell/core';
+import { ComKey, Item, PriKey, UUID } from '@fjell/types';
 import { createCoordinate } from '@fjell/core';
 import { createRegistry } from '@fjell/registry';
 

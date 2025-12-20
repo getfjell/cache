@@ -1,7 +1,8 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AsyncIndexDBCacheMap } from '../../src/browser/AsyncIndexDBCacheMap';
-import { ComKey, IQFactory, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/core';
+import { ComKey, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/types';
+import { IQFactory } from '@fjell/core';
 import { CacheItemMetadata } from '../../src/eviction/EvictionStrategy';
 
 // Use IndexedDB mock from test setup

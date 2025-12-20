@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { reset } from "../../src/ops/reset";
 import { createCoordinate } from "@fjell/core";
-import { Item } from "@fjell/core";
+import { Item } from "@fjell/types";
 import { CacheMap } from "../../src/CacheMap";
 import { Options } from "../../src/Options";
 

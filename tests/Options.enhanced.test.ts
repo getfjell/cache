@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createCacheMap, createOptions, validateOptions } from '../src/Options';
 import { EnhancedMemoryCacheMap } from '../src/memory/EnhancedMemoryCacheMap';
 import { MemoryCacheMap } from '../src/memory/MemoryCacheMap';
-import { Item } from '@fjell/core';
+import { Item } from '@fjell/types';
 
 // Test item type
 interface TestItem extends Item<'test'> {

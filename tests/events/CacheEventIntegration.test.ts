@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AllOperationResult, Item, ItemQuery, PriKey } from '@fjell/core';
+import { AllOperationResult, Item, ItemQuery, PriKey } from '@fjell/types';
 import { Cache, createCache } from '../../src/Cache';
 import { AnyCacheEvent, CacheEventListener, CacheSubscription } from '../../src/events/CacheEventTypes';
 import { createCoordinate } from '@fjell/core';

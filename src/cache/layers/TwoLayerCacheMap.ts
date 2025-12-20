@@ -5,7 +5,7 @@ import {
   ItemQuery,
   LocKeyArray,
   PriKey
-} from "@fjell/core";
+} from "@fjell/types";
 import { CacheMap } from "../../CacheMap";
 import { QueryMetadata, QueryResult, TwoLayerCacheOptions } from "../types/TwoLayerTypes";
 import LibLogger from "../../logger";

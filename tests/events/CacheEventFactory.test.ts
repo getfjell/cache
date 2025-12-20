@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ComKey, Item, ItemQuery } from '@fjell/core';
+import { ComKey, Item, ItemQuery } from '@fjell/types';
 import { CacheEventFactory } from '../../src/events/CacheEventFactory';
 
 // Test item interface

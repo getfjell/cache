@@ -15,7 +15,7 @@ import { createCache } from "../src/Cache";
 import { Coordinate } from "@fjell/registry";
 import { createRegistry } from "../src/Registry";
 import util from 'util';
-import { ComKey, Item, ItemQuery, PriKey } from '@fjell/core';
+import { ComKey, Item, ItemQuery, PriKey } from "@fjell/types";
 
 // Test item interface for example
 interface User extends Item<'User', 'company', 'department', 'team'> {

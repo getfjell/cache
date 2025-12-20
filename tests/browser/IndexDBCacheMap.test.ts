@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IndexDBCacheMap } from '../../src/browser/IndexDBCacheMap';
 import { AsyncIndexDBCacheMap } from '../../src/browser/AsyncIndexDBCacheMap';
-import { ComKey, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/core';
+import { ComKey, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/types';
 
 // Mock IndexedDB
 Object.defineProperty(global, 'indexedDB', {

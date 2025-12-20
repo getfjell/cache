@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { allAction } from '../../src/ops/allAction';
 import { CacheContext } from '../../src/CacheContext';
-import { ComKey, Item, LocKeyArray, PriKey, UUID } from '@fjell/core';
+import { ComKey, Item, LocKeyArray, PriKey, UUID } from '@fjell/types';
 import { ClientApi } from '@fjell/client-api';
 import { NotFoundError } from '@fjell/http-api';
 import { CacheMap } from '../../src/CacheMap';

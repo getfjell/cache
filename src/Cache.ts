@@ -1,4 +1,4 @@
-import { Item } from "@fjell/core";
+import { Coordinate, Item } from "@fjell/types";
 import { Instance as BaseInstance, Registry } from "@fjell/registry";
 import { ClientApi } from "@fjell/client-api";
 import { CacheMap } from "./CacheMap";
@@ -12,7 +12,6 @@ import { CacheEventEmitter } from "./events/CacheEventEmitter";
 import { CacheEventListener, CacheSubscription, CacheSubscriptionOptions } from "./events/CacheEventTypes";
 import { CacheEventFactory } from "./events/CacheEventFactory";
 import { CacheStats, CacheStatsManager } from "./CacheStats";
-import { Coordinate } from "@fjell/core";
 
 const logger = LibLogger.get('Cache');
 

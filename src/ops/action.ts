@@ -1,10 +1,12 @@
 import {
   ComKey,
-  createActionWrapper,
-  isValidItemKey,
   Item,
   LocKeyArray,
   PriKey
+} from "@fjell/types";
+import {
+  createActionWrapper,
+  isValidItemKey,
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import { CacheEventFactory } from "../events/CacheEventFactory";
@@ -56,6 +58,10 @@ async function executeActionLogic<
   context: CacheContext<V, S, L1, L2, L3, L4, L5>
 ): Promise<[V, Array<PriKey<any> | ComKey<any, any, any, any, any, any> | LocKeyArray<any, any, any, any, any>>]> {
   const { api, cacheMap, pkType, registry } = context;
+
+  if (key === null) {
+    throw new Error('Key cannot be null');
+  }
 
   if (!isValidItemKey(key)) {
     logger.error('Key for Action is not a valid ItemKey: %j', key);

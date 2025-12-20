@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInstanceFactory } from '../src/InstanceFactory';
 import { Options } from '../src/Options';
 import { MemoryCacheMap } from '../src/memory/MemoryCacheMap';
-import { Item } from '@fjell/core';
+import { Item } from '@fjell/types';
 import { ClientApi } from '@fjell/client-api';
 
 // Mock the dependencies

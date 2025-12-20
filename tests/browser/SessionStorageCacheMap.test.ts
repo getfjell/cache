@@ -1,7 +1,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionStorageCacheMap } from '../../src/browser/SessionStorageCacheMap';
-import { ComKey, IQFactory, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/core';
+import { ComKey, Item, ItemQuery, LocKeyArray, PriKey, UUID } from '@fjell/types';
+import { IQFactory } from '@fjell/core';
 import { StorageMock } from './storage-mock';
 
 // Use sessionStorage mock from test setup

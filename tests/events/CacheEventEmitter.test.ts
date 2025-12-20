@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Item, ItemQuery } from '@fjell/core';
+import { Item, ItemQuery } from '@fjell/types';
 import { CacheEventEmitter } from '../../src/events/CacheEventEmitter';
 import { CacheEventFactory } from '../../src/events/CacheEventFactory';
 import { CacheEventListener, CacheSubscriptionOptions } from '../../src/events/CacheEventTypes';
