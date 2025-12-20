@@ -143,7 +143,7 @@ describe('set operation', () => {
     it('should throw error for null key', async () => {
       const invalidKey = null as any;
 
-      await expect(set(invalidKey, testItem1, context)).rejects.toThrow('Cannot read properties of null');
+      await expect(set(invalidKey, testItem1, context)).rejects.toThrow('Key cannot be null');
 
       expect(mockCacheMap.set).not.toHaveBeenCalled();
     });

@@ -13,8 +13,8 @@ import {
   createUpdateWrapper,
   FindOperationResult,
   FindOptions,
-  isOperationComKey as isComKey,
-  isOperationPriKey as isPriKey,
+  isComKey,
+  isPriKey,
   OperationParams
 } from "@fjell/core";
 import { ComKey, Item, ItemQuery, LocKeyArray, PriKey } from "@fjell/core";
