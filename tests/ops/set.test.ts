@@ -5,7 +5,8 @@ import { CacheMap } from '../../src/CacheMap';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
 import { CacheEventEmitter } from '../../src/events/CacheEventEmitter';
 import { ClientApi } from '@fjell/client-api';
-import { ComKey, createCoordinate, Item, PriKey, UUID } from '@fjell/core';
+import { ComKey, Item, PriKey, UUID } from '@fjell/types';
+import { createCoordinate } from '@fjell/core';
 
 describe('set operation', () => {
   // Test data types
@@ -143,7 +144,7 @@ describe('set operation', () => {
     it('should throw error for null key', async () => {
       const invalidKey = null as any;
 
-      await expect(set(invalidKey, testItem1, context)).rejects.toThrow('Cannot read properties of null');
+      await expect(set(invalidKey, testItem1, context)).rejects.toThrow('Key cannot be null');
 
       expect(mockCacheMap.set).not.toHaveBeenCalled();
     });

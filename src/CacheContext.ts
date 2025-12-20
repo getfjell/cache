@@ -1,7 +1,6 @@
-import { Item } from "@fjell/core";
+import { Coordinate, Item } from "@fjell/types";
 import { ClientApi } from "@fjell/client-api";
 import { Registry } from "@fjell/registry";
-import { Coordinate } from "@fjell/core";
 import { CacheMap } from "./CacheMap";
 import { Options } from "./Options";
 import { CacheEventEmitter } from "./events/CacheEventEmitter";

@@ -1,4 +1,4 @@
-import { Item } from '@fjell/core';
+import { Item } from '@fjell/types';
 import { CacheMap } from './CacheMap';
 import { MemoryCacheMap } from './memory/MemoryCacheMap';
 import { EnhancedMemoryCacheMap } from './memory/EnhancedMemoryCacheMap';

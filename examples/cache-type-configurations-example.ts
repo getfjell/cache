@@ -9,7 +9,7 @@
 import { createInstanceFactory, Options } from '../src/index';
 import { createCoordinate } from '@fjell/core';
 import { createRegistry } from '@fjell/registry';
-import { Item } from '@fjell/core';
+import { Item } from "@fjell/types";
 
 // Sample item interface
 interface User extends Item<'user'> {

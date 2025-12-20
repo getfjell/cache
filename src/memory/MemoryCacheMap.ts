@@ -1,12 +1,14 @@
 import {
   AllItemTypeArrays,
   ComKey,
-  isComKey,
-  isQueryMatch,
   Item,
   ItemQuery,
   LocKeyArray,
   PriKey
+} from "@fjell/types";
+import {
+  isComKey,
+  isQueryMatch,
 } from "@fjell/core";
 import { CacheMap } from "../CacheMap";
 import { CacheItemMetadata } from "../eviction/EvictionStrategy";

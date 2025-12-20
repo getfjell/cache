@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { CacheType, createCacheMap, createOptions, Options, validateOptions } from '../src/Options';
 import { MemoryCacheMap } from '../src/memory/MemoryCacheMap';
-import { Item } from '@fjell/core';
+import { Item } from '@fjell/types';
 
 interface TestItem extends Item<'test'> {
   id: string;

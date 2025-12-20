@@ -1,7 +1,9 @@
 import {
-  createAllFacetWrapper,
   Item,
   LocKeyArray
+} from "@fjell/types";
+import {
+  createAllFacetWrapper,
 } from "@fjell/core";
 import { CacheContext } from "../CacheContext";
 import LibLogger from "../logger";

@@ -5,7 +5,7 @@ import {
   ItemQuery,
   LocKeyArray,
   PriKey
-} from "@fjell/core";
+} from "@fjell/types";
 import { CacheItemMetadata, CacheMapMetadataProvider } from "./eviction/EvictionStrategy";
 import { CacheInfo } from "./Cache";
 

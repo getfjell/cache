@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createCache } from '../../src/Cache';
 import { createOptions } from '../../src/Options';
-import { AllOperationResult, PriKey } from '@fjell/core';
+import { AllOperationResult, PriKey } from '@fjell/types';
 
 interface TestOrderPhase {
   key: PriKey<'orderPhase'>;

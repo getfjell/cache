@@ -3,7 +3,7 @@ import { all } from '../../src/ops/all';
 import { CacheContext } from '../../src/CacheContext';
 import { CacheMap } from '../../src/CacheMap';
 import { ClientApi } from '@fjell/client-api';
-import { AllOperationResult, ComKey, Item, LocKeyArray, PriKey, UUID } from '@fjell/core';
+import { AllOperationResult, ComKey, Item, LocKeyArray, PriKey, UUID } from '@fjell/types';
 import { NotFoundError } from '@fjell/http-api';
 import { createQueryHash } from '../../src/normalization';
 import { createCoordinate } from '@fjell/core';

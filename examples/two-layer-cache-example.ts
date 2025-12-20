@@ -9,7 +9,7 @@
 
 import { TwoLayerFactory } from '../src/cache/TwoLayerFactory';
 import { TwoLayerCacheOptions } from '../src/cache/types/TwoLayerTypes';
-import { PriKey } from '@fjell/core';
+import { PriKey } from "@fjell/types";
 
 // Demo function showing two-layer cache usage
 export function demonstrateTwoLayerCache() {

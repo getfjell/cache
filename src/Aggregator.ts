@@ -6,7 +6,7 @@ import {
   ItemQuery,
   LocKeyArray,
   PriKey
-} from "@fjell/core";
+} from "@fjell/types";
 import { Cache } from "./Cache";
 import { CacheMap } from "./CacheMap";
 import { CacheEventEmitter } from "./events/CacheEventEmitter";

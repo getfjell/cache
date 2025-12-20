@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { retrieve } from '../../src/ops/retrieve';
 import { CacheContext } from '../../src/CacheContext';
 import { MemoryCacheMap } from '../../src/memory/MemoryCacheMap';
-import { ComKey, createCoordinate, Item, PriKey, UUID } from '@fjell/core';
+import { ComKey, Item, PriKey, UUID } from '@fjell/types';
+import { createCoordinate } from '@fjell/core';
 import * as getOp from '../../src/ops/get';
 import { CacheStatsManager } from '../../src/CacheStats';
 
@@ -358,8 +359,8 @@ describe('retrieve operation', () => {
       cacheMap.set(key1, item1);
 
       // Mock validatePK to return the item
-      vi.doMock('@fjell/core', async () => {
-        const actual = await vi.importActual('@fjell/core');
+      vi.doMock('@fjell/validation', async () => {
+        const actual = await vi.importActual('@fjell/validation');
         return {
           ...actual,
           validatePK: vi.fn((item) => item)
@@ -376,8 +377,8 @@ describe('retrieve operation', () => {
       (getOp.get as any).mockResolvedValue([context, item1]);
 
       // Mock validatePK to return the item
-      vi.doMock('@fjell/core', async () => {
-        const actual = await vi.importActual('@fjell/core');
+      vi.doMock('@fjell/validation', async () => {
+        const actual = await vi.importActual('@fjell/validation');
         return {
           ...actual,
           validatePK: vi.fn((item) => item)

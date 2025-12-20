@@ -1,7 +1,7 @@
 import {
   AllItemTypeArrays,
   Item
-} from "@fjell/core";
+} from "@fjell/types";
 import { CacheMap } from "../CacheMap";
 import { TwoLayerCacheMap } from "./layers/TwoLayerCacheMap";
 import { TwoLayerCacheOptions } from "./types/TwoLayerTypes";
