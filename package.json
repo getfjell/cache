@@ -71,6 +71,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/getfjell/cache.git"
+    "url": "git+https://github.com/fjellgrunn/cache.git"
   }
 }
