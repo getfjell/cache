@@ -37,12 +37,12 @@
     "docs:test": "cd docs && npm run test"
   },
   "dependencies": {
-    "@fjell/client-api": "^4.4.70",
-    "@fjell/core": "^4.4.76",
-    "@fjell/http-api": "^4.4.66",
-    "@fjell/logging": "^4.4.66",
-    "@fjell/registry": "^4.4.83",
-    "@fjell/types": "^4.4.6",
+    "@fjell/client-api": "^4.4.71",
+    "@fjell/core": "^4.4.77",
+    "@fjell/http-api": "^4.4.67",
+    "@fjell/logging": "^4.4.67",
+    "@fjell/registry": "^4.4.84",
+    "@fjell/types": "^4.4.7",
     "fast-safe-stringify": "^2.1.1",
     "flatted": "^3.3.3",
     "yocto-queue": "^1.2.1"
@@ -50,7 +50,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.38.0",
-    "@fjell/common-config": "^1.1.36",
+    "@fjell/common-config": "^1.1.37",
     "@swc/core": "^1.13.5",
     "@tsconfig/recommended": "^1.0.10",
     "@types/multer": "^2.0.0",
@@ -66,7 +66,7 @@
     "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.9.3",
-    "@fjell/validation": "^4.4.3",
+    "@fjell/validation": "^4.4.4",
     "vitest": "^4.0.1"
   },
   "repository": {
